@@ -12270,33 +12270,51 @@ function _getBreakdownForMi(branch, field, mi) {
 
   branches.forEach(function(bn) {
     var nm = bn.replace(/本社|営業所|事業所|支店/g, '');
-    // ソフト（Excel確定値優先）
+
+    // ★ HW・保守・その他・消耗品を先に計算（system逆算で参照するため）
+    var hwVal = D.hardware && D.hardware[bn] ? _sg(D.hardware[bn], field, mi) : 0;
+    var otVal = D.other    && D.other[bn]    ? _sg(D.other[bn],    field, mi) : 0;
+    var mtVal = typeof getMaintVal === 'function' ? getMaintVal(bn, field, mi) : 0;
+    var fm = mi + 4;
+    var yr = fm <= 12 ? fy : fy + 1;
+    var mo = fm <= 12 ? fm : fm - 12;
+    var ym = yr + '-' + String(mo).padStart(2, '0');
+    var csVal = 0;
+    if (D.consumables && D.consumables[ym] && D.consumables[ym][nm]) {
+      var c = D.consumables[ym][nm];
+      csVal = field === 's' ? (c.sales || 0) : (c.profit || 0);
+    }
+
+    // ── ソフト(system) の計算 ──
+    // 優先順位: ① branchSoftActuals(Excelソフト確定値)
+    //          ② branchActualsからの逆算（旧データ救済）
+    //          ③ 案件管理から積み上げ
     var soft = D.branchSoftActuals && D.branchSoftActuals[bn] ? _sg(D.branchSoftActuals[bn], field, mi) : 0;
+    var ba   = D.branchActuals     && D.branchActuals[bn]     ? _sg(D.branchActuals[bn],     field, mi) : 0;
+
     if (soft > 0) {
+      // ① Excelソフト確定値あり → 最優先
       breakdown.system += soft;
+    } else if (ba > 0 && ba > (hwVal + otVal + mtVal + csVal)) {
+      // ② branchActuals(Excel全部入り)はあるが branchSoftActuals が空
+      //   → branchActuals から他カテゴリを引いて逆算
+      //   (古い時期にインポートされた月で branchSoftActuals が未保存だった月の救済)
+      breakdown.system += ba - (hwVal + otVal + mtVal + csVal);
     } else {
+      // ③ Excelデータなし → 案件管理から積み上げ
       var _fp = window.filterPeople || filterPeople || function(){ return []; };
-    _fp(bn).forEach(function(p) {
+      _fp(bn).forEach(function(p) {
         breakdown.system += _sg(D.actuals && D.actuals[p.id], field, mi);
       });
       if (typeof getGroupActualsVal === 'function') breakdown.system += getGroupActualsVal(bn, field, mi);
       if (typeof _getOfficeDealsTotalForBranch === 'function') breakdown.system += _getOfficeDealsTotalForBranch(bn, field, mi);
     }
-    // HW
-    if (D.hardware && D.hardware[bn]) breakdown.hardware += _sg(D.hardware[bn], field, mi);
-    // その他
-    if (D.other && D.other[bn]) breakdown.other += _sg(D.other[bn], field, mi);
-    // 保守
-    if (typeof getMaintVal === 'function') breakdown.maintenance += getMaintVal(bn, field, mi);
-    // 消耗品
-    var fm = mi + 4;
-    var yr = fm <= 12 ? fy : fy + 1;
-    var mo = fm <= 12 ? fm : fm - 12;
-    var ym = yr + '-' + String(mo).padStart(2, '0');
-    if (D.consumables && D.consumables[ym] && D.consumables[ym][nm]) {
-      var c = D.consumables[ym][nm];
-      breakdown.consumables += field === 's' ? (c.sales || 0) : (c.profit || 0);
-    }
+
+    // HW・その他・保守・消耗品 を breakdown に反映
+    breakdown.hardware    += hwVal;
+    breakdown.other       += otVal;
+    breakdown.maintenance += mtVal;
+    breakdown.consumables += csVal;
   });
   return breakdown;
 }
