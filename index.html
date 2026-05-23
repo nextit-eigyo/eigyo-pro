@@ -12027,6 +12027,9 @@ function _getSoftSplitForMi(branch, mi) {
   (D.deals||[]).forEach(function(d) {
     var dMi = typeof implToFyIdx === 'function' ? implToFyIdx(d.deliveryMonth || '') : -1;
     if (dMi !== mi) return;
+    // ★ 受注済みのみ集計（_getBreakdownForMi.system と意味を揃える）
+    // actualsReflected または actualsGroup が true の案件のみ対象とする
+    if (!d.actualsReflected && !d.actualsGroup) return;
     var sv = parseFloat(d.sales) || 0;
     var cv = parseFloat(d.cost) || 0;
     var pv = sv - cv;

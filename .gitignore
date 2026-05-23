@@ -1,0 +1,16 @@
+# Claude Code internal files
+.claude/
+
+# Local-only development notes (contain login info / private docs)
+CLAUDE.md
+PROJECT_STATUS.md
+
+# Temp / backup files
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS files
+Thumbs.db
+.DS_Store
