@@ -16192,15 +16192,23 @@ function _pcGetConnType(pc, deviceKey, deviceMeta) {
 function _pcSvgDevice(d, cx, cy, opts) {
   opts = opts || {};
   var iconBoxSize = opts.iconSize || 64;
-  var labelMaxWidth = opts.labelMaxWidth || 120;
+  var labelMaxLen = opts.labelMaxLen || 18;
+  var subLabelMaxLen = opts.subLabelMaxLen || 20;
   var iconX = cx - iconBoxSize / 2;
   var iconY = cy - iconBoxSize / 2;
   var color = d.color || '#5a7b9e';
 
+  // ラベル truncate
+  function _truncate(s, max) {
+    s = String(s||'');
+    return s.length > max ? s.slice(0, max - 1) + '…' : s;
+  }
+  var label = _truncate(d.label, labelMaxLen);
+
   var html = '<g class="pc-svg-device">';
-  // 背景の白フィルタ(印刷時にも見やすく)
+  // 背景
   html += '<rect x="' + (iconX - 4) + '" y="' + (iconY - 4) + '" width="' + (iconBoxSize + 8) + '" height="' + (iconBoxSize + 8) + '" rx="6" fill="#fff" stroke="' + color + '" stroke-width="1.5"/>';
-  // アイコン(64x64 viewBoxを iconBoxSize にスケール)
+  // アイコン
   html += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconBoxSize + '" height="' + iconBoxSize + '" viewBox="0 0 64 64">';
   html += _pcIconContent(d.type, color);
   html += '</svg>';
@@ -16213,12 +16221,25 @@ function _pcSvgDevice(d, cx, cy, opts) {
   }
   // ラベル
   var labelY = cy + iconBoxSize/2 + 14;
-  html += '<text x="' + cx + '" y="' + labelY + '" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530">' + _esc(d.label||'') + '</text>';
+  html += '<text x="' + cx + '" y="' + labelY + '" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530">' + _esc(label) + '</text>';
   // サブラベル(型番等)
+  var subOffset = 12;
   if (d.sublabel) {
-    var sub = String(d.sublabel);
-    if (sub.length > 18) sub = sub.slice(0, 17) + '…';
-    html += '<text x="' + cx + '" y="' + (labelY + 12) + '" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#8a7e70">' + _esc(sub) + '</text>';
+    var sub = _truncate(d.sublabel, subLabelMaxLen);
+    html += '<text x="' + cx + '" y="' + (labelY + subOffset) + '" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#8a7e70">' + _esc(sub) + '</text>';
+    subOffset += 11;
+  }
+  // 詳細行(プリンタのトレイ情報など、最大3行)
+  if (d.detailLines && d.detailLines.length) {
+    var maxLines = 3;
+    var lines = d.detailLines.slice(0, maxLines);
+    lines.forEach(function(line, i){
+      var dl = _truncate(line, 22);
+      html += '<text x="' + cx + '" y="' + (labelY + subOffset + i * 10) + '" text-anchor="middle" font-family="sans-serif" font-size="8.5" font-weight="600" fill="#7a3525">' + _esc(dl) + '</text>';
+    });
+    if (d.detailLines.length > maxLines) {
+      html += '<text x="' + cx + '" y="' + (labelY + subOffset + maxLines * 10) + '" text-anchor="middle" font-family="sans-serif" font-size="8.5" fill="#8a7e70">… 他' + (d.detailLines.length - maxLines) + '件</text>';
+    }
   }
   html += '</g>';
   return html;
@@ -16249,15 +16270,40 @@ function _pcBuildNetworkDiagramSvg(name) {
   var pc = _pcMigrate(D.pharmacies[name]);
   var sw = pc.software || {};
 
+  // ── Smart routing 検出 ──
+  // YAMAHA ルーター → オン資端末 接続(医療機関の典型構成)
+  // 無線ルーター → ONU 接続(基本ネットワーク: ONU→無線→HUB)
+  var yamahaIdx = -1, wirelessIdx = -1;
+  (pc.routers||[]).forEach(function(r, i){
+    if (!r.count) return;
+    if (r.type === 'YAMAHA' && yamahaIdx < 0) yamahaIdx = i;
+    else if (r.type === '無線' && wirelessIdx < 0) wirelessIdx = i;
+  });
+  // ONU検出 (その他デバイスから名前で判定)
+  var onuIndices = [];
+  (pc.other||[]).forEach(function(o, i){
+    if (!o.name || !o.count) return;
+    if (/ONU|光|モデム/.test(o.name)) onuIndices.push(i);
+  });
+
+  var onshikakuPaired = (yamahaIdx >= 0 && pc.onshikaku && pc.onshikaku.count > 0);
+  var onuPaired = (wirelessIdx >= 0 && onuIndices.length > 0);
+
   // ── 機器の収集 ──
-  // 上部ゾーン: Server, Onshikaku
+  // 上部ゾーン: Server + その他周辺 + (オン資 if not paired)
   var topDevices = [];
   if (pc.server && pc.server.count > 0) {
     topDevices.push({ key:'server', type:'server', label:'サーバー専用機', count:pc.server.count, sublabel:pc.server.model, color:'#3a5a7e', meta:pc.server });
   }
-  if (pc.onshikaku && pc.onshikaku.count > 0) {
+  if (!onshikakuPaired && pc.onshikaku && pc.onshikaku.count > 0) {
     topDevices.push({ key:'onshikaku', type:'onshikaku', label:'オン資端末', count:pc.onshikaku.count, sublabel:pc.onshikaku.location, color:'#c89856', meta:pc.onshikaku });
   }
+  (pc.other||[]).forEach(function(o, i){
+    if (!o.name || !o.count) return;
+    // ONU は左チェーンで使うので top に載せない
+    if (onuPaired && onuIndices.indexOf(i) >= 0) return;
+    topDevices.push({ key:'other_'+i, type:'other', label:o.name, count:o.count, color:'#7a6b5a', meta:o });
+  });
 
   // 下部ゾーン: レセコン, 薬歴, プリンタ
   var bottomDevices = [];
@@ -16269,78 +16315,108 @@ function _pcBuildNetworkDiagramSvg(name) {
   }
   (pc.printers||[]).forEach(function(p, i){
     if (!p.count) return;
-    var trayLabel = '';
-    var activeTrays = (p.trays||[]).filter(function(t){return t.purpose;});
-    if (activeTrays.length === 1) trayLabel = activeTrays[0].purpose;
-    else if (activeTrays.length > 1) trayLabel = activeTrays.length + 'トレイ';
-    bottomDevices.push({ key:'printer_'+i, type:'printer', label:p.name||'プリンタ', count:p.count, sublabel:p.model || trayLabel, color:'#a85a4a', meta:p });
+    // プリンタのトレイ詳細を detailLines に
+    var trayLines = (p.trays||[]).filter(function(t){return t.purpose;}).map(function(t){
+      var key = t.tray ? t.tray + ':' : '';
+      return key + t.purpose + (t.note ? '(' + t.note + ')' : '');
+    });
+    bottomDevices.push({
+      key:'printer_'+i,
+      type:'printer',
+      label:p.name||'プリンタ',
+      count:p.count,
+      sublabel:p.model,
+      detailLines: trayLines,
+      color:'#a85a4a',
+      meta:p
+    });
   });
 
-  // 右側ゾーン: Routers
-  var sideDevices = [];
+  // ルーター(右側=YAMAHA系・その他、左側=無線)
+  var rightRouters = [];
+  var leftRouter = null;
   (pc.routers||[]).forEach(function(r, i){
     if (!r.count) return;
     var label = (r.type === 'その他' ? 'ルーター' : (r.type || '') + 'ルーター');
-    sideDevices.push({ key:'router_'+i, type:'router', label:label, count:r.count, sublabel:r.model, color:'#5a4f44', meta:r });
-  });
-
-  // その他周辺機器(サーバー隣接配置)
-  var miscDevices = [];
-  (pc.other||[]).forEach(function(o, i){
-    if (!o.name || !o.count) return;
-    miscDevices.push({ key:'other_'+i, type:'other', label:o.name, count:o.count, color:'#7a6b5a', meta:o });
+    var entry = { key:'router_'+i, type:'router', label:label, count:r.count, sublabel:r.model, color:'#5a4f44', meta:r, routerType:r.type };
+    if (i === wirelessIdx) {
+      // 無線ルーター → 左側
+      leftRouter = entry;
+      if (onuPaired) {
+        entry.onuChildren = onuIndices.map(function(ui){
+          var o = pc.other[ui];
+          return { key:'other_'+ui, type:'other', label:o.name, count:o.count, color:'#7a6b5a', meta:o };
+        });
+      }
+    } else {
+      // YAMAHA/その他 → 右側
+      if (i === yamahaIdx && onshikakuPaired) {
+        entry.onshikakuChild = { key:'onshikaku', type:'onshikaku', label:'オン資端末', count:pc.onshikaku.count, sublabel:pc.onshikaku.location, color:'#c89856', meta:pc.onshikaku };
+      }
+      rightRouters.push(entry);
+    }
   });
 
   // HUB
   var hubs = (pc.hubs||[]).filter(function(h){return h.count>0;});
-  var hasHub = hubs.length > 0 || (topDevices.length || bottomDevices.length);
+  var hasHub = hubs.length > 0 || (topDevices.length || bottomDevices.length || rightRouters.length || leftRouter);
 
-  // 機器がまったく無い場合は早期リターン
-  if (!topDevices.length && !bottomDevices.length && !sideDevices.length && !miscDevices.length) {
+  if (!topDevices.length && !bottomDevices.length && !rightRouters.length && !leftRouter) {
     return '<div style="padding:30px;text-align:center;color:var(--tx3);font-size:13px">機器が登録されていません。「✏ 編集」から登録してください。</div>';
   }
 
   // ── レイアウト計算 ──
-  var width = 980;
-  // 機器の数で高さを動的に決定
-  var topRowHeight   = topDevices.length || miscDevices.length ? 160 : 0;
-  var hubRowHeight   = hasHub ? 90 : 0;
-  var bottomRowHeight = bottomDevices.length ? 160 : 0;
+  var width = 1100;
   var headerHeight = 60;
-  var legendHeight = 60;
-  var height = headerHeight + topRowHeight + hubRowHeight + bottomRowHeight + legendHeight + 60;
-  if (sideDevices.length) {
-    // 横向きに伸ばす必要があるかもしれないが、ひとまず幅は固定
-    var sideHeightNeeded = sideDevices.length * 110;
-    if (sideHeightNeeded > topRowHeight + hubRowHeight) {
-      height = headerHeight + sideHeightNeeded + bottomRowHeight + legendHeight + 60;
-    }
+  var legendHeight = 50;
+  var optionBoxHeight = 70;
+  var topRowHeight = topDevices.length ? 170 : 0;
+  var hubRowHeight = hasHub ? 90 : 0;
+  // 下部ゾーンの高さ: プリンタのトレイ詳細を含むので大きめ
+  var hasPrinterDetails = bottomDevices.some(function(d){ return d.detailLines && d.detailLines.length; });
+  var bottomRowHeight = bottomDevices.length ? (hasPrinterDetails ? 220 : 170) : 0;
+  // 右側 (router + child)
+  var rightHeight = 0;
+  rightRouters.forEach(function(r){
+    rightHeight += 130;
+    if (r.onshikakuChild) rightHeight += 110;
+  });
+  // 左側 (router + ONU children)
+  var leftHeight = 0;
+  if (leftRouter) {
+    leftHeight = 130;
   }
 
-  var topY    = headerHeight + 70;
-  var hubY    = headerHeight + topRowHeight + hubRowHeight/2 + 10;
-  var bottomY = headerHeight + topRowHeight + hubRowHeight + 80;
-  var legendY = height - legendHeight + 20;
+  var mainBodyHeight = Math.max(
+    topRowHeight + hubRowHeight + bottomRowHeight,
+    rightHeight + 100,
+    leftHeight + 100
+  );
+  var height = headerHeight + mainBodyHeight + legendHeight + optionBoxHeight + 30;
+
+  var topY = headerHeight + 75;
+  var hubY = headerHeight + topRowHeight + hubRowHeight/2 + 10;
+  var bottomY = headerHeight + topRowHeight + hubRowHeight + (hasPrinterDetails ? 95 : 80);
+  var legendY = headerHeight + mainBodyHeight + 20;
+  var optionBoxY = legendY + 18;
+
+  // HUB バーの両端位置(左右ルーター分の余白)
+  var hubLineXLeft  = leftRouter ? 280 : 100;
+  var hubLineXRight = rightRouters.length ? width - 250 : width - 100;
 
   // ── SVG構築 ──
   var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:auto;background:#fff;border-radius:10px">';
 
-  // ヘッダ(タイトル)
+  // ヘッダ
   svg += '<rect x="0" y="0" width="' + width + '" height="' + headerHeight + '" fill="#5a7b9e"/>';
   svg += '<text x="' + (width/2) + '" y="38" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="900" fill="#fff">' + _esc(name) + ' ネットワーク構成図</text>';
 
-  // ── HUB 中央バー ──
-  var hubLineXLeft  = 80;
-  var hubLineXRight = width - 280;  // 右側ゾーン余白
-  if (!sideDevices.length) hubLineXRight = width - 80;
-
+  // HUB 中央バー
   if (hasHub) {
-    var hubBarHeight = 44;
+    var hubBarHeight = 50;
     var hubBarY = hubY - hubBarHeight/2;
-    svg += '<rect x="' + hubLineXLeft + '" y="' + hubBarY + '" width="' + (hubLineXRight - hubLineXLeft) + '" height="' + hubBarHeight + '" rx="22" fill="#5a7b9e" opacity="0.10" stroke="#5a7b9e" stroke-width="2"/>';
-    // HUB アイコン(左端)
-    svg += '<svg x="' + (hubLineXLeft + 8) + '" y="' + (hubBarY + 4) + '" width="36" height="36" viewBox="0 0 64 64">' + _pcIconContent('hub', '#3a5a7e') + '</svg>';
-    // HUB ラベル
+    svg += '<rect x="' + hubLineXLeft + '" y="' + hubBarY + '" width="' + (hubLineXRight - hubLineXLeft) + '" height="' + hubBarHeight + '" rx="25" fill="#5a7b9e" opacity="0.10" stroke="#5a7b9e" stroke-width="2"/>';
+    svg += '<svg x="' + (hubLineXLeft + 8) + '" y="' + (hubBarY + 5) + '" width="40" height="40" viewBox="0 0 64 64">' + _pcIconContent('hub', '#3a5a7e') + '</svg>';
     var hubLabel = hubs.length
       ? hubs.map(function(h){
           var s = (h.name||'HUB');
@@ -16349,79 +16425,146 @@ function _pcBuildNetworkDiagramSvg(name) {
           return s;
         }).join('  /  ')
       : 'ネットワーク HUB';
-    svg += '<text x="' + (hubLineXLeft + 56) + '" y="' + (hubY + 5) + '" font-family="sans-serif" font-size="14" font-weight="800" fill="#3a5a7e">' + _esc(hubLabel) + '</text>';
+    svg += '<text x="' + (hubLineXLeft + 60) + '" y="' + (hubY + 5) + '" font-family="sans-serif" font-size="15" font-weight="800" fill="#3a5a7e">' + _esc(hubLabel) + '</text>';
   }
 
-  // ── 上部ゾーン: Server + Onshikaku + Misc ──
-  var topGroup = topDevices.concat(miscDevices);
-  if (topGroup.length) {
-    var slotW = Math.min(140, (hubLineXRight - hubLineXLeft) / topGroup.length);
-    var totalW = slotW * topGroup.length;
+  // 共通: 機器数に応じたサイズ調整
+  function _sizing(count) {
+    if (count <= 3) return { iconSize: 64, labelMaxLen: 16, fontSize: 11 };
+    if (count <= 5) return { iconSize: 56, labelMaxLen: 12, fontSize: 10 };
+    if (count <= 7) return { iconSize: 48, labelMaxLen: 10, fontSize: 9 };
+    return { iconSize: 44, labelMaxLen: 8, fontSize: 9 };
+  }
+
+  // ── 上部ゾーン ──
+  if (topDevices.length) {
+    var topCount = topDevices.length;
+    var sz = _sizing(topCount);
+    var maxSlotW = (hubLineXRight - hubLineXLeft) / topCount;
+    var slotW = Math.min(160, Math.max(110, maxSlotW));
+    var totalW = slotW * topCount;
     var startX = (hubLineXLeft + hubLineXRight) / 2 - totalW / 2 + slotW / 2;
-    topGroup.forEach(function(d, i){
+
+    topDevices.forEach(function(d, i){
       var cx = startX + i * slotW;
-      svg += _pcSvgDevice(d, cx, topY);
-      // 接続線 (機器 → HUB)
+      svg += _pcSvgDevice(d, cx, topY, { iconSize: sz.iconSize, labelMaxLen: sz.labelMaxLen });
       var ct = _pcGetConnType(pc, d.key, d.meta);
-      svg += _pcSvgConnection(cx, topY + 38, cx, hubY - 22, ct);
+      svg += _pcSvgConnection(cx, topY + sz.iconSize/2 + 20, cx, hubY - 25, ct);
     });
   }
 
-  // ── 下部ゾーン: Reseco + Yakureki + Printers ──
+  // ── 下部ゾーン ──
   if (bottomDevices.length) {
-    var slotW2 = Math.min(150, (hubLineXRight - hubLineXLeft) / bottomDevices.length);
-    var totalW2 = slotW2 * bottomDevices.length;
+    var botCount = bottomDevices.length;
+    var sz2 = _sizing(botCount);
+    var maxSlotW2 = (hubLineXRight - hubLineXLeft) / botCount;
+    var slotW2 = Math.min(170, Math.max(120, maxSlotW2));
+    var totalW2 = slotW2 * botCount;
     var startX2 = (hubLineXLeft + hubLineXRight) / 2 - totalW2 / 2 + slotW2 / 2;
+
     bottomDevices.forEach(function(d, i){
       var cx = startX2 + i * slotW2;
-      svg += _pcSvgDevice(d, cx, bottomY);
-      // 接続線 (HUB → 機器)
+      svg += _pcSvgDevice(d, cx, bottomY, { iconSize: sz2.iconSize, labelMaxLen: sz2.labelMaxLen });
       var ct = _pcGetConnType(pc, d.key, d.meta);
-      svg += _pcSvgConnection(cx, hubY + 22, cx, bottomY - 38, ct);
+      svg += _pcSvgConnection(cx, hubY + 25, cx, bottomY - sz2.iconSize/2 - 8, ct);
     });
   }
 
-  // ── 右側ゾーン: ルーター ──
-  if (sideDevices.length) {
+  // ── 左側: 無線ルーター (+ ONU children) ──
+  if (leftRouter) {
+    var leftX = 130;
+    svg += _pcSvgDevice(leftRouter, leftX, hubY);
+    var lct = _pcGetConnType(pc, leftRouter.key, leftRouter.meta);
+    // 無線ルーター → HUB
+    svg += _pcSvgConnection(leftX + 38, hubY, hubLineXLeft, hubY, lct);
+    // ONU children (無線ルーターのさらに左)
+    if (leftRouter.onuChildren && leftRouter.onuChildren.length) {
+      var onuX = 30;
+      var onuCount = leftRouter.onuChildren.length;
+      var onuStartY = hubY - (onuCount - 1) * 50;
+      leftRouter.onuChildren.forEach(function(onu, i){
+        var cy = onuStartY + i * 100;
+        svg += _pcSvgDevice(onu, onuX, cy, { iconSize: 50, labelMaxLen: 8 });
+        // ONU → 無線ルーター (有線LAN)
+        svg += _pcSvgConnection(onuX + 28, cy, leftX - 38, hubY, '有線LAN', { elbow: 'h' });
+      });
+    }
+  }
+
+  // ── 右側: その他ルーター + paired オン資 ──
+  if (rightRouters.length) {
     var sideX = width - 130;
-    var sideStartY = hubY - (sideDevices.length - 1) * 55;
-    sideDevices.forEach(function(d, i){
-      var cy = sideStartY + i * 110;
-      svg += _pcSvgDevice(d, sideX, cy);
-      var ct = _pcGetConnType(pc, d.key, d.meta);
-      // HUBから水平→垂直に接続
-      svg += _pcSvgConnection(hubLineXRight, hubY, sideX - 38, cy, ct, { elbow: 'h' });
+    var totalRH = rightRouters.reduce(function(s, r){
+      return s + 130 + (r.onshikakuChild ? 110 : 0);
+    }, 0);
+    var sideStartY = hubY - totalRH/2 + 65;
+    if (sideStartY < topY + 70) sideStartY = topY + 70;
+
+    var curY = sideStartY;
+    rightRouters.forEach(function(r){
+      svg += _pcSvgDevice(r, sideX, curY);
+      var rct = _pcGetConnType(pc, r.key, r.meta);
+      // HUB → ルーター (L字)
+      svg += _pcSvgConnection(hubLineXRight, hubY, sideX - 38, curY, rct, { elbow: 'h' });
+
+      if (r.onshikakuChild) {
+        var childY = curY + 110;
+        svg += _pcSvgDevice(r.onshikakuChild, sideX, childY);
+        // ルーター → オン資 (有線LAN)
+        svg += _pcSvgConnection(sideX, curY + 38, sideX, childY - 38, '有線LAN');
+        curY = childY + 110;
+      } else {
+        curY += 130;
+      }
     });
   }
 
-  // ── 凡例(線種) ──
+  // ── 凡例 ──
   var usedConnTypes = {};
-  topGroup.forEach(function(d){ usedConnTypes[_pcGetConnType(pc, d.key, d.meta)] = 1; });
+  topDevices.forEach(function(d){ usedConnTypes[_pcGetConnType(pc, d.key, d.meta)] = 1; });
   bottomDevices.forEach(function(d){ usedConnTypes[_pcGetConnType(pc, d.key, d.meta)] = 1; });
-  sideDevices.forEach(function(d){ usedConnTypes[_pcGetConnType(pc, d.key, d.meta)] = 1; });
+  rightRouters.forEach(function(d){
+    usedConnTypes[_pcGetConnType(pc, d.key, d.meta)] = 1;
+    if (d.onshikakuChild) usedConnTypes['有線LAN'] = 1;
+  });
+  if (leftRouter) {
+    usedConnTypes[_pcGetConnType(pc, leftRouter.key, leftRouter.meta)] = 1;
+    if (leftRouter.onuChildren && leftRouter.onuChildren.length) usedConnTypes['有線LAN'] = 1;
+  }
   var legendItems = Object.keys(usedConnTypes);
   if (legendItems.length) {
     var legX = 40;
-    var legY = legendY;
-    svg += '<text x="' + legX + '" y="' + (legY - 2) + '" font-family="sans-serif" font-size="11" font-weight="700" fill="#8a7e70">凡例:</text>';
-    var curX = legX + 50;
+    svg += '<text x="' + legX + '" y="' + (legendY + 4) + '" font-family="sans-serif" font-size="11" font-weight="700" fill="#8a7e70">凡例:</text>';
+    var curX = legX + 56;
     legendItems.forEach(function(ct){
       var st = _pcConnStyle(ct);
       var lineAttrs = 'stroke="' + st.color + '" stroke-width="' + st.width + '"';
       if (st.dasharray) lineAttrs += ' stroke-dasharray="' + st.dasharray + '"';
-      svg += '<line x1="' + curX + '" y1="' + legY + '" x2="' + (curX + 32) + '" y2="' + legY + '" ' + lineAttrs + '/>';
-      svg += '<text x="' + (curX + 38) + '" y="' + (legY + 4) + '" font-family="sans-serif" font-size="11" font-weight="600" fill="#3a3530">' + _esc(ct) + '</text>';
-      curX += 38 + ct.length * 14 + 18;
+      svg += '<line x1="' + curX + '" y1="' + legendY + '" x2="' + (curX + 36) + '" y2="' + legendY + '" ' + lineAttrs + '/>';
+      svg += '<text x="' + (curX + 42) + '" y="' + (legendY + 4) + '" font-family="sans-serif" font-size="11" font-weight="600" fill="#3a3530">' + _esc(ct) + '</text>';
+      curX += 42 + ct.length * 14 + 18;
     });
   }
 
-  // ── ソフトウェア情報(右下) ──
+  // ── ソフトウェア & オプション 枠付きボックス(下部強調) ──
+  var boxX = 30;
+  var boxW = width - 60;
+  svg += '<rect x="' + boxX + '" y="' + optionBoxY + '" width="' + boxW + '" height="' + (optionBoxHeight - 16) + '" rx="8" fill="#f8f5ef" stroke="#c89856" stroke-width="2"/>';
   var swInfo = '調剤くん' + (sw.product || 'V8') + (sw.monthly ? ' (月割版)' : '');
-  svg += '<text x="' + (width - 20) + '" y="' + (height - 20) + '" text-anchor="end" font-family="sans-serif" font-size="11" font-weight="600" fill="#7a5a2a">📦 ' + _esc(swInfo) + '</text>';
+  svg += '<text x="' + (boxX + 18) + '" y="' + (optionBoxY + 22) + '" font-family="sans-serif" font-size="13" font-weight="900" fill="#7a5a2a">📦 ソフトウェア: ' + _esc(swInfo) + '</text>';
   if (sw.options && sw.options.length) {
-    var optStr = '✨ ' + sw.options.join(' / ');
-    if (optStr.length > 80) optStr = optStr.slice(0, 78) + '…';
-    svg += '<text x="' + (width - 20) + '" y="' + (height - 6) + '" text-anchor="end" font-family="sans-serif" font-size="10" fill="#8a7e70">' + _esc(optStr) + '</text>';
+    // オプションが多い場合は1行に詰めるが、長すぎたら2行折り返し
+    var optText = sw.options.join('  /  ');
+    if (optText.length <= 80) {
+      svg += '<text x="' + (boxX + 18) + '" y="' + (optionBoxY + 42) + '" font-family="sans-serif" font-size="12" font-weight="700" fill="#3a3530">✨ オプション: ' + _esc(optText) + '</text>';
+    } else {
+      // 半分で改行
+      var mid = Math.floor(sw.options.length / 2);
+      var line1 = sw.options.slice(0, mid).join('  /  ');
+      var line2 = sw.options.slice(mid).join('  /  ');
+      svg += '<text x="' + (boxX + 18) + '" y="' + (optionBoxY + 40) + '" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530">✨ オプション: ' + _esc(line1) + '</text>';
+      svg += '<text x="' + (boxX + 110) + '" y="' + (optionBoxY + 54) + '" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530">' + _esc(line2) + '</text>';
+    }
   }
 
   svg += '</svg>';
