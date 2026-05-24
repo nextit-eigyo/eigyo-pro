@@ -927,6 +927,25 @@ tr:hover td{background:rgba(90,123,158,.02)}
 }
 .memo-expand-btn:hover{background:rgba(90,123,158,.1);color:var(--acc);border-color:var(--acc)}
 
+/* === サブタブバー(営業ホーム配下) === */
+.sub-tab-bar{
+  display:flex;gap:3px;padding:6px 16px;
+  background:var(--s2);border-bottom:1px solid var(--bd);
+  align-items:center;flex-wrap:wrap;
+  position:sticky;top:0;z-index:10;
+}
+.sub-tab{
+  background:transparent;border:1px solid transparent;
+  color:var(--tx3);font-family:inherit;font-size:13px;font-weight:600;
+  padding:6px 14px;border-radius:8px;cursor:pointer;
+  transition:all .15s;display:inline-flex;align-items:center;gap:4px;
+}
+.sub-tab:hover{background:var(--s3);color:var(--tx)}
+.sub-tab.active{
+  background:#fff;color:var(--acc);font-weight:800;
+  border-color:var(--bd);box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+
 /* === 🛠 薬局構成図 (PharmacyConfig) === */
 .pc-section-title{font-size:12px;font-weight:700;color:var(--tx);padding:6px 0 4px;border-bottom:1px solid var(--bd);margin-bottom:8px;letter-spacing:.04em}
 .pc-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--tx2);flex-wrap:wrap}
@@ -1058,14 +1077,16 @@ tr:hover td{background:rgba(90,123,158,.02)}
 <div id="hdr">
   <div id="logo">EIGYO<em>PRO</em></div>
   <div class="htabs" id="main-tabs">
-    <button class="htab" id="tab-db-btn" onclick="showTab('dashboard',this)" style="display:none">📊 ダッシュボード</button>
-    <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)">📊 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
-    <button class="htab" id="tab-actions-btn" onclick="showTab('actions',this)" style="display:none">✅ アクション</button>
-    <button class="htab" id="tab-actuals-btn" onclick="showTab('actuals',this)">📈 実績確認</button>
-    <button class="htab" id="tab-kpt-btn"     onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
-    <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
+    <!-- トップグループ: 営業ホーム / 設定 の2つだけ -->
+    <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
     <button class="htab" id="tab-setup-btn" onclick="showTab('setup',this)">⚙ 設定</button>
-    <!-- その他メニュー -->
+    <!-- 隠しタブ(他コードからのプログラム参照用に保持) -->
+    <button class="htab" id="tab-db-btn" onclick="showTab('dashboard',this)" style="display:none">📊 ダッシュボード</button>
+    <button class="htab" id="tab-actions-btn" onclick="showTab('actions',this)" style="display:none">✅ アクション</button>
+    <button class="htab" id="tab-actuals-btn" onclick="showTab('actuals',this)" style="display:none">📈 実績確認</button>
+    <button class="htab" id="tab-kpt-btn"     onclick="showTab('kpt',this);renderKPT()" style="display:none">📝 KPT</button>
+    <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)" style="display:none">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
+    <!-- その他メニュー(振り返り/競合分析/月次レポート等) -->
     <div style="position:relative">
       <button class="htab" id="tab-more-btn" onclick="toggleMoreMenu(this)" style="gap:4px;opacity:.7">☰ <span style="font-size:11px">▼</span></button>
       <div id="more-menu-placeholder" style="display:none"></div>
@@ -1091,6 +1112,15 @@ tr:hover td{background:rgba(90,123,158,.02)}
     </button>
     <select id="fy-sel" onchange="changeFY()"></select>
   </div>
+</div>
+
+<!-- ════════ 営業ホーム配下のサブタブバー(設定中は非表示) ════════ -->
+<div id="sub-tab-bar" class="sub-tab-bar">
+  <button id="subtab-deals" class="sub-tab active" onclick="showTab('deals',this)">🎯 案件・数字</button>
+  <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
+  <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
+  <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
+  <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
 </div>
 
 <!-- ════════ TOAST NOTIFICATIONS ════════ -->
@@ -3044,10 +3074,12 @@ function renderTasks() {
   const list = document.getElementById('task-list-view');
   if (!board || !list) return;
 
-  // Badge
+  // Badge(隠しタブ + サブタブの両方を更新)
   const overdue = D.tasks.filter(t => !t.done && getTaskDueStatus(t)==='overdue').length;
   const tb = document.getElementById('task-badge');
   if (tb) { tb.textContent = overdue; tb.style.display = overdue ? '' : 'none'; }
+  const tbSub = document.getElementById('subtab-task-badge');
+  if (tbSub) { tbSub.textContent = overdue; tbSub.style.display = overdue ? '' : 'none'; }
 
   // Stats
   const statsEl = document.getElementById('task-stats');
@@ -7619,8 +7651,14 @@ function quickAddDeal(){
 function showTab(name,btn){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.htab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('on');
   if(btn)btn.classList.add('active');
+
+  // ── トップグループ(営業ホーム / 設定)とサブタブの同期 ──
+  _syncTopGroupUI(name);
+
   if(name==='dashboard')renderDashboard();
   if(name==='deals')renderDeals();
   if(name==='actions'){renderActionTab();}
@@ -7628,6 +7666,39 @@ function showTab(name,btn){
   if(name==='report'){initRptCtrl();renderReport();}
   if(name==='referral'){ensureReferrals();renderRefPtabs();renderReferrals();}
   if(name==='import')initImportCtrl();
+}
+
+// 営業ホームグループ / 設定グループ + サブタブのアクティブ状態を同期
+function _syncTopGroupUI(name) {
+  // 設定グループに属するタブ
+  var setupTabs = ['setup'];
+  // 「その他メニュー(report/kyogou/monthly等)」は営業ホームグループとして扱う
+  var isSetup = setupTabs.indexOf(name) >= 0;
+
+  // トップボタン
+  var setupBtn = document.getElementById('tab-setup-btn');
+  var homeBtn  = document.getElementById('tab-deals-btn');
+  if (setupBtn) setupBtn.classList[isSetup ? 'add' : 'remove']('active');
+  if (homeBtn)  homeBtn.classList[isSetup ? 'remove' : 'add']('active');
+
+  // サブタブバーの表示/非表示
+  var subBar = document.getElementById('sub-tab-bar');
+  if (subBar) subBar.style.display = isSetup ? 'none' : 'flex';
+
+  // サブタブのアクティブ状態
+  var subBtnMap = {
+    deals: 'subtab-deals',
+    dashboard: 'subtab-deals',
+    actuals: 'subtab-actuals',
+    tasks: 'subtab-tasks',
+    referral: 'subtab-referral',
+    kpt: 'subtab-kpt'
+  };
+  var subBtnId = subBtnMap[name];
+  if (subBtnId) {
+    var subBtn = document.getElementById(subBtnId);
+    if (subBtn) subBtn.classList.add('active');
+  }
 }
 
 // ===== INIT =====
