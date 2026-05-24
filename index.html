@@ -3810,6 +3810,8 @@ function sanitizeD() {
   // 構成図関連マスタ(プルダウン候補)
   if (!D.pharmacyPrinterTypeMaster || !D.pharmacyPrinterTypeMaster.length)
     D.pharmacyPrinterTypeMaster = ['レセプト','領収書','シール','処方箋','その他'];
+  if (!D.pharmacyRouterTypeMaster || !D.pharmacyRouterTypeMaster.length)
+    D.pharmacyRouterTypeMaster = ['YAMAHA','無線','その他'];
   if (!D.pharmacyModelMaster) D.pharmacyModelMaster = [];      // 型番候補(全機種共通の datalist)
   if (!D.pharmacyOtherMaster) D.pharmacyOtherMaster = [];      // 周辺機器名候補
   if (!D.maintenance)  D.maintenance = {s:Array(12).fill(''),p:Array(12).fill('')};
@@ -15263,11 +15265,13 @@ function _renderPharmacyConfigList() {
   } else {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">';
     names.forEach(function(name) {
-      var pc = D.pharmacies[name];
+      var pc = _pcMigrate(D.pharmacies[name]);
+      D.pharmacies[name] = pc;
       var sw = pc.software || {};
       var prdLabel = sw.product || '未設定';
       if (sw.monthly) prdLabel += ' (月割)';
       var devCounts = [];
+      if (pc.server && pc.server.count) devCounts.push('SV×' + pc.server.count);
       if (pc.reseco && pc.reseco.count) devCounts.push('レセコン×' + pc.reseco.count);
       if (pc.yakureki && pc.yakureki.count) devCounts.push('薬歴×' + pc.yakureki.count);
       var printerTotal = (pc.printers || []).reduce(function(s, p){ return s + (parseInt(p.count)||0); }, 0);
@@ -15300,15 +15304,34 @@ function _renderPharmacyConfigList() {
 function _pcDefaultConfig() {
   return {
     software:  { product: 'V8', monthly: false, options: [] },
+    server:    { count: 0, model: '' },          // サーバー専用機(SV)。0 or 1
     reseco:    { count: 1, model: '' },
     yakureki:  { count: 1, model: '' },
     onshikaku: { count: 0, location: '' },
-    router:    { count: 0, model: '' },
+    routers:   [],                                // ルーター(複数登録可)
     printers:  [],
     other:     [],
     notes:     '',
     updatedAt: new Date().toISOString().slice(0,10)
   };
+}
+
+// 旧データ構造の移行(router 単数 → routers 配列、server 欠落補完)
+function _pcMigrate(pc) {
+  if (!pc) return pc;
+  // router (単数) → routers (配列)
+  if (pc.router && !pc.routers) {
+    if (pc.router.count > 0) {
+      pc.routers = [{ type: 'YAMAHA', count: pc.router.count, model: pc.router.model || '' }];
+    } else {
+      pc.routers = [];
+    }
+    delete pc.router;
+  }
+  if (!pc.routers) pc.routers = [];
+  // server 欠落補完
+  if (!pc.server) pc.server = { count: 0, model: '' };
+  return pc;
 }
 
 function _pcNew() {
@@ -15462,7 +15485,8 @@ function _pcBuildMasterPanelHtml() {
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">';
   html += _pcBuildMasterListHtml('pharmacyPrinterTypeMaster', '🖨 プリンタ用途', 'レセプト / 領収書 等', 'レセプト');
-  html += _pcBuildMasterListHtml('pharmacyModelMaster', '🏷 型番候補', '機器の型番(レセコン/HW共通)', 'EPSON LP-2255');
+  html += _pcBuildMasterListHtml('pharmacyRouterTypeMaster',  '📡 ルーター種別', 'YAMAHA / 無線 等', 'YAMAHA');
+  html += _pcBuildMasterListHtml('pharmacyModelMaster', '🏷 型番候補', '機器の型番(全機器共通)', 'EPSON LP-2255');
   html += _pcBuildMasterListHtml('pharmacyOtherMaster', '🔌 周辺機器候補', 'バックアップNAS / UPS 等', 'バックアップNAS');
   html += '</div>';
   html += '<div style="font-size:10px;color:var(--tx3);margin-top:8px;line-height:1.5">📌 オプションは「商品マスタ」(設定→マスタ→📦 商品マスタ)の「オプション」カテゴリを使います。<br>📌 型番・周辺機器は datalist として候補表示されますが、未登録の値も自由入力できます。</div>';
@@ -15543,8 +15567,9 @@ function _pcCreateFromDeal(dealName) {
 function _renderPharmacyConfigEditor(name) {
   var el = document.getElementById('pharmacyConfig-content');
   if (!el) return;
-  var pc = D.pharmacies[name];
+  var pc = _pcMigrate(D.pharmacies[name]);
   if (!pc) { _pcBack(); return; }
+  D.pharmacies[name] = pc;
 
   var html = '';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
@@ -15595,6 +15620,19 @@ function _renderPharmacyConfigEditor(name) {
   html += modelDL;
 
   html += '<div class="pc-section-title" style="margin-top:14px">💻 端末</div>';
+
+  // サーバー専用機(チェック式・1台 or 無)
+  var serverChecked = (pc.server && pc.server.count > 0);
+  var stdNote = (pc.software.product === 'V7' || /STD/.test((pc.software.product||''))) ? ' <span style="font-size:10px;color:#7a3525">※ STD版では通常不要</span>' : '';
+  html += '<div class="pc-row" style="background:rgba(58,90,126,.04);padding:6px 8px;border-radius:5px;margin-bottom:8px">';
+  html += '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;flex:0 0 110px">';
+  html += '<input type="checkbox" ' + (serverChecked?'checked':'') + ' onchange="_pcToggleServer(this.checked)" style="width:14px;height:14px;cursor:pointer">';
+  html += '<span style="font-weight:600">サーバー専用機</span>';
+  html += '</label>';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.server.model||'') + '" onchange="_pcUpd(\'server.model\',this.value)" style="flex:1;margin-left:6px" ' + (serverChecked?'':'disabled') + '>';
+  html += '<span style="font-size:10px;color:var(--tx3);margin-left:6px">' + (serverChecked?'1台':'なし') + stdNote + '</span>';
+  html += '</div>';
+
   html += '<div class="pc-row"><label>レセコン</label>';
   html += '<input type="number" min="0" value="' + (pc.reseco.count||0) + '" onchange="_pcUpd(\'reseco.count\',parseInt(this.value)||0)" style="width:60px"> 台';
   html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px"></div>';
@@ -15604,9 +15642,16 @@ function _renderPharmacyConfigEditor(name) {
   html += '<div class="pc-row"><label>オン資端末</label>';
   html += '<input type="number" min="0" value="' + (pc.onshikaku.count||0) + '" onchange="_pcUpd(\'onshikaku.count\',parseInt(this.value)||0)" style="width:60px"> 台';
   html += '<input type="text" placeholder="設置場所(例:受付)" value="' + _esc(pc.onshikaku.location||'') + '" onchange="_pcUpd(\'onshikaku.location\',this.value)" style="flex:1;margin-left:6px"></div>';
-  html += '<div class="pc-row"><label>YAMAHAルーター</label>';
-  html += '<input type="number" min="0" value="' + (pc.router.count||0) + '" onchange="_pcUpd(\'router.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(RTX830等)" value="' + _esc(pc.router.model||'') + '" onchange="_pcUpd(\'router.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+
+  // ルーター(複数登録可)
+  html += '<div class="pc-section-title" style="margin-top:14px">📡 ルーター <span style="font-weight:400;font-size:10px;color:var(--tx3)">(用途別に複数登録可)</span></div>';
+  if (!(pc.routers||[]).length) {
+    html += '<div style="font-size:11px;color:var(--tx3);font-style:italic;margin-bottom:6px">(ルーター未登録)</div>';
+  }
+  (pc.routers||[]).forEach(function(r, i){
+    html += _pcRouterRow(r, i);
+  });
+  html += '<button class="btn sm" onclick="_pcAddRouter()" style="margin-top:4px">＋ ルーター追加</button>';
 
   html += '</div>';
 
@@ -15671,6 +15716,54 @@ function _pcOtherRow(o, i) {
   html += '<button class="btn sm dr" onclick="_pcRmOther(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
   return html;
+}
+
+// ── ルーター行 ──
+function _pcRouterRow(r, i) {
+  var types = D.pharmacyRouterTypeMaster || ['YAMAHA','無線','その他'];
+  if (r.type && types.indexOf(r.type) < 0) types = types.concat([r.type]);
+  var html = '<div class="pc-row" style="margin-bottom:6px">';
+  html += '<select onchange="_pcUpd(\'routers.' + i + '.type\',this.value)">';
+  types.forEach(function(t){
+    html += '<option' + (r.type === t ? ' selected' : '') + '>' + _esc(t) + '</option>';
+  });
+  html += '</select>';
+  html += '<input type="number" min="0" value="' + (r.count||0) + '" onchange="_pcUpd(\'routers.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(RTX830等・任意)" value="' + _esc(r.model||'') + '" onchange="_pcUpd(\'routers.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<button class="btn sm dr" onclick="_pcRmRouter(' + i + ')" style="margin-left:4px">✕</button>';
+  html += '</div>';
+  return html;
+}
+
+function _pcAddRouter() {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc.routers) pc.routers = [];
+  var defaultType = (D.pharmacyRouterTypeMaster||['YAMAHA'])[0];
+  pc.routers.push({ type: defaultType, count: 1, model: '' });
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
+}
+
+function _pcRmRouter(i) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  pc.routers.splice(i, 1);
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
+}
+
+// ── サーバー専用機 トグル(チェック式) ──
+function _pcToggleServer(checked) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc.server) pc.server = { count: 0, model: '' };
+  pc.server.count = checked ? 1 : 0;
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
 }
 
 // ── オプション(チェックボックス)のトグル ──
@@ -15799,7 +15892,15 @@ function _pcIcon(type, color) {
       + '<rect x="16" y="38" width="32" height="8" rx="1" fill="' + color + '" opacity="0.3"/>',
     other: '<rect x="14" y="14" width="36" height="36" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
       + '<circle cx="32" cy="32" r="8" fill="' + color + '" opacity="0.3"/>'
-      + '<circle cx="32" cy="32" r="3" fill="' + color + '"/>'
+      + '<circle cx="32" cy="32" r="3" fill="' + color + '"/>',
+    server: '<rect x="16" y="6" width="32" height="52" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="20" y="12" width="24" height="3" rx="1" fill="' + color + '" opacity="0.4"/>'
+      + '<rect x="20" y="17" width="24" height="3" rx="1" fill="' + color + '" opacity="0.4"/>'
+      + '<circle cx="22" cy="26" r="1.5" fill="#7a8e5a"/>'
+      + '<circle cx="27" cy="26" r="1.5" fill="' + color + '"/>'
+      + '<rect x="20" y="32" width="24" height="10" rx="1" stroke="' + color + '" stroke-width="1.5" fill="' + color + '" opacity="0.1"/>'
+      + '<rect x="20" y="44" width="24" height="10" rx="1" stroke="' + color + '" stroke-width="1.5" fill="' + color + '" opacity="0.1"/>'
+      + '<text x="32" y="40" text-anchor="middle" font-family="sans-serif" font-size="6" font-weight="700" fill="' + color + '">SV</text>'
   };
   return '<svg viewBox="0 0 64 64" width="56" height="56" xmlns="http://www.w3.org/2000/svg">' + (icons[type] || icons.other) + '</svg>';
 }
@@ -15818,8 +15919,9 @@ function _pcIconBlock(iconType, label, count, sublabel, color) {
 function _renderPharmacyConfigPreview(name) {
   var el = document.getElementById('pharmacyConfig-content');
   if (!el) return;
-  var pc = D.pharmacies[name];
+  var pc = _pcMigrate(D.pharmacies[name]);
   if (!pc) { _pcBack(); return; }
+  D.pharmacies[name] = pc;
   var sw = pc.software || {};
 
   var html = '';
@@ -15840,13 +15942,18 @@ function _renderPharmacyConfigPreview(name) {
   html += '</div>';
 
   // 端末セクション
-  var hasTerminals = (pc.reseco && pc.reseco.count > 0)
+  var hasTerminals = (pc.server && pc.server.count > 0)
+                  || (pc.reseco && pc.reseco.count > 0)
                   || (pc.yakureki && pc.yakureki.count > 0)
                   || (pc.onshikaku && pc.onshikaku.count > 0);
   if (hasTerminals) {
     html += '<div class="pc-diagram-section">';
     html += '<div class="pc-diagram-section-title">💻 端末</div>';
     html += '<div class="pc-diagram-row">';
+    // サーバー専用機(レセコンの前=構成図の上に表示)
+    if (pc.server && pc.server.count > 0) {
+      html += _pcIconBlock('server', 'サーバー専用機', pc.server.count, pc.server.model, '#3a5a7e');
+    }
     if (pc.reseco && pc.reseco.count > 0) {
       html += _pcIconBlock('pc', 'レセコン端末', pc.reseco.count, pc.reseco.model, '#5a7b9e');
     }
@@ -15871,12 +15978,17 @@ function _renderPharmacyConfigPreview(name) {
     html += '</div></div>';
   }
 
-  // ネットワーク(ルーター)セクション
-  if (pc.router && pc.router.count > 0) {
+  // ネットワーク(ルーター)セクション(複数登録対応)
+  var activeRouters = (pc.routers || []).filter(function(r){ return r.count > 0; });
+  if (activeRouters.length) {
     html += '<div class="pc-diagram-section">';
     html += '<div class="pc-diagram-section-title">📡 ネットワーク</div>';
     html += '<div class="pc-diagram-row">';
-    html += _pcIconBlock('router', 'YAMAHAルーター', pc.router.count, pc.router.model, '#5a4f44');
+    activeRouters.forEach(function(r){
+      var label = (r.type || 'ルーター') + 'ルーター';
+      if (r.type === 'その他') label = 'ルーター';
+      html += _pcIconBlock('router', label, r.count, r.model, '#5a4f44');
+    });
     html += '</div></div>';
   }
 
@@ -15893,7 +16005,7 @@ function _renderPharmacyConfigPreview(name) {
   }
 
   // 機器がまったく無い場合
-  if (!hasTerminals && !activePrinters.length && !(pc.router && pc.router.count > 0) && !activeOther.length) {
+  if (!hasTerminals && !activePrinters.length && !activeRouters.length && !activeOther.length) {
     html += '<div style="padding:24px;text-align:center;color:var(--tx3);font-size:13px;background:var(--s2);border-radius:8px">'
          + '機器が登録されていません。「✏ 編集」から登録してください。'
          + '</div>';
