@@ -11932,7 +11932,10 @@ function renderDashboard() {
     html += '<td style="text-align:right;padding:11px 6px;font-size:15px;font-weight:700;color:' + (r.p_diff >= 0 ? '#4a5a32' : '#7a3525') + '">' + (r.p_diff >= 0 ? '+' : '▼') + fmtN(Math.abs(r.p_diff)) + '<span style="font-size:13px;font-weight:600;margin-left:2px">千</span></td>';
     html += '</tr>';
     // 内訳の展開行（初期非表示）
-    var detailId = 'br-detail-' + r.name.replace(/[^a-zA-Z0-9]/g,'_');
+    // 注: 拠点名が日本語の場合 [^a-zA-Z0-9] でまとめて _ に置換すると
+    //     「福岡営業所」と「高知営業所」が同じID(_____)になり衝突するため、
+    //     encodeURIComponent でユニーク化(% を - に置換してID安全に)
+    var detailId = 'br-detail-' + encodeURIComponent(r.name).replace(/%/g, '-');
     html += '<tr id="' + detailId + '" style="display:none"><td colspan="9" style="padding:14px 16px;background:var(--s2)">';
     // 拠点別内訳を取得
     var brBreak = getActualsBreakdownRange(r.name, 's', miRange);
@@ -12017,7 +12020,8 @@ function renderDashboard() {
 
 // 拠点行クリックで内訳展開
 function _dbToggleBranchDetail(branchName) {
-  var detailId = 'br-detail-' + branchName.replace(/[^a-zA-Z0-9]/g,'_');
+  // 拠点名から detailId を生成(renderDashboard と同じロジック)
+  var detailId = 'br-detail-' + encodeURIComponent(branchName).replace(/%/g, '-');
   var el = document.getElementById(detailId);
   if (el) {
     el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
@@ -13040,7 +13044,9 @@ function renderActuals() {
             var split = _getSoftSplitForMi(branchForBD, i);
             if (split.choku > 0 || split.hanbai > 0 || split.group > 0) {
               // ユニークID（拠点・月の組み合わせ）
-              var splitKey = (branchForBD || 'all').replace(/[^a-zA-Z0-9]/g,'_') + '_' + i;
+              // 注: 日本語拠点名を [^a-zA-Z0-9] で置換すると同じ文字数の拠点(福岡/高知 等)
+              //     で衝突するため、encodeURIComponent で確実にユニーク化
+              var splitKey = encodeURIComponent(branchForBD || 'all').replace(/%/g, '-') + '_' + i;
 
               bdHtml += '<div style="padding:4px 16px 6px 56px;border-bottom:0.5px solid var(--bds);font-size:12px;color:var(--tx3);display:flex;gap:14px;align-items:center;flex-wrap:wrap">';
               bdHtml += '<span style="font-size:11px;color:var(--tx3);font-weight:500">↳ ソフト内訳</span>';
