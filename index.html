@@ -6762,6 +6762,28 @@ function _doConfirmImport(addedMasters){
   const toMan = v => String(Math.round(v / 1000));
   let log = [];
 
+  // ── ヘルパー: Excelインポート対象の拠点を判定 ──
+  // 既存の検出結果(detected)があればそれを優先、なければファイル名から判定
+  // 3箇所(HW/消耗品/その他)で重複していた拠点判定ロジックを統一
+  const _detectImportBranch = function(detected, fname) {
+    if (detected) return detected;
+    if (!fname) return '';
+    var bm = (D.branchMaster || []);
+    for (var i = 0; i < bm.length; i++) {
+      var bn = bm[i].name || '';
+      var sn = bn.replace(/本社|営業所|事業所|支店/g, '');
+      if (bn && (fname.indexOf(bn) >= 0 || (sn && fname.indexOf(sn) >= 0))) {
+        return bn;
+      }
+    }
+    if (/神戸/.test(fname)) return '神戸本社';
+    if (/福岡/.test(fname)) return '福岡営業所';
+    if (/高知/.test(fname)) return '高知営業所';
+    if (/東京/.test(fname)) return '東京事業所';
+    if (/新潟/.test(fname)) return '新潟営業所';
+    return '';
+  };
+
   try {
     // ── ソフト（案件管理で管理）──────────────────────────────
     // D.actualsへの書き込みは行わない（案件登録ベースで管理）
@@ -6771,123 +6793,106 @@ function _doConfirmImport(addedMasters){
     }
 
     // ── HW（拠点別・月別に保存）──────────────────────────────
-    if(r.hardware.s > 0){
-      // 拠点名を取得（消耗品と同じフォールバック層）
-      var hwBranch = r.detectedBranch || '';
-      if (!hwBranch && _impFileName) {
-        var bm2 = (D.branchMaster || []);
-        for (var bi2 = 0; bi2 < bm2.length; bi2++) {
-          var bn2 = bm2[bi2].name || '';
-          var sn2 = bn2.replace(/本社|営業所|事業所|支店/g, '');
-          if (bn2 && (_impFileName.indexOf(bn2) >= 0 || (sn2 && _impFileName.indexOf(sn2) >= 0))) {
-            hwBranch = bn2; break;
-          }
-        }
-        if (!hwBranch) {
-          if (/神戸/.test(_impFileName)) hwBranch = '神戸本社';
-          else if (/福岡/.test(_impFileName)) hwBranch = '福岡営業所';
-          else if (/高知/.test(_impFileName)) hwBranch = '高知営業所';
-          else if (/東京/.test(_impFileName)) hwBranch = '東京事業所';
-          else if (/新潟/.test(_impFileName)) hwBranch = '新潟営業所';
+    // 拠点判定をif外に出す（クリア処理でも使用するため）
+    var hwBranch = _detectImportBranch(r.detectedBranch, _impFileName);
+    if (hwBranch) {
+      if (!D.hardware[hwBranch]) D.hardware[hwBranch] = {s:Array(12).fill(''),p:Array(12).fill('')};
+      if (r.hardware.s > 0) {
+        D.hardware[hwBranch].s[mi] = toMan(r.hardware.s);
+        D.hardware[hwBranch].p[mi] = toMan(r.hardware.p);
+        log.push('HW[' + hwBranch + ']: ' + toMan(r.hardware.s) + '千');
+      } else {
+        // ★ Excelに HW がない月: 該当月をクリア（再インポート時の古い値残留を防ぐ）
+        var oldHwS = D.hardware[hwBranch].s[mi];
+        var oldHwP = D.hardware[hwBranch].p[mi];
+        if ((parseFloat(oldHwS) || 0) > 0 || (parseFloat(oldHwP) || 0) > 0) {
+          D.hardware[hwBranch].s[mi] = '';
+          D.hardware[hwBranch].p[mi] = '';
+          log.push('HW[' + hwBranch + ']: Excel該当なし→クリア (旧 売上' + (oldHwS||0) + '千)');
         }
       }
-      if (!hwBranch) hwBranch = '不明';
-      if (!D.hardware[hwBranch]) D.hardware[hwBranch] = {s:Array(12).fill(''),p:Array(12).fill('')};
-      D.hardware[hwBranch].s[mi] = toMan(r.hardware.s);
-      D.hardware[hwBranch].p[mi] = toMan(r.hardware.p);
-      log.push('HW[' + hwBranch + ']: ' + toMan(r.hardware.s) + '千');
+    } else if (r.hardware.s > 0) {
+      // 拠点未検出だが HW データあり: '不明' に保存（従来挙動を維持）
+      if (!D.hardware['不明']) D.hardware['不明'] = {s:Array(12).fill(''),p:Array(12).fill('')};
+      D.hardware['不明'].s[mi] = toMan(r.hardware.s);
+      D.hardware['不明'].p[mi] = toMan(r.hardware.p);
+      log.push('HW[不明]: ' + toMan(r.hardware.s) + '千');
     }
 
     // ── 消耗品（拠点別・月別に保存）───────────────────────────
-    if(r.consumables.s > 0){
-      // ファイル名から月を判定（例：神戸_4月.xlsx → 4月 → mi=0）
-      const fname = _impFileName || '';
-      let detectedMonth = mi; // デフォルトは選択された月
-      
-      // ファイル名から月を検出
-      const monthMatch = fname.match(/(\d+)月/);
-      if(monthMatch){
-        const monthNum = parseInt(monthMatch[1]);
-        if(monthNum >= 4 && monthNum <= 12){
-          detectedMonth = monthNum - 4; // 4月=0, 5月=1, ...
-        }else if(monthNum >= 1 && monthNum <= 3){
-          detectedMonth = monthNum + 8; // 1月=9, 2月=10, 3月=11
+    // ファイル名から月と拠点を判定（インポート前に決定）
+    var csFname = _impFileName || '';
+    var csDetectedMonth = mi;
+    var csMonthMatch = csFname.match(/(\d+)月/);
+    if (csMonthMatch) {
+      var csMonthNum = parseInt(csMonthMatch[1]);
+      if (csMonthNum >= 4 && csMonthNum <= 12) {
+        csDetectedMonth = csMonthNum - 4;
+      } else if (csMonthNum >= 1 && csMonthNum <= 3) {
+        csDetectedMonth = csMonthNum + 8;
+      }
+    }
+    var csFiscalMonth = csDetectedMonth + 4;
+    var csYearMonth = csFiscalMonth <= 12
+      ? (fy + '-' + String(csFiscalMonth).padStart(2, '0'))
+      : ((fy + 1) + '-' + String(csFiscalMonth - 12).padStart(2, '0'));
+    var csBranch = _detectImportBranch(r.detectedBranch, csFname);
+
+    if (csBranch) {
+      var csNormalizedBranch = csBranch.replace(/本社|営業所|事業所|支店/g, '');
+      if (!D.consumables[csYearMonth]) D.consumables[csYearMonth] = {};
+
+      if (r.consumables.s > 0) {
+        D.consumables[csYearMonth][csNormalizedBranch] = {
+          sales: Math.round(r.consumables.s / 1000),
+          cost: Math.round((r.consumables.c || 0) / 1000),
+          profit: Math.round(r.consumables.p / 1000)
+        };
+        log.push('消耗品[' + csNormalizedBranch + '/' + csYearMonth + ']: ' + toMan(r.consumables.s) + '千');
+      } else {
+        // ★ Excelに消耗品がない月: 該当月をクリア（再インポート時の古い値残留を防ぐ）
+        var oldCs = D.consumables[csYearMonth][csNormalizedBranch];
+        if (oldCs && ((oldCs.sales || 0) > 0 || (oldCs.profit || 0) > 0)) {
+          D.consumables[csYearMonth][csNormalizedBranch] = { sales: 0, cost: 0, profit: 0 };
+          log.push('消耗品[' + csNormalizedBranch + '/' + csYearMonth + ']: Excel該当なし→クリア (旧 ' + (oldCs.sales||0) + '千)');
         }
       }
-      
-      // 年月文字列を生成（例：2026-04）
-      const currentFy = fy; // 現在の年度
-      const fiscalMonth = detectedMonth + 4; // 4月=4, 5月=5, ..., 3月=15
-      const yearMonth = fiscalMonth <= 12
-        ? `${currentFy}-${String(fiscalMonth).padStart(2, '0')}`
-        : `${currentFy + 1}-${String(fiscalMonth - 12).padStart(2, '0')}`;
-      
-      // 拠点名を取得（複数のフォールバック層）
-      // ① result.detectedBranch（シート内検出の結果）
-      // ② detectedBranch（呼び出し元スコープ）
-      // ③ ファイル名から判定（マスタ参照→ハードコードキーワード）
-      let branch = r.detectedBranch || (typeof detectedBranch !== 'undefined' ? detectedBranch : '') || '';
-      if (!branch && _impFileName) {
-        const fname = _impFileName;
-        const bm = (D.branchMaster || []);
-        for (let bi = 0; bi < bm.length; bi++) {
-          const bn = bm[bi].name || '';
-          const shortName = bn.replace(/本社|営業所|事業所|支店/g, '');
-          if (bn && (fname.indexOf(bn) >= 0 || (shortName && fname.indexOf(shortName) >= 0))) {
-            branch = bn;
-            break;
-          }
-        }
-        // マスタ未整備時のハードコードフォールバック
-        if (!branch) {
-          if (/神戸/.test(fname)) branch = '神戸本社';
-          else if (/福岡/.test(fname)) branch = '福岡営業所';
-          else if (/高知/.test(fname)) branch = '高知営業所';
-          else if (/東京/.test(fname)) branch = '東京事業所';
-          else if (/新潟/.test(fname)) branch = '新潟営業所';
-        }
-      }
-      if (!branch) branch = '不明';
-      
-      // 拠点名を正規化（「神戸本社」→「神戸」、「東京事業所」→「東京」等）
-      const normalizedBranch = branch.replace('本社', '').replace('営業所', '').replace('事業所', '').replace('支店', '');
-      
-      // データ保存
-      if(!D.consumables[yearMonth]) D.consumables[yearMonth] = {};
-      D.consumables[yearMonth][normalizedBranch] = {
+    } else if (r.consumables.s > 0) {
+      // 拠点未検出だがデータあり: '不明' に保存（従来挙動を維持）
+      if (!D.consumables[csYearMonth]) D.consumables[csYearMonth] = {};
+      D.consumables[csYearMonth]['不明'] = {
         sales: Math.round(r.consumables.s / 1000),
         cost: Math.round((r.consumables.c || 0) / 1000),
         profit: Math.round(r.consumables.p / 1000)
       };
-      
-      log.push('消耗品[' + normalizedBranch + '/' + yearMonth + ']: ' + toMan(r.consumables.s) + '千');
+      log.push('消耗品[不明/' + csYearMonth + ']: ' + toMan(r.consumables.s) + '千');
     }
 
     // ── その他（拠点別・月別に保存）────────────────────────────
-    if(r.other.s > 0){
-      var otBranch = r.detectedBranch || '';
-      if (!otBranch && _impFileName) {
-        var bm3 = (D.branchMaster || []);
-        for (var bi3 = 0; bi3 < bm3.length; bi3++) {
-          var bn3 = bm3[bi3].name || '';
-          var sn3 = bn3.replace(/本社|営業所|事業所|支店/g, '');
-          if (bn3 && (_impFileName.indexOf(bn3) >= 0 || (sn3 && _impFileName.indexOf(sn3) >= 0))) {
-            otBranch = bn3; break;
-          }
-        }
-        if (!otBranch) {
-          if (/神戸/.test(_impFileName)) otBranch = '神戸本社';
-          else if (/福岡/.test(_impFileName)) otBranch = '福岡営業所';
-          else if (/高知/.test(_impFileName)) otBranch = '高知営業所';
-          else if (/東京/.test(_impFileName)) otBranch = '東京事業所';
-          else if (/新潟/.test(_impFileName)) otBranch = '新潟営業所';
+    // 拠点判定をif外に出す（クリア処理でも使用するため）
+    var otBranch = _detectImportBranch(r.detectedBranch, _impFileName);
+    if (otBranch) {
+      if (!D.other[otBranch]) D.other[otBranch] = {s:Array(12).fill(''),p:Array(12).fill('')};
+      if (r.other.s > 0) {
+        D.other[otBranch].s[mi] = toMan(r.other.s);
+        D.other[otBranch].p[mi] = toMan(r.other.p);
+        log.push('その他[' + otBranch + ']: ' + toMan(r.other.s) + '千');
+      } else {
+        // ★ Excelに「その他」がない月: 該当月をクリア（再インポート時の古い値残留を防ぐ）
+        var oldOtS = D.other[otBranch].s[mi];
+        var oldOtP = D.other[otBranch].p[mi];
+        if ((parseFloat(oldOtS) || 0) > 0 || (parseFloat(oldOtP) || 0) > 0) {
+          D.other[otBranch].s[mi] = '';
+          D.other[otBranch].p[mi] = '';
+          log.push('その他[' + otBranch + ']: Excel該当なし→クリア (旧 売上' + (oldOtS||0) + '千)');
         }
       }
-      if (!otBranch) otBranch = '不明';
-      if (!D.other[otBranch]) D.other[otBranch] = {s:Array(12).fill(''),p:Array(12).fill('')};
-      D.other[otBranch].s[mi] = toMan(r.other.s);
-      D.other[otBranch].p[mi] = toMan(r.other.p);
-      log.push('その他[' + otBranch + ']: ' + toMan(r.other.s) + '千');
+    } else if (r.other.s > 0) {
+      // 拠点未検出だがデータあり: '不明' に保存（従来挙動を維持）
+      if (!D.other['不明']) D.other['不明'] = {s:Array(12).fill(''),p:Array(12).fill('')};
+      D.other['不明'].s[mi] = toMan(r.other.s);
+      D.other['不明'].p[mi] = toMan(r.other.p);
+      log.push('その他[不明]: ' + toMan(r.other.s) + '千');
     }
 
     // ── 保守料（営業所別・種別ごとに上書き）──────────────────
