@@ -3807,6 +3807,11 @@ function sanitizeD() {
   // 構成図: 薬局単位のシステム構成情報（顧客向け視覚資料用）
   // 構造: D.pharmacies[薬局名] = { software, reseco, yakureki, onshikaku, router, printers, other, notes, updatedAt }
   if (!D.pharmacies) D.pharmacies = {};
+  // 構成図関連マスタ(プルダウン候補)
+  if (!D.pharmacyPrinterTypeMaster || !D.pharmacyPrinterTypeMaster.length)
+    D.pharmacyPrinterTypeMaster = ['レセプト','領収書','シール','処方箋','その他'];
+  if (!D.pharmacyModelMaster) D.pharmacyModelMaster = [];      // 型番候補(全機種共通の datalist)
+  if (!D.pharmacyOtherMaster) D.pharmacyOtherMaster = [];      // 周辺機器名候補
   if (!D.maintenance)  D.maintenance = {s:Array(12).fill(''),p:Array(12).fill('')};
   if (!D.groupActuals) D.groupActuals = {};
   if (!D.consumables)  D.consumables = {};
@@ -15229,8 +15234,27 @@ function _renderPharmacyConfigList() {
 
   var html = '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
   html += '<button class="btn sm pr" onclick="_pcNew()">＋ 新規追加</button>';
-  html += '<button class="btn sm" onclick="_pcImportFromDeals()" title="案件管理に登録済みの薬局を一括登録">📥 案件管理から取り込み</button>';
+  html += '<button class="btn sm" onclick="_pcToggleSearch()">' + (_pcSearchOpen ? '▼' : '▶') + ' 🔍 案件から検索・取込</button>';
+  html += '<button class="btn sm" onclick="_pcToggleMasters()" style="margin-left:auto">⚙ マスタ管理</button>';
   html += '</div>';
+
+  // 検索パネル
+  if (_pcSearchOpen) {
+    html += '<div style="background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin-bottom:14px">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+    html += '<span style="font-size:12px;font-weight:700;color:var(--tx)">🔍 案件管理から検索</span>';
+    html += '<span style="font-size:10px;color:var(--tx3)">薬局名・商品・オプションで検索</span>';
+    html += '</div>';
+    html += '<input id="pc-search-input" type="text" placeholder="例: 近見薬局 / 在庫管理 / V8" value="' + _esc(_pcSearchQuery||'') + '" oninput="_pcSearchInput(this.value)" style="width:100%;padding:7px 10px;font-size:12px;border:1px solid var(--bd);border-radius:6px;margin-bottom:8px;background:#fff">';
+    html += '<div id="pc-search-results">' + _pcBuildSearchResultsHtml() + '</div>';
+    html += '<div style="font-size:10px;color:var(--tx3);margin-top:6px">📌 「取込」をクリックすると、薬局名と<strong>ソフト本体・オプション</strong>が自動入力された状態で編集画面に移ります。機器類はそのまま編集してください。</div>';
+    html += '</div>';
+  }
+
+  // マスタ管理パネル
+  if (_pcShowMasters) {
+    html += _pcBuildMasterPanelHtml();
+  }
 
   if (!names.length) {
     html += '<div style="padding:30px 20px;text-align:center;color:var(--tx3);font-size:13px;background:var(--s2);border-radius:8px">'
@@ -15327,21 +15351,192 @@ function _pcDelete(name) {
   renderPharmacyConfigPage();
 }
 
-function _pcImportFromDeals() {
-  var names = Array.from(new Set((D.deals||[]).map(function(d){ return (d.name||'').trim(); }).filter(Boolean)));
-  var registered = Object.keys(D.pharmacies || {});
-  var unregistered = names.filter(function(n){ return registered.indexOf(n) === -1; }).sort();
-  if (!unregistered.length) {
-    alert('案件管理にある全薬局はすでに構成図が登録されています。');
-    return;
+// ── 案件 → 構成図 のマッピング（オプション等を自動取込）──
+function _pcMapDealToConfig(deal) {
+  var pc = _pcDefaultConfig();
+  if (!deal) return pc;
+  // ソフト本体
+  var pt = deal.productType || '';
+  if (/V8Core/.test(pt)) pc.software.product = 'V8Core';
+  else if (/V8/.test(pt)) pc.software.product = 'V8';
+  else if (/V7/.test(pt)) pc.software.product = 'V7';
+  // オプション(productOption はカンマ区切り)
+  if (deal.productOption) {
+    pc.software.options = String(deal.productOption)
+      .split(/[,、]/)
+      .map(function(s){ return s.trim(); })
+      .filter(Boolean);
   }
-  var msg = '案件管理にある未登録の薬局 ' + unregistered.length + '件をまとめて空の構成図として登録しますか?\n\n';
-  msg += unregistered.slice(0, 10).join('\n');
-  if (unregistered.length > 10) msg += '\n... 他' + (unregistered.length - 10) + '件';
-  if (!confirm(msg)) return;
-  unregistered.forEach(function(n){ D.pharmacies[n] = _pcDefaultConfig(); });
+  return pc;
+}
+
+// ── 商品マスタからオプションのみ取り出す ──
+function _pcGetProductOptions() {
+  if (!D.productMaster || !D.productMaster.length) return [];
+  return D.productMaster
+    .filter(function(p){ return (p.category||'') === 'オプション'; })
+    .map(function(p){ return p.name; });
+}
+
+// ── 案件から検索・取込パネルの表示状態 ──
+var _pcSearchOpen = false;
+var _pcSearchQuery = '';
+
+function _pcToggleSearch() {
+  _pcSearchOpen = !_pcSearchOpen;
+  _renderPharmacyConfigList();
+}
+
+function _pcSearchInput(value) {
+  _pcSearchQuery = value || '';
+  _pcRenderSearchResults();
+}
+
+// 検索結果だけ再描画(入力フォーカスを失わないため)
+function _pcRenderSearchResults() {
+  var el = document.getElementById('pc-search-results');
+  if (!el) return;
+  el.innerHTML = _pcBuildSearchResultsHtml();
+}
+
+function _pcBuildSearchResultsHtml() {
+  var q = (_pcSearchQuery||'').trim().toLowerCase();
+  var deals = (D.deals||[]).filter(function(d){ return d.name; });
+  // 同名案件は1つにまとめる(最新の deliveryMonth 優先)
+  var byName = {};
+  deals.forEach(function(d){
+    var key = d.name;
+    if (!byName[key] || (d.deliveryMonth||'') > (byName[key].deliveryMonth||'')) {
+      byName[key] = d;
+    }
+  });
+  var unique = Object.values(byName);
+  // 検索フィルタ
+  if (q) {
+    unique = unique.filter(function(d){
+      return (d.name||'').toLowerCase().indexOf(q) >= 0
+          || (d.productType||'').toLowerCase().indexOf(q) >= 0
+          || (d.productOption||'').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  unique.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+
+  if (!unique.length) {
+    return '<div style="padding:14px;text-align:center;color:var(--tx3);font-size:12px">該当する案件がありません</div>';
+  }
+  var registered = D.pharmacies || {};
+  var html = '<div style="font-size:11px;color:var(--tx3);margin-bottom:6px">' + unique.length + '件 ヒット</div>';
+  html += '<div style="max-height:340px;overflow-y:auto;border:1px solid var(--bd);border-radius:6px;background:#fff">';
+  unique.forEach(function(d, idx){
+    var alreadyReg = !!registered[d.name];
+    var bgColor = idx % 2 === 0 ? '#fff' : 'var(--s1)';
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:0.5px solid var(--bds);background:' + bgColor + '">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:12px;font-weight:700;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(d.name) + (alreadyReg?' <span style="font-size:10px;font-weight:500;color:#7a8e5a;margin-left:6px">✓ 登録済</span>':'') + '</div>';
+    var meta = [];
+    if (d.productType) meta.push(_esc(d.productType));
+    if (d.productOption) meta.push('🏷 ' + _esc(d.productOption));
+    if (d.deliveryMonth) meta.push('📅 ' + _esc(d.deliveryMonth));
+    if (meta.length) html += '<div style="font-size:10px;color:var(--tx3);margin-top:2px">' + meta.join(' / ') + '</div>';
+    html += '</div>';
+    html += '<button class="btn sm pr" onclick="_pcCreateFromDeal(' + _pcAttr(d.name) + ')" style="flex-shrink:0">' + (alreadyReg ? '↻ 上書き' : '＋ 取込') + '</button>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── マスタ管理パネル ──
+var _pcShowMasters = false;
+
+function _pcToggleMasters() {
+  _pcShowMasters = !_pcShowMasters;
+  _renderPharmacyConfigList();
+}
+
+function _pcBuildMasterPanelHtml() {
+  var html = '<div style="background:rgba(200,152,86,.06);border:1px solid rgba(200,152,86,.25);border-radius:8px;padding:12px 14px;margin-bottom:14px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html += '<span style="font-size:12px;font-weight:700;color:#7a5a2a">⚙ 構成図マスタ管理</span>';
+  html += '<span style="font-size:10px;color:var(--tx3)">プルダウン・候補リストの編集</span>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">';
+  html += _pcBuildMasterListHtml('pharmacyPrinterTypeMaster', '🖨 プリンタ用途', 'レセプト / 領収書 等', 'レセプト');
+  html += _pcBuildMasterListHtml('pharmacyModelMaster', '🏷 型番候補', '機器の型番(レセコン/HW共通)', 'EPSON LP-2255');
+  html += _pcBuildMasterListHtml('pharmacyOtherMaster', '🔌 周辺機器候補', 'バックアップNAS / UPS 等', 'バックアップNAS');
+  html += '</div>';
+  html += '<div style="font-size:10px;color:var(--tx3);margin-top:8px;line-height:1.5">📌 オプションは「商品マスタ」(設定→マスタ→📦 商品マスタ)の「オプション」カテゴリを使います。<br>📌 型番・周辺機器は datalist として候補表示されますが、未登録の値も自由入力できます。</div>';
+  html += '</div>';
+  return html;
+}
+
+function _pcBuildMasterListHtml(masterKey, title, sublabel, placeholder) {
+  var items = D[masterKey] || [];
+  var html = '<div style="background:#fff;border:1px solid var(--bd);border-radius:6px;padding:10px 12px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+  html += '<div><div style="font-size:11px;font-weight:700;color:var(--tx)">' + title + '</div>';
+  html += '<div style="font-size:10px;color:var(--tx3);margin-top:1px">' + sublabel + '</div></div>';
+  html += '<button class="btn sm" onclick="_pcMasterAdd(' + _pcAttr(masterKey) + ')" title="追加">＋</button>';
+  html += '</div>';
+  if (!items.length) {
+    html += '<div style="font-size:11px;color:var(--tx3);font-style:italic;padding:4px 0">未登録</div>';
+  } else {
+    items.forEach(function(it, i){
+      html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">';
+      html += '<input type="text" value="' + _esc(it) + '" placeholder="' + _esc(placeholder) + '" onchange="_pcMasterUpd(' + _pcAttr(masterKey) + ',' + i + ',this.value)" style="flex:1;font-size:11px;padding:4px 7px;border:1px solid var(--bd);border-radius:4px">';
+      html += '<button class="btn sm dr" onclick="_pcMasterRm(' + _pcAttr(masterKey) + ',' + i + ')">✕</button>';
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+function _pcMasterAdd(masterKey) {
+  if (!D[masterKey]) D[masterKey] = [];
+  D[masterKey].push('');
   save();
   _renderPharmacyConfigList();
+  // フォーカスを最後の追加した行へ
+  setTimeout(function(){
+    var inputs = document.querySelectorAll('#pharmacyConfig-content input[type=text]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function _pcMasterUpd(masterKey, idx, value) {
+  if (!D[masterKey]) D[masterKey] = [];
+  D[masterKey][idx] = value;
+  save();
+}
+
+function _pcMasterRm(masterKey, idx) {
+  if (!D[masterKey]) return;
+  D[masterKey].splice(idx, 1);
+  save();
+  _renderPharmacyConfigList();
+}
+
+// 案件から構成図を作成(オプション等を自動取込)
+function _pcCreateFromDeal(dealName) {
+  var deals = (D.deals||[]).filter(function(d){ return d.name === dealName; });
+  if (!deals.length) { alert('案件が見つかりません: ' + dealName); return; }
+  // 最新の deliveryMonth を選ぶ
+  deals.sort(function(a,b){ return (b.deliveryMonth||'').localeCompare(a.deliveryMonth||''); });
+  var deal = deals[0];
+  var exists = !!D.pharmacies[dealName];
+  if (exists) {
+    if (!confirm('「' + dealName + '」はすでに登録されています。案件のオプションで上書きしますか?\n\n(機器情報は保持されます)')) return;
+    // 既存の機器情報は保持し、ソフトのみ上書き
+    var keepFields = D.pharmacies[dealName];
+    var mapped = _pcMapDealToConfig(deal);
+    keepFields.software = mapped.software;
+    keepFields.updatedAt = new Date().toISOString().slice(0,10);
+  } else {
+    D.pharmacies[dealName] = _pcMapDealToConfig(deal);
+  }
+  save();
+  _pcEdit(dealName);
 }
 
 // ── 編集フォーム ──
@@ -15371,22 +15566,47 @@ function _renderPharmacyConfigEditor(name) {
   html += '</select>';
   html += '<label style="flex:0 0 auto;margin-left:8px"><input type="checkbox" onchange="_pcUpd(\'software.monthly\',this.checked)"' + (pc.software.monthly ? ' checked' : '') + '> 月割版</label>';
   html += '</div>';
-  html += '<div class="pc-row"><label>オプション</label>';
-  html += '<input type="text" placeholder="在庫管理, レセコン連携 (カンマ区切り)" value="' + _esc((pc.software.options||[]).join(', ')) + '" onchange="_pcUpd(\'software.options\',this.value.split(/[,、]/).map(function(s){return s.trim();}).filter(Boolean))" style="flex:1"></div>';
+  // オプション(商品マスタの「オプション」カテゴリからチェックボックス表示)
+  html += '<div class="pc-row" style="align-items:flex-start"><label style="padding-top:4px">オプション</label>';
+  html += '<div style="flex:1;display:flex;flex-wrap:wrap;gap:8px;font-size:11px">';
+  var optMaster = _pcGetProductOptions();
+  var curOpts = pc.software.options || [];
+  if (!optMaster.length) {
+    html += '<span style="color:var(--tx3);font-style:italic">商品マスタにオプションが未登録です(設定→マスタ→📦 商品マスタ で「オプション」カテゴリで追加)</span>';
+  } else {
+    optMaster.forEach(function(opt){
+      var checked = curOpts.indexOf(opt) >= 0;
+      html += '<label style="display:inline-flex;align-items:center;gap:4px;background:' + (checked?'rgba(90,123,158,.12)':'var(--s2)') + ';padding:3px 9px;border-radius:14px;cursor:pointer;border:1px solid ' + (checked?'var(--acc)':'var(--bd)') + ';transition:all .12s">';
+      html += '<input type="checkbox" ' + (checked?'checked':'') + ' onchange="_pcToggleOption(' + _pcAttr(opt) + ',this.checked)" style="width:13px;height:13px;cursor:pointer;margin:0">';
+      html += '<span style="color:' + (checked?'var(--acc)':'var(--tx2)') + ';font-weight:' + (checked?'700':'500') + '">' + _esc(opt) + '</span>';
+      html += '</label>';
+    });
+  }
+  html += '</div></div>';
+  // 自由入力欄(マスタにないオプションを追加)
+  var customOpts = curOpts.filter(function(o){ return optMaster.indexOf(o) < 0; });
+  html += '<div class="pc-row"><label></label>';
+  html += '<input type="text" placeholder="マスタ外オプション(カンマ区切り・任意)" value="' + _esc(customOpts.join(', ')) + '" onchange="_pcSetCustomOptions(this.value)" style="flex:1;font-size:11px"></div>';
+
+  // datalist (型番候補)
+  var modelDL = '<datalist id="pc-models-dl">';
+  (D.pharmacyModelMaster||[]).forEach(function(m){ if(m) modelDL += '<option value="' + _esc(m) + '">'; });
+  modelDL += '</datalist>';
+  html += modelDL;
 
   html += '<div class="pc-section-title" style="margin-top:14px">💻 端末</div>';
   html += '<div class="pc-row"><label>レセコン</label>';
   html += '<input type="number" min="0" value="' + (pc.reseco.count||0) + '" onchange="_pcUpd(\'reseco.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input type="text" placeholder="型番(任意)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px"></div>';
   html += '<div class="pc-row"><label>薬歴端末</label>';
   html += '<input type="number" min="0" value="' + (pc.yakureki.count||0) + '" onchange="_pcUpd(\'yakureki.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input type="text" placeholder="型番(任意)" value="' + _esc(pc.yakureki.model||'') + '" onchange="_pcUpd(\'yakureki.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.yakureki.model||'') + '" onchange="_pcUpd(\'yakureki.model\',this.value)" style="flex:1;margin-left:6px"></div>';
   html += '<div class="pc-row"><label>オン資端末</label>';
   html += '<input type="number" min="0" value="' + (pc.onshikaku.count||0) + '" onchange="_pcUpd(\'onshikaku.count\',parseInt(this.value)||0)" style="width:60px"> 台';
   html += '<input type="text" placeholder="設置場所(例:受付)" value="' + _esc(pc.onshikaku.location||'') + '" onchange="_pcUpd(\'onshikaku.location\',this.value)" style="flex:1;margin-left:6px"></div>';
   html += '<div class="pc-row"><label>YAMAHAルーター</label>';
   html += '<input type="number" min="0" value="' + (pc.router.count||0) + '" onchange="_pcUpd(\'router.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input type="text" placeholder="型番(RTX830等)" value="' + _esc(pc.router.model||'') + '" onchange="_pcUpd(\'router.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(RTX830等)" value="' + _esc(pc.router.model||'') + '" onchange="_pcUpd(\'router.model\',this.value)" style="flex:1;margin-left:6px"></div>';
 
   html += '</div>';
 
@@ -15400,6 +15620,12 @@ function _renderPharmacyConfigEditor(name) {
     html += _pcPrinterRow(p, i);
   });
   html += '<button class="btn sm" onclick="_pcAddPrinter()" style="margin-top:4px">＋ プリンタ追加</button>';
+
+  // datalist (周辺機器候補)
+  var otherDL = '<datalist id="pc-other-dl">';
+  (D.pharmacyOtherMaster||[]).forEach(function(m){ if(m) otherDL += '<option value="' + _esc(m) + '">'; });
+  otherDL += '</datalist>';
+  html += otherDL;
 
   html += '<div class="pc-section-title" style="margin-top:14px">🔌 その他周辺機器</div>';
   if (!(pc.other||[]).length) {
@@ -15421,27 +15647,60 @@ function _renderPharmacyConfigEditor(name) {
 }
 
 function _pcPrinterRow(p, i) {
-  var types = ['レセプト','領収書','シール','処方箋','その他'];
+  var types = D.pharmacyPrinterTypeMaster || ['レセプト','領収書','シール','処方箋','その他'];
+  // 既存値がマスタにない場合も保持するため、現在値を末尾に追加
+  if (p.type && types.indexOf(p.type) < 0) types = types.concat([p.type]);
   var html = '<div class="pc-row" style="margin-bottom:6px">';
   html += '<select onchange="_pcUpd(\'printers.' + i + '.type\',this.value)">';
   types.forEach(function(t){
-    html += '<option' + (p.type === t ? ' selected' : '') + '>' + t + '</option>';
+    html += '<option' + (p.type === t ? ' selected' : '') + '>' + _esc(t) + '</option>';
   });
   html += '</select>';
   html += '<input type="number" min="0" value="' + (p.count||0) + '" onchange="_pcUpd(\'printers.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
-  html += '<input type="text" placeholder="型番(任意)" value="' + _esc(p.model||'') + '" onchange="_pcUpd(\'printers.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(p.model||'') + '" onchange="_pcUpd(\'printers.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
   html += '<button class="btn sm dr" onclick="_pcRmPrinter(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
   return html;
 }
 
 function _pcOtherRow(o, i) {
+  // datalist for peripheral device names
   var html = '<div class="pc-row" style="margin-bottom:6px">';
-  html += '<input type="text" placeholder="機器名" value="' + _esc(o.name||'') + '" onchange="_pcUpd(\'other.' + i + '.name\',this.value)" style="flex:1">';
+  html += '<input list="pc-other-dl" type="text" placeholder="機器名(候補から選択可)" value="' + _esc(o.name||'') + '" onchange="_pcUpd(\'other.' + i + '.name\',this.value)" style="flex:1">';
   html += '<input type="number" min="0" value="' + (o.count||0) + '" onchange="_pcUpd(\'other.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
   html += '<button class="btn sm dr" onclick="_pcRmOther(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
   return html;
+}
+
+// ── オプション(チェックボックス)のトグル ──
+function _pcToggleOption(opt, checked) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc) return;
+  if (!pc.software.options) pc.software.options = [];
+  var idx = pc.software.options.indexOf(opt);
+  if (checked && idx < 0) pc.software.options.push(opt);
+  else if (!checked && idx >= 0) pc.software.options.splice(idx, 1);
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
+}
+
+// ── カスタムオプション(マスタ外)を設定 ──
+function _pcSetCustomOptions(value) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc) return;
+  var optMaster = _pcGetProductOptions();
+  var current = pc.software.options || [];
+  // 既存のマスタ内オプションは保持、マスタ外オプションだけ置換
+  var keepInMaster = current.filter(function(o){ return optMaster.indexOf(o) >= 0; });
+  var newCustom = value.split(/[,、]/).map(function(s){ return s.trim(); }).filter(Boolean);
+  pc.software.options = keepInMaster.concat(newCustom);
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  // 再描画不要(自由入力欄なのでフォーカス保持)
 }
 
 // ── ネストされたプロパティを更新するヘルパー ──
