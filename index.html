@@ -1611,6 +1611,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
           <th style="color:var(--red)">振替原価</th>
           <th class="sth"></th>
           <th>合計売上</th><th>合計粗利</th>
+          <th style="width:80px;text-align:center">操作</th>
         </tr></thead>
         <tbody id="mt-tbody"></tbody>
       </table></div>
@@ -4136,8 +4137,59 @@ function renderMaintenance(branch) {
     tr.appendChild(vtcTd);
     tr.appendChild(makeSep());
     tr.appendChild(makeTot(totS||'','mt-tot-s')); tr.appendChild(makeTot(totP||'','mt-tot-p'));
+
+    // ── 操作列: 前月コピーボタン ──
+    var tdOp = document.createElement('td');
+    tdOp.style.cssText = 'text-align:center;padding:4px';
+    if (i > 0) {
+      var copyBtn = document.createElement('button');
+      copyBtn.className = 'btn sm';
+      copyBtn.style.cssText = 'font-size:10px;padding:3px 7px;white-space:nowrap';
+      copyBtn.textContent = '⇧前月';
+      copyBtn.title = ML[i-1] + 'の値を' + m + 'にコピー';
+      (function(fromI, toI, br) {
+        copyBtn.onclick = function() { _copyMaintRow(br, fromI, toI); };
+      })(i-1, i, branch);
+      tdOp.appendChild(copyBtn);
+    } else {
+      tdOp.innerHTML = '<span style="font-size:10px;color:var(--tx3)">—</span>';
+    }
+    tr.appendChild(tdOp);
+
+    // ── 空行(全カテゴリ0)に薄い警告色 ──
+    var isEmpty = (totS === 0 && totP === 0);
+    if (isEmpty) {
+      tr.style.background = 'rgba(200,152,86,.06)';
+      tdM.style.color = 'var(--red)';
+      tdM.title = '保守料が未入力です。前月コピーまたは手入力してください。';
+      // 月セルに小さな警告アイコン
+      tdM.innerHTML = m + ' <span style="font-size:10px;color:#a85a4a">⚠</span>';
+    }
+
     tb.appendChild(tr);
   });
+}
+
+// 保守料を別月からコピー
+function _copyMaintRow(branch, fromI, toI) {
+  if (!D.maintenance || !D.maintenance[branch]) {
+    alert('保守料データがまだ作成されていません');
+    return;
+  }
+  var mt = D.maintenance[branch];
+  var keys = ['v7s','v7p','v8s','v8p','v8ms','v8mp','ots','otp','vtc'];
+  var hasSrcData = keys.some(function(k){ return mt[k] && (parseFloat(mt[k][fromI])||0) > 0; });
+  if (!hasSrcData) {
+    if (!confirm(ML[fromI] + 'のデータは空です。空のままコピーしますか?')) return;
+  } else {
+    if (!confirm(ML[fromI] + 'の保守料を' + ML[toI] + 'にコピーします。よろしいですか?\n\n(現在の' + ML[toI] + 'の値は上書きされます)')) return;
+  }
+  keys.forEach(function(k){
+    if (!mt[k]) mt[k] = Array(12).fill('');
+    mt[k][toI] = mt[k][fromI];
+  });
+  save();
+  renderMaintenance(branch);
 }
 
 function setMT(t,i,v){if(!D.maintenance)D.maintenance={s:Array(12).fill(''),p:Array(12).fill('')};D.maintenance[t][i]=v;save()}
@@ -12711,7 +12763,17 @@ function renderActuals() {
     var tdM = document.createElement('td');
     tdM.className = 'mo';
     tdM.style.cssText = 'font-weight:' + (isCur?'900':'600') + ';color:' + (isCur?'var(--acc)':'var(--tx3)') + ';font-size:13px;padding:7px 12px';
-    tdM.textContent = m;
+    // ── 拠点/担当者の常時表示ラベル(全社モード時は省略) ──
+    var scopeLabel = '';
+    if (isRegion)     scopeLabel = '📍 ' + regionName;
+    else if (isBranch) scopeLabel = '📍 ' + branchName.replace(/本社|事業所/g, '').replace('営業所','');
+    else if (sp)       scopeLabel = '👤 ' + sp.name;
+    if (scopeLabel) {
+      tdM.innerHTML = '<span>' + _esc(m) + '</span>' +
+        '<span style="font-size:9.5px;color:' + (isCur?'var(--acc)':'var(--tx3)') + ';font-weight:500;margin-left:6px;opacity:0.75">' + _esc(scopeLabel) + '</span>';
+    } else {
+      tdM.textContent = m;
+    }
 
     var tdBS = document.createElement('td');
     tdBS.className = 'tc';
