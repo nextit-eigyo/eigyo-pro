@@ -15697,18 +15697,22 @@ function _renderPharmacyConfigEditor(name) {
   html += '<span style="font-weight:600">サーバー専用機</span>';
   html += '</label>';
   html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.server.model||'') + '" onchange="_pcUpd(\'server.model\',this.value)" style="flex:1;margin-left:6px" ' + (serverChecked?'':'disabled') + '>';
+  if (serverChecked) html += '<span style="margin-left:6px">' + _pcConnSelect('server') + '</span>';
   html += '<span style="font-size:10px;color:var(--tx3);margin-left:6px">' + (serverChecked?'1台':'なし') + stdNote + '</span>';
   html += '</div>';
 
   html += '<div class="pc-row"><label>レセコン</label>';
   html += '<input type="number" min="0" value="' + (pc.reseco.count||0) + '" onchange="_pcUpd(\'reseco.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<span style="margin-left:6px">' + _pcConnSelect('reseco') + '</span></div>';
   html += '<div class="pc-row"><label>薬歴端末</label>';
   html += '<input type="number" min="0" value="' + (pc.yakureki.count||0) + '" onchange="_pcUpd(\'yakureki.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.yakureki.model||'') + '" onchange="_pcUpd(\'yakureki.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.yakureki.model||'') + '" onchange="_pcUpd(\'yakureki.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<span style="margin-left:6px">' + _pcConnSelect('yakureki') + '</span></div>';
   html += '<div class="pc-row"><label>オン資端末</label>';
   html += '<input type="number" min="0" value="' + (pc.onshikaku.count||0) + '" onchange="_pcUpd(\'onshikaku.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input type="text" placeholder="設置場所(例:受付)" value="' + _esc(pc.onshikaku.location||'') + '" onchange="_pcUpd(\'onshikaku.location\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<input type="text" placeholder="設置場所(例:受付)" value="' + _esc(pc.onshikaku.location||'') + '" onchange="_pcUpd(\'onshikaku.location\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<span style="margin-left:6px">' + _pcConnSelect('onshikaku') + '</span></div>';
 
   // ルーター(複数登録可)
   html += '<div class="pc-section-title" style="margin-top:14px">📡 ルーター <span style="font-weight:400;font-size:10px;color:var(--tx3)">(用途別に複数登録可)</span></div>';
@@ -15786,6 +15790,7 @@ function _pcBuildPrinterBlock(p, i) {
   html += '<input type="number" min="0" value="' + (p.count||0) + '" onchange="_pcUpd(\'printers.' + i + '.count\',parseInt(this.value)||0)" style="width:50px;text-align:center"> 台';
   html += '<span class="pc-label">型番</span>';
   html += '<input list="pc-models-dl" type="text" placeholder="型番(任意)" value="' + _esc(p.model||'') + '" onchange="_pcUpd(\'printers.' + i + '.model\',this.value)" style="flex:1;min-width:100px">';
+  html += '<span style="margin-left:6px">' + _pcConnSelect('printer_' + i) + '</span>';
   html += '<button class="btn sm dr" onclick="_pcRmPrinter(' + i + ')" style="margin-left:auto">✕ 削除</button>';
   html += '</div>';
 
@@ -15885,6 +15890,8 @@ function _pcOtherRow(o, i) {
     html += '<option value="' + opt.val + '"' + (currentIcon === opt.val ? ' selected' : '') + '>' + _esc(opt.label) + '</option>';
   });
   html += '</select>';
+  // 接続種別オーバーライド
+  html += '<span style="margin-left:6px">' + _pcConnSelect('other_' + i) + '</span>';
   html += '<button class="btn sm dr" onclick="_pcRmOther(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
   return html;
@@ -15902,6 +15909,7 @@ function _pcRouterRow(r, i) {
   html += '</select>';
   html += '<input type="number" min="0" value="' + (r.count||0) + '" onchange="_pcUpd(\'routers.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
   html += '<input list="pc-models-dl" type="text" placeholder="型番(RTX830等・任意)" value="' + _esc(r.model||'') + '" onchange="_pcUpd(\'routers.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<span style="margin-left:6px">' + _pcConnSelect('router_' + i) + '</span>';
   html += '<button class="btn sm dr" onclick="_pcRmRouter(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
   return html;
@@ -15925,6 +15933,56 @@ function _pcRmRouter(i) {
   pc.updatedAt = new Date().toISOString().slice(0,10);
   save();
   _renderPharmacyConfigEditor(_pcEditing);
+}
+
+// ── 接続種別オーバーライドのセレクタ(各機器行で使用) ──
+// 空欄=自動判定 / 値あり=オーバーライド
+function _pcConnSelect(deviceKey) {
+  if (!_pcEditing) return '';
+  var pc = D.pharmacies[_pcEditing] || {};
+  var current = (pc.connOverrides && pc.connOverrides[deviceKey]) || '';
+  var types = D.pharmacyConnTypeMaster || ['有線LAN','USB','電源','無線','その他'];
+  // 自動判定時の検出結果も小さく表示(参考用)
+  var meta = _pcGetDeviceMeta(pc, deviceKey);
+  var autoDetected = _pcDefaultConnType(deviceKey, meta);
+  var autoHint = current ? '' : autoDetected;
+
+  var html = '<select onchange="_pcSetConnOverride(' + _pcAttr(deviceKey) + ',this.value)" style="font-size:11px;padding:3px 6px;width:auto" title="接続種別(空欄で自動判定)">';
+  html += '<option value=""' + (current === '' ? ' selected' : '') + '>' + (autoHint ? '🔍 自動:' + autoHint : '🔍 自動判定') + '</option>';
+  types.forEach(function(t){
+    html += '<option value="' + _esc(t) + '"' + (current === t ? ' selected' : '') + '>' + _esc(t) + '</option>';
+  });
+  html += '</select>';
+  return html;
+}
+
+// deviceKey から該当機器の meta を取得(autoDetect 用)
+function _pcGetDeviceMeta(pc, deviceKey) {
+  if (deviceKey === 'server') return pc.server;
+  if (deviceKey === 'reseco') return pc.reseco;
+  if (deviceKey === 'yakureki') return pc.yakureki;
+  if (deviceKey === 'onshikaku') return pc.onshikaku;
+  // 配列形式
+  var m = deviceKey.match(/^(router|printer|other|hub)_(\d+)$/);
+  if (m) {
+    var key = m[1] === 'router' ? 'routers' : (m[1] === 'printer' ? 'printers' : (m[1] === 'hub' ? 'hubs' : 'other'));
+    var arr = pc[key] || [];
+    return arr[parseInt(m[2])];
+  }
+  return null;
+}
+
+function _pcSetConnOverride(deviceKey, value) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc.connOverrides) pc.connOverrides = {};
+  if (value) {
+    pc.connOverrides[deviceKey] = value;
+  } else {
+    delete pc.connOverrides[deviceKey];
+  }
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
 }
 
 // ── HUB 行 ──
