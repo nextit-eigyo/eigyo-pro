@@ -16301,9 +16301,10 @@ var _pcHALO = ' style="paint-order:stroke;stroke:#fff;stroke-width:3;stroke-line
 
 // デバイスブロック全体の高さを計算(アイコン中心 cy から下端までの距離)
 // 接続線を「ラベル下」から引くのに使う
+// 注: ラベル Y オフセットは _pcSvgDevice と同期(22)
 function _pcDeviceBlockHeight(d, iconSize, labelMaxLen) {
   var lines = _pcWrapLabel(d.label || '', labelMaxLen).length;
-  var h = iconSize / 2 + 14 + lines * 12;
+  var h = iconSize / 2 + 22 + lines * 12;
   if (d.sublabel) h += 11;
   if (d.detailLines && d.detailLines.length) {
     var maxLines = 3;
@@ -16354,7 +16355,8 @@ function _pcSvgDevice(d, cx, cy, opts) {
     html += '<text x="' + badgeX + '" y="' + (badgeY + 4) + '" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="900" fill="#fff">×' + d.count + '</text>';
   }
   // ラベル(最大2行) — 白ハローで線をマスク
-  var labelY = cy + iconBoxSize/2 + 14;
+  // ラベル Y オフセット: rect下端 (iconSize/2 + 4) から ~11px の余白を確保
+  var labelY = cy + iconBoxSize/2 + 22;
   var lineHeight = 12;
   labelLines.forEach(function(line, i){
     html += '<text x="' + cx + '" y="' + (labelY + i * lineHeight) + '" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530"' + _pcHALO + '>' + _esc(line) + '</text>';
