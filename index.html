@@ -1338,9 +1338,8 @@ tr:hover td{background:rgba(90,123,158,.02)}
       <span id="adm-extra-arrow">▶</span> 詳細項目を入力する（都道府県・商品・ルートなど）
     </button>
 
-    <div class="mbtns" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+    <div class="mbtns" style="margin-top:12px">
       <button class="btn" onclick="document.getElementById('add-deal-modal').style.display='none'">キャンセル</button>
-      <button class="btn" style="padding:10px 18px;font-size:13px;font-weight:700;background:#fff;border:1.5px solid var(--acc);color:var(--acc)" onclick="doAddDealAndConfig()" title="案件を追加して、続けて薬局の構成図(機器構成)を作成します">🛠 追加して構成図作成へ →</button>
       <button class="btn pr" style="padding:10px 28px;font-size:14px;font-weight:800" onclick="doAddDeal()">追加 →</button>
     </div>
   </div>
@@ -9707,6 +9706,17 @@ function buildDealBody(d) {
                 </select>
               </div>
             </div>
+            <!-- 構成図 作成・編集 リンク(構成台数・オプション入力後の自然な導線) -->
+            <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--bds);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <div style="font-size:11px;color:var(--tx3);line-height:1.5">
+                💡 構成台数・オプションを入力したら、お客様向けの<strong style="color:var(--acc)">システム構成図</strong>を作成できます
+              </div>
+              <button class="btn sm"
+                style="background:var(--acc);color:#fff;border:1.5px solid var(--acc);font-size:12px;font-weight:700;padding:8px 18px;border-radius:8px;white-space:nowrap"
+                onclick="event.stopPropagation();openConfigDiagram('${d.id}')">
+                🛠 構成図を作成・編集 →
+              </button>
+            </div>
           </div>
         </div>
 
@@ -10999,41 +11009,49 @@ function openAddDealModal() {
   }
 }
 
-// 案件を追加して、続けて構成図(D.pharmacies)の編集画面に遷移
-function doAddDealAndConfig() {
-  const nameEl = document.getElementById('adm-name');
-  const dealName = nameEl ? (nameEl.value || '').trim() : '';
-  if (!dealName) {
-    if (nameEl) {
-      nameEl.style.borderColor = 'var(--red)';
-      nameEl.focus();
-      setTimeout(function(){ nameEl.style.borderColor = ''; }, 1500);
-    }
-    return;
-  }
-  // 1) 通常の案件追加処理
-  doAddDeal();
+// 案件詳細の「構成図を作成」ボタンから呼ぶ
+// dealId を受け取り、該当薬局の構成図編集画面に遷移
+// 案件のオプション(productOption)・構成台数(configCount)などは
+// 自動的に D.pharmacies に取り込まれる
+function openConfigDiagram(dealId) {
+  var deal = (D.deals||[]).find(function(d){ return d.id === dealId; });
+  if (!deal) { alert('案件が見つかりません'); return; }
+  var dealName = deal.name && deal.name.trim();
+  if (!dealName) { alert('薬局名が未入力です。先に薬局名を入力してください。'); return; }
+  if (typeof save === 'function') save();
 
-  // 2) D.pharmacies[薬局名] を初期化(案件データからソフト/オプションを自動取込)
+  // D.pharmacies を初期化(案件のソフト・オプションを自動取込)
   if (!D.pharmacies) D.pharmacies = {};
-  if (!D.pharmacies[dealName]) {
-    var deal = (D.deals||[]).find(function(d){ return d.name === dealName; });
-    D.pharmacies[dealName] = deal && typeof _pcMapDealToConfig === 'function'
+  var isNew = !D.pharmacies[dealName];
+  if (isNew) {
+    D.pharmacies[dealName] = typeof _pcMapDealToConfig === 'function'
       ? _pcMapDealToConfig(deal)
       : (typeof _pcDefaultConfig === 'function' ? _pcDefaultConfig() : {});
     if (typeof save === 'function') save();
+  } else {
+    // 既存の構成図がある場合: 案件側のオプションを取り込むか確認
+    if (deal.productOption) {
+      var existing = D.pharmacies[dealName];
+      var existingOpts = (existing.software && existing.software.options) || [];
+      var dealOpts = String(deal.productOption).split(/[,、]/).map(function(s){return s.trim();}).filter(Boolean);
+      var newOpts = dealOpts.filter(function(o){ return existingOpts.indexOf(o) < 0; });
+      if (newOpts.length) {
+        if (confirm('案件のオプションが構成図に未反映です。\n反映しますか?\n\n新規追加: ' + newOpts.join(', '))) {
+          existing.software.options = existingOpts.concat(newOpts);
+          existing.updatedAt = new Date().toISOString().slice(0,10);
+          if (typeof save === 'function') save();
+        }
+      }
+    }
   }
 
-  // 3) 設定 → マスタ → 構成図 タブを開いて編集画面へ
+  // 設定 → マスタ → 構成図 タブを開いて編集画面へ
+  showTab('setup', document.getElementById('tab-setup-btn'));
+  var cfgTabBtn = document.getElementById('cfg-tab-pharmacyConfig');
+  showCfgTab('pharmacyConfig', cfgTabBtn);
   setTimeout(function() {
-    showTab('setup', document.getElementById('tab-setup-btn'));
-    var cfgTabBtn = document.getElementById('cfg-tab-pharmacyConfig');
-    showCfgTab('pharmacyConfig', cfgTabBtn);
-    // 該当薬局の編集画面を開く
-    setTimeout(function() {
-      if (typeof _pcEdit === 'function') _pcEdit(dealName);
-    }, 80);
-  }, 100);
+    if (typeof _pcEdit === 'function') _pcEdit(dealName);
+  }, 80);
 }
 
 function doAddDeal() {
