@@ -1126,8 +1126,8 @@ tr:hover td{background:rgba(90,123,158,.02)}
 
 <!-- ════════ 営業ホーム配下のサブタブバー(設定中は非表示) ════════ -->
 <div id="sub-tab-bar" class="sub-tab-bar">
-  <button id="subtab-deal" class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal')">🎯 案件モード</button>
-  <button id="subtab-num"  class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">💰 数字モード</button>
+  <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
+  <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal')">🎯 案件</button>
   <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
   <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
   <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
@@ -1163,18 +1163,11 @@ tr:hover td{background:rgba(90,123,158,.02)}
     <button class="btn pr" onclick="openAddDealModal()" style="padding:8px 18px;font-size:14px;font-weight:700">＋ 案件追加</button>
   </div>
 
-  <!-- 案件モード / 数字モード 切替（画面中央・大型トグル） -->
-  <div style="display:flex;justify-content:center;margin-bottom:10px">
-    <div style="display:flex;gap:0;background:var(--s3);border-radius:12px;padding:4px;box-shadow:0 1px 3px rgba(0,0,0,.04);border:1px solid var(--bd)">
-      <button id="home-mode-num-btn" onclick="setHomeMode('num')"
-        style="font-size:15px;font-weight:800;padding:9px 32px;border:none;border-radius:8px;cursor:pointer;background:var(--tx);color:#fff;display:flex;align-items:center;gap:8px;transition:all .15s;min-width:180px;justify-content:center">
-        💰 数字モード
-      </button>
-      <button id="home-mode-deal-btn" onclick="setHomeMode('deal')"
-        style="font-size:15px;font-weight:600;padding:9px 32px;border:none;border-radius:8px;cursor:pointer;background:transparent;color:var(--tx2);display:flex;align-items:center;gap:8px;transition:all .15s;min-width:180px;justify-content:center">
-        📋 案件モード
-      </button>
-    </div>
+  <!-- 案件モード / 数字モード 切替: サブタブで切替するため非表示
+       (要素は JS から参照されるため display:none で残置) -->
+  <div style="display:none">
+    <button id="home-mode-num-btn" onclick="setHomeMode('num')"></button>
+    <button id="home-mode-deal-btn" onclick="setHomeMode('deal')"></button>
   </div>
   <!-- 案件モードのコンテンツ -->
   <div id="home-deal-mode">
