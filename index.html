@@ -16296,6 +16296,23 @@ function _pcGetConnType(pc, deviceKey, deviceMeta) {
   return _pcDefaultConnType(deviceKey, deviceMeta);
 }
 
+// テキストに白ハローを付ける(背後の接続線を視覚的にマスク)
+var _pcHALO = ' style="paint-order:stroke;stroke:#fff;stroke-width:3;stroke-linejoin:round"';
+
+// デバイスブロック全体の高さを計算(アイコン中心 cy から下端までの距離)
+// 接続線を「ラベル下」から引くのに使う
+function _pcDeviceBlockHeight(d, iconSize, labelMaxLen) {
+  var lines = _pcWrapLabel(d.label || '', labelMaxLen).length;
+  var h = iconSize / 2 + 14 + lines * 12;
+  if (d.sublabel) h += 11;
+  if (d.detailLines && d.detailLines.length) {
+    var maxLines = 3;
+    h += Math.min(d.detailLines.length, maxLines) * 10;
+    if (d.detailLines.length > maxLines) h += 10;
+  }
+  return h + 6; // 下マージン
+}
+
 // SVG 内に1つの機器ボックスを描画(SVG内ネスト)
 function _pcSvgDevice(d, cx, cy, opts) {
   opts = opts || {};
@@ -16336,17 +16353,17 @@ function _pcSvgDevice(d, cx, cy, opts) {
     html += '<circle cx="' + badgeX + '" cy="' + badgeY + '" r="11" fill="' + color + '" stroke="#fff" stroke-width="2"/>';
     html += '<text x="' + badgeX + '" y="' + (badgeY + 4) + '" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="900" fill="#fff">×' + d.count + '</text>';
   }
-  // ラベル(最大2行)
+  // ラベル(最大2行) — 白ハローで線をマスク
   var labelY = cy + iconBoxSize/2 + 14;
   var lineHeight = 12;
   labelLines.forEach(function(line, i){
-    html += '<text x="' + cx + '" y="' + (labelY + i * lineHeight) + '" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530">' + _esc(line) + '</text>';
+    html += '<text x="' + cx + '" y="' + (labelY + i * lineHeight) + '" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530"' + _pcHALO + '>' + _esc(line) + '</text>';
   });
   // サブラベル(型番等) - ラベル行数の後に配置
   var subOffset = labelLines.length * lineHeight;
   if (d.sublabel) {
     var sub = _truncate(d.sublabel, subLabelMaxLen);
-    html += '<text x="' + cx + '" y="' + (labelY + subOffset) + '" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#8a7e70">' + _esc(sub) + '</text>';
+    html += '<text x="' + cx + '" y="' + (labelY + subOffset) + '" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#8a7e70"' + _pcHALO + '>' + _esc(sub) + '</text>';
     subOffset += 11;
   }
   // 詳細行(プリンタのトレイ情報など、最大3行)
@@ -16355,10 +16372,10 @@ function _pcSvgDevice(d, cx, cy, opts) {
     var lines = d.detailLines.slice(0, maxLines);
     lines.forEach(function(line, i){
       var dl = _truncate(line, 22);
-      html += '<text x="' + cx + '" y="' + (labelY + subOffset + i * 10) + '" text-anchor="middle" font-family="sans-serif" font-size="8.5" font-weight="600" fill="#7a3525">' + _esc(dl) + '</text>';
+      html += '<text x="' + cx + '" y="' + (labelY + subOffset + i * 10) + '" text-anchor="middle" font-family="sans-serif" font-size="8.5" font-weight="600" fill="#7a3525"' + _pcHALO + '>' + _esc(dl) + '</text>';
     });
     if (d.detailLines.length > maxLines) {
-      html += '<text x="' + cx + '" y="' + (labelY + subOffset + maxLines * 10) + '" text-anchor="middle" font-family="sans-serif" font-size="8.5" fill="#8a7e70">… 他' + (d.detailLines.length - maxLines) + '件</text>';
+      html += '<text x="' + cx + '" y="' + (labelY + subOffset + maxLines * 10) + '" text-anchor="middle" font-family="sans-serif" font-size="8.5" fill="#8a7e70"' + _pcHALO + '>… 他' + (d.detailLines.length - maxLines) + '件</text>';
     }
   }
   html += '</g>';
@@ -16486,16 +16503,16 @@ function _pcBuildNetworkDiagramSvg(name) {
   }
 
   // ── レイアウト計算 ──
-  var width = 1100;
+  var width = 1300;  // 余裕を持たせるため 1100 → 1300
   var headerHeight = 60;
   var legendHeight = 50;
   var optionBoxHeight = 70;
-  // 上部ゾーン: ラベル2行折り返し対応で 190 に増加
-  var topRowHeight = topDevices.length ? 195 : 0;
+  // 上部ゾーン: 2行ラベル + サブラベルで 220 (接続線がラベル下から伸びる余裕)
+  var topRowHeight = topDevices.length ? 220 : 0;
   var hubRowHeight = hasHub ? 90 : 0;
-  // 下部ゾーンの高さ: プリンタのトレイ詳細 + 2行ラベル
+  // 下部ゾーン: プリンタのトレイ詳細 + 2行ラベル
   var hasPrinterDetails = bottomDevices.some(function(d){ return d.detailLines && d.detailLines.length; });
-  var bottomRowHeight = bottomDevices.length ? (hasPrinterDetails ? 240 : 190) : 0;
+  var bottomRowHeight = bottomDevices.length ? (hasPrinterDetails ? 260 : 200) : 0;
   // 右側 (router + child)
   var rightHeight = 0;
   rightRouters.forEach(function(r){
@@ -16522,8 +16539,9 @@ function _pcBuildNetworkDiagramSvg(name) {
   var optionBoxY = legendY + 18;
 
   // HUB バーの両端位置(左右ルーター分の余白)
-  var hubLineXLeft  = leftRouter ? 280 : 100;
-  var hubLineXRight = rightRouters.length ? width - 250 : width - 100;
+  // 余裕を持たせるためマージンを縮小
+  var hubLineXLeft  = leftRouter ? 240 : 90;
+  var hubLineXRight = rightRouters.length ? width - 210 : width - 90;
 
   // ── SVG構築 ──
   var svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:auto;background:#fff;border-radius:10px">';
@@ -16549,12 +16567,12 @@ function _pcBuildNetworkDiagramSvg(name) {
     svg += '<text x="' + (hubLineXLeft + 60) + '" y="' + (hubY + 5) + '" font-family="sans-serif" font-size="15" font-weight="800" fill="#3a5a7e">' + _esc(hubLabel) + '</text>';
   }
 
-  // 共通: 機器数に応じたサイズ調整
+  // 共通: 機器数に応じたサイズ調整(余裕を持たせるためサイズ拡大)
   function _sizing(count) {
-    if (count <= 3) return { iconSize: 64, labelMaxLen: 16, fontSize: 11 };
-    if (count <= 5) return { iconSize: 56, labelMaxLen: 12, fontSize: 10 };
-    if (count <= 7) return { iconSize: 48, labelMaxLen: 10, fontSize: 9 };
-    return { iconSize: 44, labelMaxLen: 8, fontSize: 9 };
+    if (count <= 3) return { iconSize: 72, labelMaxLen: 18, fontSize: 12 };
+    if (count <= 5) return { iconSize: 64, labelMaxLen: 14, fontSize: 11 };
+    if (count <= 7) return { iconSize: 56, labelMaxLen: 11, fontSize: 10 };
+    return { iconSize: 50, labelMaxLen: 9, fontSize: 9 };
   }
 
   // ── 上部ゾーン ──
@@ -16562,7 +16580,7 @@ function _pcBuildNetworkDiagramSvg(name) {
     var topCount = topDevices.length;
     var sz = _sizing(topCount);
     var maxSlotW = (hubLineXRight - hubLineXLeft) / topCount;
-    var slotW = Math.min(160, Math.max(110, maxSlotW));
+    var slotW = Math.min(200, Math.max(140, maxSlotW));   // 余裕拡大
     var totalW = slotW * topCount;
     var startX = (hubLineXLeft + hubLineXRight) / 2 - totalW / 2 + slotW / 2;
 
@@ -16570,7 +16588,9 @@ function _pcBuildNetworkDiagramSvg(name) {
       var cx = startX + i * slotW;
       svg += _pcSvgDevice(d, cx, topY, { iconSize: sz.iconSize, labelMaxLen: sz.labelMaxLen });
       var ct = _pcGetConnType(pc, d.key, d.meta);
-      svg += _pcSvgConnection(cx, topY + sz.iconSize/2 + 20, cx, hubY - 25, ct);
+      // ★ 接続線はラベル/サブラベル/詳細の下から開始(文字とかぶらないように)
+      var lineStartY = topY + _pcDeviceBlockHeight(d, sz.iconSize, sz.labelMaxLen);
+      svg += _pcSvgConnection(cx, lineStartY, cx, hubY - 25, ct);
     });
   }
 
@@ -16579,7 +16599,7 @@ function _pcBuildNetworkDiagramSvg(name) {
     var botCount = bottomDevices.length;
     var sz2 = _sizing(botCount);
     var maxSlotW2 = (hubLineXRight - hubLineXLeft) / botCount;
-    var slotW2 = Math.min(170, Math.max(120, maxSlotW2));
+    var slotW2 = Math.min(210, Math.max(150, maxSlotW2));  // 余裕拡大
     var totalW2 = slotW2 * botCount;
     var startX2 = (hubLineXLeft + hubLineXRight) / 2 - totalW2 / 2 + slotW2 / 2;
 
@@ -16655,14 +16675,14 @@ function _pcBuildNetworkDiagramSvg(name) {
   var legendItems = Object.keys(usedConnTypes);
   if (legendItems.length) {
     var legX = 40;
-    svg += '<text x="' + legX + '" y="' + (legendY + 4) + '" font-family="sans-serif" font-size="11" font-weight="700" fill="#8a7e70">凡例:</text>';
+    svg += '<text x="' + legX + '" y="' + (legendY + 4) + '" font-family="sans-serif" font-size="11" font-weight="700" fill="#8a7e70"' + _pcHALO + '>凡例:</text>';
     var curX = legX + 56;
     legendItems.forEach(function(ct){
       var st = _pcConnStyle(ct);
       var lineAttrs = 'stroke="' + st.color + '" stroke-width="' + st.width + '"';
       if (st.dasharray) lineAttrs += ' stroke-dasharray="' + st.dasharray + '"';
       svg += '<line x1="' + curX + '" y1="' + legendY + '" x2="' + (curX + 36) + '" y2="' + legendY + '" ' + lineAttrs + '/>';
-      svg += '<text x="' + (curX + 42) + '" y="' + (legendY + 4) + '" font-family="sans-serif" font-size="11" font-weight="600" fill="#3a3530">' + _esc(ct) + '</text>';
+      svg += '<text x="' + (curX + 42) + '" y="' + (legendY + 4) + '" font-family="sans-serif" font-size="11" font-weight="600" fill="#3a3530"' + _pcHALO + '>' + _esc(ct) + '</text>';
       curX += 42 + ct.length * 14 + 18;
     });
   }
