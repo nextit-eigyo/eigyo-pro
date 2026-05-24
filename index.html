@@ -926,6 +926,46 @@ tr:hover td{background:rgba(90,123,158,.02)}
   transition:all .15s;flex-shrink:0;
 }
 .memo-expand-btn:hover{background:rgba(90,123,158,.1);color:var(--acc);border-color:var(--acc)}
+
+/* === 🛠 薬局構成図 (PharmacyConfig) === */
+.pc-section-title{font-size:12px;font-weight:700;color:var(--tx);padding:6px 0 4px;border-bottom:1px solid var(--bd);margin-bottom:8px;letter-spacing:.04em}
+.pc-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--tx2);flex-wrap:wrap}
+.pc-row label{flex:0 0 110px;font-weight:600;color:var(--tx2)}
+.pc-row input[type=text],.pc-row input[type=number],.pc-row select,.pc-row textarea{font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid var(--bd);border-radius:5px;background:#fff;color:var(--tx)}
+.pc-row input[type=text]:focus,.pc-row input[type=number]:focus,.pc-row select:focus{outline:1.5px solid var(--acc);outline-offset:-1px}
+
+/* === 構成図ビュー === */
+.pc-diagram{background:#fff;border:1.5px solid #5a7b9e;border-radius:14px;padding:24px 28px;max-width:920px;margin:0 auto;box-shadow:0 2px 12px rgba(58,90,126,.06)}
+.pc-diagram-title{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #5a7b9e;padding-bottom:10px;margin-bottom:18px;flex-wrap:wrap;gap:8px}
+.pc-diagram-pharmacy{font-size:20px;font-weight:900;color:#3a5a7e;letter-spacing:.02em}
+.pc-diagram-date{font-size:11px;color:var(--tx3);font-weight:500}
+.pc-diagram-section{margin-bottom:18px}
+.pc-diagram-section-title{font-size:13px;font-weight:800;color:#5a7b9e;margin-bottom:10px;letter-spacing:.04em;padding-left:6px;border-left:3px solid #5a7b9e}
+.pc-diagram-row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
+.pc-icon-block{flex:0 0 auto;min-width:120px;max-width:160px;background:#f8f5ef;border:1.5px solid;border-radius:10px;padding:14px 10px 10px;text-align:center;position:relative;transition:transform .15s}
+.pc-icon-block:hover{transform:translateY(-2px)}
+.pc-icon-svg{display:flex;justify-content:center;margin-bottom:6px}
+.pc-icon-count{position:absolute;top:-9px;right:-9px;color:#fff;font-size:13px;font-weight:900;padding:3px 10px;border-radius:14px;box-shadow:0 2px 5px rgba(0,0,0,.18);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.pc-icon-label{font-size:12px;font-weight:700;color:var(--tx);line-height:1.35}
+.pc-icon-sublabel{font-size:10px;color:var(--tx3);margin-top:3px;font-weight:500;line-height:1.35}
+.pc-diagram-summary{background:#f8f5ef;border-radius:8px;padding:12px 16px;margin-top:14px;border-left:4px solid #c89856}
+.pc-summary-row{display:flex;align-items:flex-start;gap:14px;font-size:12px;padding:4px 0}
+.pc-summary-label{flex:0 0 100px;font-weight:700;color:#7a5a2a}
+.pc-summary-value{flex:1;color:var(--tx);font-weight:500;line-height:1.5}
+
+/* === 印刷スタイル(構成図) === */
+@media print {
+  body * { visibility: hidden; }
+  .pc-diagram, .pc-diagram * { visibility: visible; }
+  .pc-no-print { display: none !important; }
+  .pc-diagram {
+    position: absolute; left: 0; top: 0;
+    box-shadow: none; max-width: none; width: 100%;
+    border: 1.5px solid #5a7b9e;
+    page-break-inside: avoid;
+  }
+  .pc-icon-block { background: #fff !important; transform: none !important; }
+}
 </style>
 </head>
 <body>
@@ -1399,6 +1439,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
     <button class="cfg-tab"        id="cfg-tab-dealtype"    onclick="showCfgTab('dealtype',this)">🏷 案件種別</button>
     <button class="cfg-tab"        id="cfg-tab-configtype"  onclick="showCfgTab('configtype',this)">🖥 構成種別</button>
     <button class="cfg-tab"        id="cfg-tab-configcount" onclick="showCfgTab('configcount',this)">🔢 構成台数</button>
+    <button class="cfg-tab"        id="cfg-tab-pharmacyConfig" onclick="showCfgTab('pharmacyConfig',this)">🛠 構成図</button>
     <button class="cfg-tab"        id="cfg-tab-status"      onclick="showCfgTab('status',this)">📋 ステータス</button>
     <button class="cfg-tab"        id="cfg-tab-resecon"     onclick="showCfgTab('resecon',this)">🏷 レセコン</button>
     <button class="cfg-tab"        id="cfg-tab-tpl"      onclick="showCfgTab('tpl',this)">💬 テンプレート</button>
@@ -1637,6 +1678,22 @@ tr:hover td{background:rgba(90,123,158,.02)}
       <button class="btn sm" onclick="addConfigCountItem()">＋ 追加</button>
     </div>
     <div id="configcount-list"></div>
+  </div>
+
+  <!-- 🛠 薬局構成図（顧客向け視覚資料） -->
+  <div id="cfg-pharmacyConfig" class="cfg-section">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div class="card-title" style="margin-bottom:2px">🛠 薬局システム構成図</div>
+          <div style="font-size:11px;color:var(--tx3);line-height:1.5">
+            お客様向けの視覚資料です。レセコン・薬歴端末・プリンタ・オン資端末・YAMAHAルーター等の構成をアイコンで分かりやすく表示します。<br>
+            提案時・受注後の構成確認・既存薬局の現状把握に使えます。
+          </div>
+        </div>
+      </div>
+      <div id="pharmacyConfig-content"></div>
+    </div>
   </div>
 
   <!-- ステータスマスタ -->
@@ -2676,6 +2733,7 @@ function showCfgTab(name, btn) {
     else if (name === 'dealtype')    { initDealTypeMaster(); renderDealTypeList(); }
     else if (name === 'configtype')  { renderConfigTypeList(); }
     else if (name === 'configcount') { renderConfigCountList(); }
+    else if (name === 'pharmacyConfig') { renderPharmacyConfigPage(); }
     else if (name === 'status')      { initStatusMaster(); renderStatusList(); }
     else if (name === 'resecon')  { initReseconMaster(); renderReseconList(); }
     else if (name === 'tpl')      { renderCfgTplList(); }
@@ -3746,6 +3804,9 @@ function sanitizeD() {
     if (typeof h === 'string') return { name: h, pref: '', contact: '' };
     return h;
   });
+  // 構成図: 薬局単位のシステム構成情報（顧客向け視覚資料用）
+  // 構造: D.pharmacies[薬局名] = { software, reseco, yakureki, onshikaku, router, printers, other, notes, updatedAt }
+  if (!D.pharmacies) D.pharmacies = {};
   if (!D.maintenance)  D.maintenance = {s:Array(12).fill(''),p:Array(12).fill('')};
   if (!D.groupActuals) D.groupActuals = {};
   if (!D.consumables)  D.consumables = {};
@@ -15130,6 +15191,470 @@ function renderConfigTypeList()  { _renderSimpleMasterList('configtype-list', 'c
 function addConfigTypeItem()     { if(!D.configTypeMaster||!D.configTypeMaster.length)D.configTypeMaster=['STD版','L5版','L10版']; D.configTypeMaster.push(''); save(); renderConfigTypeList(); setTimeout(function(){var el=document.getElementById('configtype-list');if(el){var ins=el.querySelectorAll('input');if(ins.length)ins[ins.length-1].focus();}},50); }
 function renderConfigCountList() { _renderSimpleMasterList('configcount-list', 'configCountMaster', ['1台','SV＋1台','SV+2台'], '構成台数名'); }
 function addConfigCountItem()    { if(!D.configCountMaster||!D.configCountMaster.length)D.configCountMaster=['1台']; D.configCountMaster.push(''); save(); renderConfigCountList(); setTimeout(function(){var el=document.getElementById('configcount-list');if(el){var ins=el.querySelectorAll('input');if(ins.length)ins[ins.length-1].focus();}},50); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// 🛠 薬局システム構成図 (PharmacyConfig)
+// 顧客向け視覚資料: レセコン・薬歴端末・プリンタ・オン資・YAMAHAルーター等を
+// SVGアイコンで分かりやすく表示する。ブラウザ印刷で配布用にも使える。
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── ビュー状態 ──
+var _pcView = 'list';     // 'list' | 'edit' | 'view'
+var _pcEditing = null;    // 編集中の薬局名
+
+// ── HTML属性に安全に名前を埋め込むヘルパー ──
+function _pcAttr(name) {
+  return JSON.stringify(name).replace(/"/g, '&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── ページのエントリポイント ──
+function renderPharmacyConfigPage() {
+  if (!D.pharmacies) D.pharmacies = {};
+  if (_pcView === 'edit' && _pcEditing && D.pharmacies[_pcEditing]) {
+    _renderPharmacyConfigEditor(_pcEditing);
+  } else if (_pcView === 'view' && _pcEditing && D.pharmacies[_pcEditing]) {
+    _renderPharmacyConfigPreview(_pcEditing);
+  } else {
+    _pcView = 'list';
+    _pcEditing = null;
+    _renderPharmacyConfigList();
+  }
+}
+
+// ── 一覧 ──
+function _renderPharmacyConfigList() {
+  var el = document.getElementById('pharmacyConfig-content');
+  if (!el) return;
+  var names = Object.keys(D.pharmacies || {}).sort();
+
+  var html = '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
+  html += '<button class="btn sm pr" onclick="_pcNew()">＋ 新規追加</button>';
+  html += '<button class="btn sm" onclick="_pcImportFromDeals()" title="案件管理に登録済みの薬局を一括登録">📥 案件管理から取り込み</button>';
+  html += '</div>';
+
+  if (!names.length) {
+    html += '<div style="padding:30px 20px;text-align:center;color:var(--tx3);font-size:13px;background:var(--s2);border-radius:8px">'
+         + '登録された構成図はまだありません。「＋ 新規追加」から薬局名を指定して構成図を作成してください。'
+         + '</div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">';
+    names.forEach(function(name) {
+      var pc = D.pharmacies[name];
+      var sw = pc.software || {};
+      var prdLabel = sw.product || '未設定';
+      if (sw.monthly) prdLabel += ' (月割)';
+      var devCounts = [];
+      if (pc.reseco && pc.reseco.count) devCounts.push('レセコン×' + pc.reseco.count);
+      if (pc.yakureki && pc.yakureki.count) devCounts.push('薬歴×' + pc.yakureki.count);
+      var printerTotal = (pc.printers || []).reduce(function(s, p){ return s + (parseInt(p.count)||0); }, 0);
+      if (printerTotal) devCounts.push('プリンタ×' + printerTotal);
+      if (pc.onshikaku && pc.onshikaku.count) devCounts.push('オン資×' + pc.onshikaku.count);
+
+      html += '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:12px 14px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">';
+      html += '<div style="font-size:14px;font-weight:700;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(name) + '</div>';
+      html += '<div style="font-size:10px;color:var(--tx3);flex-shrink:0">' + _esc(pc.updatedAt || '') + '</div>';
+      html += '</div>';
+      html += '<div style="font-size:11px;color:var(--tx2);margin-bottom:4px">📦 ' + _esc(prdLabel) + '</div>';
+      if (devCounts.length) {
+        html += '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">' + _esc(devCounts.join(' / ')) + '</div>';
+      } else {
+        html += '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px;font-style:italic">(機器未登録)</div>';
+      }
+      html += '<div style="display:flex;gap:6px">';
+      html += '<button class="btn sm" onclick="_pcShow(' + _pcAttr(name) + ')">📊 表示</button>';
+      html += '<button class="btn sm" onclick="_pcEdit(' + _pcAttr(name) + ')">✏ 編集</button>';
+      html += '<button class="btn sm dr" onclick="_pcDelete(' + _pcAttr(name) + ')" style="margin-left:auto">✕</button>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function _pcDefaultConfig() {
+  return {
+    software:  { product: 'V8', monthly: false, options: [] },
+    reseco:    { count: 1, model: '' },
+    yakureki:  { count: 1, model: '' },
+    onshikaku: { count: 0, location: '' },
+    router:    { count: 0, model: '' },
+    printers:  [],
+    other:     [],
+    notes:     '',
+    updatedAt: new Date().toISOString().slice(0,10)
+  };
+}
+
+function _pcNew() {
+  var name = prompt('薬局名を入力してください:');
+  if (!name) return;
+  name = name.trim();
+  if (!name) return;
+  if (D.pharmacies[name]) {
+    if (!confirm('「' + name + '」はすでに登録されています。編集しますか?')) return;
+  } else {
+    D.pharmacies[name] = _pcDefaultConfig();
+    save();
+  }
+  _pcEdit(name);
+}
+
+function _pcEdit(name) {
+  _pcView = 'edit';
+  _pcEditing = name;
+  renderPharmacyConfigPage();
+}
+
+function _pcShow(name) {
+  _pcView = 'view';
+  _pcEditing = name;
+  renderPharmacyConfigPage();
+}
+
+function _pcBack() {
+  _pcView = 'list';
+  _pcEditing = null;
+  renderPharmacyConfigPage();
+}
+
+function _pcDelete(name) {
+  if (!confirm('「' + name + '」の構成図を削除しますか?この操作は元に戻せません。')) return;
+  delete D.pharmacies[name];
+  save();
+  if (_pcEditing === name) { _pcView = 'list'; _pcEditing = null; }
+  renderPharmacyConfigPage();
+}
+
+function _pcImportFromDeals() {
+  var names = Array.from(new Set((D.deals||[]).map(function(d){ return (d.name||'').trim(); }).filter(Boolean)));
+  var registered = Object.keys(D.pharmacies || {});
+  var unregistered = names.filter(function(n){ return registered.indexOf(n) === -1; }).sort();
+  if (!unregistered.length) {
+    alert('案件管理にある全薬局はすでに構成図が登録されています。');
+    return;
+  }
+  var msg = '案件管理にある未登録の薬局 ' + unregistered.length + '件をまとめて空の構成図として登録しますか?\n\n';
+  msg += unregistered.slice(0, 10).join('\n');
+  if (unregistered.length > 10) msg += '\n... 他' + (unregistered.length - 10) + '件';
+  if (!confirm(msg)) return;
+  unregistered.forEach(function(n){ D.pharmacies[n] = _pcDefaultConfig(); });
+  save();
+  _renderPharmacyConfigList();
+}
+
+// ── 編集フォーム ──
+function _renderPharmacyConfigEditor(name) {
+  var el = document.getElementById('pharmacyConfig-content');
+  if (!el) return;
+  var pc = D.pharmacies[name];
+  if (!pc) { _pcBack(); return; }
+
+  var html = '';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
+  html += '<button class="btn sm" onclick="_pcBack()">← 一覧に戻る</button>';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--tx)">✏ 編集: ' + _esc(name) + '</div>';
+  html += '<button class="btn sm pr" onclick="_pcShow(' + _pcAttr(name) + ')">📊 プレビュー</button>';
+  html += '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">';
+
+  // ── 左列: ソフト & 端末 ──
+  html += '<div>';
+  html += '<div class="pc-section-title">📦 ソフトウェア</div>';
+  html += '<div class="pc-row"><label>本体</label>';
+  html += '<select onchange="_pcUpd(\'software.product\',this.value)">';
+  ['V7','V8','V8Core'].forEach(function(p){
+    html += '<option' + (pc.software.product === p ? ' selected' : '') + '>' + p + '</option>';
+  });
+  html += '</select>';
+  html += '<label style="flex:0 0 auto;margin-left:8px"><input type="checkbox" onchange="_pcUpd(\'software.monthly\',this.checked)"' + (pc.software.monthly ? ' checked' : '') + '> 月割版</label>';
+  html += '</div>';
+  html += '<div class="pc-row"><label>オプション</label>';
+  html += '<input type="text" placeholder="在庫管理, レセコン連携 (カンマ区切り)" value="' + _esc((pc.software.options||[]).join(', ')) + '" onchange="_pcUpd(\'software.options\',this.value.split(/[,、]/).map(function(s){return s.trim();}).filter(Boolean))" style="flex:1"></div>';
+
+  html += '<div class="pc-section-title" style="margin-top:14px">💻 端末</div>';
+  html += '<div class="pc-row"><label>レセコン</label>';
+  html += '<input type="number" min="0" value="' + (pc.reseco.count||0) + '" onchange="_pcUpd(\'reseco.count\',parseInt(this.value)||0)" style="width:60px"> 台';
+  html += '<input type="text" placeholder="型番(任意)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<div class="pc-row"><label>薬歴端末</label>';
+  html += '<input type="number" min="0" value="' + (pc.yakureki.count||0) + '" onchange="_pcUpd(\'yakureki.count\',parseInt(this.value)||0)" style="width:60px"> 台';
+  html += '<input type="text" placeholder="型番(任意)" value="' + _esc(pc.yakureki.model||'') + '" onchange="_pcUpd(\'yakureki.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<div class="pc-row"><label>オン資端末</label>';
+  html += '<input type="number" min="0" value="' + (pc.onshikaku.count||0) + '" onchange="_pcUpd(\'onshikaku.count\',parseInt(this.value)||0)" style="width:60px"> 台';
+  html += '<input type="text" placeholder="設置場所(例:受付)" value="' + _esc(pc.onshikaku.location||'') + '" onchange="_pcUpd(\'onshikaku.location\',this.value)" style="flex:1;margin-left:6px"></div>';
+  html += '<div class="pc-row"><label>YAMAHAルーター</label>';
+  html += '<input type="number" min="0" value="' + (pc.router.count||0) + '" onchange="_pcUpd(\'router.count\',parseInt(this.value)||0)" style="width:60px"> 台';
+  html += '<input type="text" placeholder="型番(RTX830等)" value="' + _esc(pc.router.model||'') + '" onchange="_pcUpd(\'router.model\',this.value)" style="flex:1;margin-left:6px"></div>';
+
+  html += '</div>';
+
+  // ── 右列: プリンタ & その他 & メモ ──
+  html += '<div>';
+  html += '<div class="pc-section-title">🖨 プリンタ <span style="font-weight:400;font-size:10px;color:var(--tx3)">(用途別に複数登録可)</span></div>';
+  if (!(pc.printers||[]).length) {
+    html += '<div style="font-size:11px;color:var(--tx3);font-style:italic;margin-bottom:6px">(プリンタ未登録)</div>';
+  }
+  (pc.printers||[]).forEach(function(p, i){
+    html += _pcPrinterRow(p, i);
+  });
+  html += '<button class="btn sm" onclick="_pcAddPrinter()" style="margin-top:4px">＋ プリンタ追加</button>';
+
+  html += '<div class="pc-section-title" style="margin-top:14px">🔌 その他周辺機器</div>';
+  if (!(pc.other||[]).length) {
+    html += '<div style="font-size:11px;color:var(--tx3);font-style:italic;margin-bottom:6px">(なし)</div>';
+  }
+  (pc.other||[]).forEach(function(o, i){
+    html += _pcOtherRow(o, i);
+  });
+  html += '<button class="btn sm" onclick="_pcAddOther()" style="margin-top:4px">＋ 追加</button>';
+
+  html += '<div class="pc-section-title" style="margin-top:14px">📝 補足メモ</div>';
+  html += '<textarea rows="3" style="width:100%;font-family:inherit;font-size:12px;padding:8px;border:1px solid var(--bd);border-radius:6px;background:#fff;resize:vertical" placeholder="補足説明、特記事項など" onchange="_pcUpd(\'notes\',this.value)">' + _esc(pc.notes||'') + '</textarea>';
+
+  html += '</div>';
+
+  html += '</div>'; // grid
+
+  el.innerHTML = html;
+}
+
+function _pcPrinterRow(p, i) {
+  var types = ['レセプト','領収書','シール','処方箋','その他'];
+  var html = '<div class="pc-row" style="margin-bottom:6px">';
+  html += '<select onchange="_pcUpd(\'printers.' + i + '.type\',this.value)">';
+  types.forEach(function(t){
+    html += '<option' + (p.type === t ? ' selected' : '') + '>' + t + '</option>';
+  });
+  html += '</select>';
+  html += '<input type="number" min="0" value="' + (p.count||0) + '" onchange="_pcUpd(\'printers.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
+  html += '<input type="text" placeholder="型番(任意)" value="' + _esc(p.model||'') + '" onchange="_pcUpd(\'printers.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<button class="btn sm dr" onclick="_pcRmPrinter(' + i + ')" style="margin-left:4px">✕</button>';
+  html += '</div>';
+  return html;
+}
+
+function _pcOtherRow(o, i) {
+  var html = '<div class="pc-row" style="margin-bottom:6px">';
+  html += '<input type="text" placeholder="機器名" value="' + _esc(o.name||'') + '" onchange="_pcUpd(\'other.' + i + '.name\',this.value)" style="flex:1">';
+  html += '<input type="number" min="0" value="' + (o.count||0) + '" onchange="_pcUpd(\'other.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
+  html += '<button class="btn sm dr" onclick="_pcRmOther(' + i + ')" style="margin-left:4px">✕</button>';
+  html += '</div>';
+  return html;
+}
+
+// ── ネストされたプロパティを更新するヘルパー ──
+// path 例: 'software.product', 'reseco.count', 'printers.0.type'
+function _pcUpd(path, value) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc) return;
+  var parts = path.split('.');
+  var obj = pc;
+  for (var i = 0; i < parts.length - 1; i++) {
+    var key = parts[i];
+    if (obj[key] === undefined || obj[key] === null) {
+      // 次の要素が数字なら配列、それ以外はオブジェクト
+      obj[key] = /^\d+$/.test(parts[i+1]) ? [] : {};
+    }
+    obj = obj[key];
+  }
+  obj[parts[parts.length - 1]] = value;
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+}
+
+function _pcAddPrinter() {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc.printers) pc.printers = [];
+  pc.printers.push({ type: 'レセプト', count: 1, model: '' });
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
+}
+
+function _pcRmPrinter(i) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  pc.printers.splice(i, 1);
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
+}
+
+function _pcAddOther() {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  if (!pc.other) pc.other = [];
+  pc.other.push({ name: '', count: 1 });
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
+}
+
+function _pcRmOther(i) {
+  if (!_pcEditing) return;
+  var pc = D.pharmacies[_pcEditing];
+  pc.other.splice(i, 1);
+  pc.updatedAt = new Date().toISOString().slice(0,10);
+  save();
+  _renderPharmacyConfigEditor(_pcEditing);
+}
+
+// ── SVGアイコン定義 ──
+function _pcIcon(type, color) {
+  color = color || '#5a7b9e';
+  var icons = {
+    pc: '<rect x="8" y="14" width="48" height="32" rx="2" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="14" y="20" width="36" height="20" fill="' + color + '" opacity="0.15"/>'
+      + '<rect x="22" y="48" width="20" height="3" fill="' + color + '"/>'
+      + '<rect x="18" y="51" width="28" height="2" rx="1" fill="' + color + '"/>',
+    yakureki: '<rect x="8" y="14" width="48" height="32" rx="2" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="14" y="20" width="36" height="20" fill="' + color + '" opacity="0.15"/>'
+      + '<line x1="18" y1="26" x2="46" y2="26" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<line x1="18" y1="30" x2="46" y2="30" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<line x1="18" y1="34" x2="40" y2="34" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<rect x="22" y="48" width="20" height="3" fill="' + color + '"/>'
+      + '<rect x="18" y="51" width="28" height="2" rx="1" fill="' + color + '"/>',
+    printer: '<rect x="14" y="10" width="36" height="14" rx="1" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="8" y="22" width="48" height="22" rx="3" fill="' + color + '" opacity="0.15" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="14" y="36" width="36" height="18" rx="1" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<circle cx="48" cy="30" r="2" fill="' + color + '"/>'
+      + '<line x1="18" y1="42" x2="42" y2="42" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<line x1="18" y1="46" x2="38" y2="46" stroke="' + color + '" stroke-width="1.5"/>',
+    router: '<rect x="6" y="34" width="52" height="18" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<circle cx="14" cy="43" r="2" fill="' + color + '"/>'
+      + '<circle cx="22" cy="43" r="2" fill="' + color + '"/>'
+      + '<circle cx="30" cy="43" r="2" fill="' + color + '"/>'
+      + '<rect x="40" y="40" width="14" height="6" rx="1" fill="' + color + '" opacity="0.3"/>'
+      + '<path d="M16 30 Q22 22, 32 22 Q42 22, 48 30" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round"/>'
+      + '<path d="M20 26 Q26 20, 32 20 Q38 20, 44 26" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" opacity="0.6"/>'
+      + '<circle cx="32" cy="14" r="2" fill="' + color + '"/>',
+    onshikaku: '<rect x="10" y="14" width="44" height="36" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="14" y="18" width="36" height="14" fill="' + color + '" opacity="0.15"/>'
+      + '<circle cx="22" cy="25" r="4" fill="' + color + '"/>'
+      + '<line x1="32" y1="22" x2="46" y2="22" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<line x1="32" y1="26" x2="42" y2="26" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<rect x="16" y="38" width="32" height="8" rx="1" fill="' + color + '" opacity="0.3"/>',
+    other: '<rect x="14" y="14" width="36" height="36" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<circle cx="32" cy="32" r="8" fill="' + color + '" opacity="0.3"/>'
+      + '<circle cx="32" cy="32" r="3" fill="' + color + '"/>'
+  };
+  return '<svg viewBox="0 0 64 64" width="56" height="56" xmlns="http://www.w3.org/2000/svg">' + (icons[type] || icons.other) + '</svg>';
+}
+
+function _pcIconBlock(iconType, label, count, sublabel, color) {
+  var html = '<div class="pc-icon-block" style="border-color:' + color + '">';
+  html += '<div class="pc-icon-svg">' + _pcIcon(iconType, color) + '</div>';
+  html += '<div class="pc-icon-count" style="background:' + color + '">×' + count + '</div>';
+  html += '<div class="pc-icon-label">' + _esc(label) + '</div>';
+  if (sublabel) html += '<div class="pc-icon-sublabel">' + _esc(sublabel) + '</div>';
+  html += '</div>';
+  return html;
+}
+
+// ── プレビュー(視覚図) ──
+function _renderPharmacyConfigPreview(name) {
+  var el = document.getElementById('pharmacyConfig-content');
+  if (!el) return;
+  var pc = D.pharmacies[name];
+  if (!pc) { _pcBack(); return; }
+  var sw = pc.software || {};
+
+  var html = '';
+  // 操作バー(印刷時は非表示)
+  html += '<div class="pc-no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
+  html += '<button class="btn sm" onclick="_pcBack()">← 一覧に戻る</button>';
+  html += '<div style="display:flex;gap:6px">';
+  html += '<button class="btn sm" onclick="_pcEdit(' + _pcAttr(name) + ')">✏ 編集</button>';
+  html += '<button class="btn sm pr" onclick="window.print()">🖨 印刷</button>';
+  html += '</div>';
+  html += '</div>';
+
+  // 構成図本体
+  html += '<div class="pc-diagram">';
+  html += '<div class="pc-diagram-title">';
+  html += '<div class="pc-diagram-pharmacy">' + _esc(name) + ' システム構成図</div>';
+  html += '<div class="pc-diagram-date">作成/更新: ' + _esc(pc.updatedAt || '—') + '</div>';
+  html += '</div>';
+
+  // 端末セクション
+  var hasTerminals = (pc.reseco && pc.reseco.count > 0)
+                  || (pc.yakureki && pc.yakureki.count > 0)
+                  || (pc.onshikaku && pc.onshikaku.count > 0);
+  if (hasTerminals) {
+    html += '<div class="pc-diagram-section">';
+    html += '<div class="pc-diagram-section-title">💻 端末</div>';
+    html += '<div class="pc-diagram-row">';
+    if (pc.reseco && pc.reseco.count > 0) {
+      html += _pcIconBlock('pc', 'レセコン端末', pc.reseco.count, pc.reseco.model, '#5a7b9e');
+    }
+    if (pc.yakureki && pc.yakureki.count > 0) {
+      html += _pcIconBlock('yakureki', '薬歴端末', pc.yakureki.count, pc.yakureki.model, '#7a8e5a');
+    }
+    if (pc.onshikaku && pc.onshikaku.count > 0) {
+      html += _pcIconBlock('onshikaku', 'オン資端末', pc.onshikaku.count, pc.onshikaku.location, '#c89856');
+    }
+    html += '</div></div>';
+  }
+
+  // プリンタセクション
+  var activePrinters = (pc.printers || []).filter(function(p){ return p.count > 0; });
+  if (activePrinters.length) {
+    html += '<div class="pc-diagram-section">';
+    html += '<div class="pc-diagram-section-title">🖨 プリンタ</div>';
+    html += '<div class="pc-diagram-row">';
+    activePrinters.forEach(function(p){
+      html += _pcIconBlock('printer', p.type + ' 印刷用', p.count, p.model, '#a85a4a');
+    });
+    html += '</div></div>';
+  }
+
+  // ネットワーク(ルーター)セクション
+  if (pc.router && pc.router.count > 0) {
+    html += '<div class="pc-diagram-section">';
+    html += '<div class="pc-diagram-section-title">📡 ネットワーク</div>';
+    html += '<div class="pc-diagram-row">';
+    html += _pcIconBlock('router', 'YAMAHAルーター', pc.router.count, pc.router.model, '#5a4f44');
+    html += '</div></div>';
+  }
+
+  // その他周辺機器
+  var activeOther = (pc.other || []).filter(function(o){ return o.name && o.count > 0; });
+  if (activeOther.length) {
+    html += '<div class="pc-diagram-section">';
+    html += '<div class="pc-diagram-section-title">🔌 その他周辺機器</div>';
+    html += '<div class="pc-diagram-row">';
+    activeOther.forEach(function(o){
+      html += _pcIconBlock('other', o.name, o.count, '', '#7a6b5a');
+    });
+    html += '</div></div>';
+  }
+
+  // 機器がまったく無い場合
+  if (!hasTerminals && !activePrinters.length && !(pc.router && pc.router.count > 0) && !activeOther.length) {
+    html += '<div style="padding:24px;text-align:center;color:var(--tx3);font-size:13px;background:var(--s2);border-radius:8px">'
+         + '機器が登録されていません。「✏ 編集」から登録してください。'
+         + '</div>';
+  }
+
+  // ソフトウェアサマリ
+  html += '<div class="pc-diagram-summary">';
+  html += '<div class="pc-summary-row"><span class="pc-summary-label">📦 ソフト</span><span class="pc-summary-value">調剤くん' + _esc(sw.product || 'V8') + (sw.monthly ? ' (月割版)' : '') + '</span></div>';
+  if (sw.options && sw.options.length) {
+    html += '<div class="pc-summary-row"><span class="pc-summary-label">✨ オプション</span><span class="pc-summary-value">' + _esc(sw.options.join(' / ')) + '</span></div>';
+  }
+  if (pc.notes) {
+    html += '<div class="pc-summary-row"><span class="pc-summary-label">📝 補足</span><span class="pc-summary-value" style="white-space:pre-wrap">' + _esc(pc.notes) + '</span></div>';
+  }
+  html += '</div>';
+
+  html += '</div>'; // pc-diagram
+
+  el.innerHTML = html;
+}
 
 // ── ステータスマスタ管理 ─────────────────────────────────────────
 function renderStatusList() {
