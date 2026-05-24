@@ -16069,15 +16069,53 @@ function _pcIconContent(type, color) {
       + '<path d="M16 30 Q22 22, 32 22 Q42 22, 48 30" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round"/>'
       + '<path d="M20 26 Q26 20, 32 20 Q38 20, 44 26" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" opacity="0.6"/>'
       + '<circle cx="32" cy="14" r="2" fill="' + color + '"/>',
-    onshikaku: '<rect x="10" y="14" width="44" height="36" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
-      + '<rect x="14" y="18" width="36" height="14" fill="' + color + '" opacity="0.15"/>'
-      + '<circle cx="22" cy="25" r="4" fill="' + color + '"/>'
-      + '<line x1="32" y1="22" x2="46" y2="22" stroke="' + color + '" stroke-width="1.5"/>'
-      + '<line x1="32" y1="26" x2="42" y2="26" stroke="' + color + '" stroke-width="1.5"/>'
-      + '<rect x="16" y="38" width="32" height="8" rx="1" fill="' + color + '" opacity="0.3"/>',
+    // オン資端末はPCなのでPCアイコン + カード読取アイコン
+    onshikaku: '<rect x="8" y="14" width="48" height="32" rx="2" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="14" y="20" width="36" height="20" fill="' + color + '" opacity="0.15"/>'
+      + '<rect x="22" y="48" width="20" height="3" fill="' + color + '"/>'
+      + '<rect x="18" y="51" width="28" height="2" rx="1" fill="' + color + '"/>'
+      // 小さなカードリーダー指示子(右下)
+      + '<rect x="38" y="32" width="14" height="8" rx="1" fill="' + color + '" opacity="0.7"/>'
+      + '<line x1="40" y1="36" x2="50" y2="36" stroke="#fff" stroke-width="1"/>',
+    // その他汎用(機器名から判定できない場合のフォールバック)
     other: '<rect x="14" y="14" width="36" height="36" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
       + '<circle cx="32" cy="32" r="8" fill="' + color + '" opacity="0.3"/>'
       + '<circle cx="32" cy="32" r="3" fill="' + color + '"/>',
+    // 2次元バーコードリーダー(ハンディ型)
+    barcode: '<path d="M14 8 L30 8 L30 28 L40 38 L40 52 L22 52 L22 32 L14 24 Z" fill="#fff" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>'
+      + '<line x1="18" y1="12" x2="18" y2="22" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<line x1="22" y1="12" x2="22" y2="22" stroke="' + color + '" stroke-width="1.5"/>'
+      + '<line x1="26" y1="12" x2="26" y2="22" stroke="' + color + '" stroke-width="1.5"/>'
+      // ビーム
+      + '<line x1="44" y1="34" x2="58" y2="20" stroke="' + color + '" stroke-width="1.5" stroke-dasharray="2,2"/>'
+      + '<circle cx="58" cy="20" r="2" fill="' + color + '" opacity="0.5"/>',
+    // フラットベッドスキャナ
+    scanner: '<rect x="6" y="22" width="52" height="30" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="10" y="26" width="44" height="20" fill="' + color + '" opacity="0.15"/>'
+      + '<line x1="10" y1="36" x2="54" y2="36" stroke="' + color + '" stroke-width="1.2" stroke-dasharray="3,2"/>'
+      + '<rect x="20" y="12" width="24" height="10" rx="1" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<circle cx="48" cy="49" r="1.5" fill="' + color + '"/>',
+    // 外付けHDD/NAS
+    hdd: '<rect x="8" y="16" width="48" height="34" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="13" y="22" width="38" height="5" rx="1" fill="' + color + '" opacity="0.5"/>'
+      + '<rect x="13" y="30" width="38" height="5" rx="1" fill="' + color + '" opacity="0.5"/>'
+      + '<rect x="13" y="38" width="38" height="5" rx="1" fill="' + color + '" opacity="0.5"/>'
+      + '<circle cx="48" cy="48" r="2" fill="#7a8e5a"/>',
+    // UPS(無停電電源装置)
+    ups: '<rect x="14" y="10" width="36" height="44" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<rect x="20" y="16" width="24" height="14" stroke="' + color + '" stroke-width="1.5" fill="none"/>'
+      // 稲妻マーク
+      + '<polyline points="28,18 24,24 30,24 26,28" stroke="' + color + '" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>'
+      + '<rect x="20" y="34" width="24" height="14" rx="1" fill="' + color + '" opacity="0.15"/>'
+      + '<text x="32" y="44" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="700" fill="' + color + '">UPS</text>',
+    // ONU/モデム(光回線終端装置)
+    onu: '<rect x="6" y="20" width="52" height="24" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
+      + '<circle cx="13" cy="32" r="1.8" fill="#7a8e5a"/>'
+      + '<circle cx="20" cy="32" r="1.8" fill="' + color + '"/>'
+      + '<circle cx="27" cy="32" r="1.8" fill="' + color + '" opacity="0.5"/>'
+      + '<circle cx="34" cy="32" r="1.8" fill="' + color + '" opacity="0.3"/>'
+      + '<rect x="42" y="28" width="12" height="8" rx="1" fill="' + color + '" opacity="0.3"/>'
+      + '<text x="32" y="54" text-anchor="middle" font-family="sans-serif" font-size="6" font-weight="700" fill="' + color + '">ONU</text>',
     server: '<rect x="16" y="6" width="32" height="52" rx="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>'
       + '<rect x="20" y="12" width="24" height="3" rx="1" fill="' + color + '" opacity="0.4"/>'
       + '<rect x="20" y="17" width="24" height="3" rx="1" fill="' + color + '" opacity="0.4"/>'
@@ -16150,6 +16188,47 @@ function _pcBuildPrinterCard(p) {
 // 右=ルーター/ONU)に自動配置し、接続線で結ぶ
 // ═══════════════════════════════════════════════════════════════════════
 
+// ── ラベルを N文字×最大2行 に折り返す(区切り文字優先) ──
+function _pcWrapLabel(s, maxCharsPerLine) {
+  s = String(s||'').trim();
+  if (!s) return [''];
+  if (s.length <= maxCharsPerLine) return [s];
+
+  // 区切り文字優先: アンダースコア、中黒、スラッシュ、ハイフン、スペース
+  var separators = ['_','・','/','／','-','ｰ','—',' ','　','＿'];
+  var bestBreak = -1;
+  // maxCharsPerLine 周辺の区切りを優先
+  for (var i = Math.min(maxCharsPerLine, s.length - 1); i >= Math.floor(maxCharsPerLine / 2); i--) {
+    if (separators.indexOf(s[i]) >= 0) { bestBreak = i + 1; break; }
+  }
+  if (bestBreak < 0) bestBreak = maxCharsPerLine;
+
+  var line1 = s.slice(0, bestBreak);
+  var line2 = s.slice(bestBreak);
+  // 2行目が長すぎたら省略
+  if (line2.length > maxCharsPerLine) {
+    line2 = line2.slice(0, maxCharsPerLine - 1) + '…';
+  }
+  return [line1, line2];
+}
+
+// ── その他デバイスの名前から適切なアイコンタイプを判定 ──
+function _pcDetectOtherIcon(name) {
+  if (!name) return 'other';
+  var s = String(name);
+  // ONU/モデム
+  if (/ONU|光モデム|モデム|MODEM|終端装置/i.test(s)) return 'onu';
+  // バーコードリーダー
+  if (/バーコード|barcode|BARCODE/i.test(s)) return 'barcode';
+  // スキャナ(画像読取)
+  if (/スキャナ|スキャン|scanner|画像読取|DR-C/i.test(s)) return 'scanner';
+  // HDD/NAS/バックアップ
+  if (/HDD|hdd|ハードディスク|NAS|nas|バックアップ|backup|ストレージ|ドライブ/i.test(s)) return 'hdd';
+  // UPS/無停電電源
+  if (/UPS|ups|無停電|電源装置/i.test(s)) return 'ups';
+  return 'other';
+}
+
 // 接続種別ごとのスタイル定義
 function _pcConnStyle(connType) {
   var styles = {
@@ -16192,25 +16271,30 @@ function _pcGetConnType(pc, deviceKey, deviceMeta) {
 function _pcSvgDevice(d, cx, cy, opts) {
   opts = opts || {};
   var iconBoxSize = opts.iconSize || 64;
-  var labelMaxLen = opts.labelMaxLen || 18;
-  var subLabelMaxLen = opts.subLabelMaxLen || 20;
+  var labelMaxLen = opts.labelMaxLen || 14;   // 1行あたりの最大文字数
+  var subLabelMaxLen = opts.subLabelMaxLen || 18;
   var iconX = cx - iconBoxSize / 2;
   var iconY = cy - iconBoxSize / 2;
   var color = d.color || '#5a7b9e';
+  // アイコンタイプ(d.type が 'other' の場合は名前から自動判定)
+  var iconType = d.type;
+  if (iconType === 'other' && d.label) {
+    iconType = _pcDetectOtherIcon(d.label);
+  }
 
-  // ラベル truncate
   function _truncate(s, max) {
     s = String(s||'');
     return s.length > max ? s.slice(0, max - 1) + '…' : s;
   }
-  var label = _truncate(d.label, labelMaxLen);
+  // ラベルを最大2行に折り返し(truncateより優先)
+  var labelLines = _pcWrapLabel(d.label, labelMaxLen);
 
   var html = '<g class="pc-svg-device">';
   // 背景
   html += '<rect x="' + (iconX - 4) + '" y="' + (iconY - 4) + '" width="' + (iconBoxSize + 8) + '" height="' + (iconBoxSize + 8) + '" rx="6" fill="#fff" stroke="' + color + '" stroke-width="1.5"/>';
   // アイコン
   html += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconBoxSize + '" height="' + iconBoxSize + '" viewBox="0 0 64 64">';
-  html += _pcIconContent(d.type, color);
+  html += _pcIconContent(iconType, color);
   html += '</svg>';
   // 台数バッジ
   if (d.count && d.count > 0) {
@@ -16219,11 +16303,14 @@ function _pcSvgDevice(d, cx, cy, opts) {
     html += '<circle cx="' + badgeX + '" cy="' + badgeY + '" r="11" fill="' + color + '" stroke="#fff" stroke-width="2"/>';
     html += '<text x="' + badgeX + '" y="' + (badgeY + 4) + '" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="900" fill="#fff">×' + d.count + '</text>';
   }
-  // ラベル
+  // ラベル(最大2行)
   var labelY = cy + iconBoxSize/2 + 14;
-  html += '<text x="' + cx + '" y="' + labelY + '" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530">' + _esc(label) + '</text>';
-  // サブラベル(型番等)
-  var subOffset = 12;
+  var lineHeight = 12;
+  labelLines.forEach(function(line, i){
+    html += '<text x="' + cx + '" y="' + (labelY + i * lineHeight) + '" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3a3530">' + _esc(line) + '</text>';
+  });
+  // サブラベル(型番等) - ラベル行数の後に配置
+  var subOffset = labelLines.length * lineHeight;
   if (d.sublabel) {
     var sub = _truncate(d.sublabel, subLabelMaxLen);
     html += '<text x="' + cx + '" y="' + (labelY + subOffset) + '" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#8a7e70">' + _esc(sub) + '</text>';
@@ -16370,11 +16457,12 @@ function _pcBuildNetworkDiagramSvg(name) {
   var headerHeight = 60;
   var legendHeight = 50;
   var optionBoxHeight = 70;
-  var topRowHeight = topDevices.length ? 170 : 0;
+  // 上部ゾーン: ラベル2行折り返し対応で 190 に増加
+  var topRowHeight = topDevices.length ? 195 : 0;
   var hubRowHeight = hasHub ? 90 : 0;
-  // 下部ゾーンの高さ: プリンタのトレイ詳細を含むので大きめ
+  // 下部ゾーンの高さ: プリンタのトレイ詳細 + 2行ラベル
   var hasPrinterDetails = bottomDevices.some(function(d){ return d.detailLines && d.detailLines.length; });
-  var bottomRowHeight = bottomDevices.length ? (hasPrinterDetails ? 220 : 170) : 0;
+  var bottomRowHeight = bottomDevices.length ? (hasPrinterDetails ? 240 : 190) : 0;
   // 右側 (router + child)
   var rightHeight = 0;
   rightRouters.forEach(function(r){
@@ -16679,14 +16767,15 @@ function _renderPharmacyConfigPreview(name) {
     html += '</div></div>';
   }
 
-  // その他周辺機器
+  // その他周辺機器(名前から適切なアイコンを自動判定)
   var activeOther = (pc.other || []).filter(function(o){ return o.name && o.count > 0; });
   if (activeOther.length) {
     html += '<div class="pc-diagram-section">';
     html += '<div class="pc-diagram-section-title">🔌 その他周辺機器</div>';
     html += '<div class="pc-diagram-row">';
     activeOther.forEach(function(o){
-      html += _pcIconBlock('other', o.name, o.count, '', '#7a6b5a');
+      var iconType = _pcDetectOtherIcon(o.name);
+      html += _pcIconBlock(iconType, o.name, o.count, '', '#7a6b5a');
     });
     html += '</div></div>';
   }
