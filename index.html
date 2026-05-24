@@ -15859,10 +15859,32 @@ function _pcRmTray(printerIdx, trayIdx) {
 }
 
 function _pcOtherRow(o, i) {
-  // datalist for peripheral device names
-  var html = '<div class="pc-row" style="margin-bottom:6px">';
+  // アイコン選択肢(空 = 自動判定 + 手動指定)
+  var iconOpts = [
+    { val: '',         label: '🔍 自動判定' },
+    { val: 'other',    label: '🔌 汎用' },
+    { val: 'barcode',  label: '📷 バーコードリーダー' },
+    { val: 'scanner',  label: '📠 スキャナ' },
+    { val: 'hdd',      label: '💾 HDD/NAS/バックアップ' },
+    { val: 'ups',      label: '⚡ UPS/無停電電源' },
+    { val: 'onu',      label: '📡 ONU/モデム' },
+    { val: 'pc',       label: '💻 PC' },
+    { val: 'server',   label: '🖧 サーバー' },
+    { val: 'router',   label: '📡 ルーター' },
+    { val: 'hub',      label: '🔀 HUB/スイッチ' },
+    { val: 'printer',  label: '🖨 プリンタ' }
+  ];
+  var currentIcon = o.iconType || '';
+
+  var html = '<div class="pc-row" style="margin-bottom:6px;align-items:center">';
   html += '<input list="pc-other-dl" type="text" placeholder="機器名(候補から選択可)" value="' + _esc(o.name||'') + '" onchange="_pcUpd(\'other.' + i + '.name\',this.value)" style="flex:1">';
   html += '<input type="number" min="0" value="' + (o.count||0) + '" onchange="_pcUpd(\'other.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
+  // アイコン選択セレクタ
+  html += '<select onchange="_pcUpd(\'other.' + i + '.iconType\',this.value)" style="margin-left:6px;font-size:11px;padding:4px 6px" title="アイコンを手動指定(自動判定で十分なら触らなくてOK)">';
+  iconOpts.forEach(function(opt){
+    html += '<option value="' + opt.val + '"' + (currentIcon === opt.val ? ' selected' : '') + '>' + _esc(opt.label) + '</option>';
+  });
+  html += '</select>';
   html += '<button class="btn sm dr" onclick="_pcRmOther(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
   return html;
@@ -16212,19 +16234,26 @@ function _pcWrapLabel(s, maxCharsPerLine) {
   return [line1, line2];
 }
 
-// ── その他デバイスの名前から適切なアイコンタイプを判定 ──
-function _pcDetectOtherIcon(name) {
+// ── その他デバイスの適切なアイコンタイプを取得 ──
+// 引数: その他デバイスのオブジェクト {name, iconType, ...} または 名前文字列(後方互換)
+// 手動指定(iconType)があればそれを優先、なければ名前から自動判定
+function _pcDetectOtherIcon(arg) {
+  // 文字列が渡された場合(後方互換)
+  if (typeof arg === 'string') return _pcAutoDetectIcon(arg);
+  if (!arg) return 'other';
+  // 手動指定があれば優先
+  if (arg.iconType) return arg.iconType;
+  return _pcAutoDetectIcon(arg.name || '');
+}
+
+// 名前から自動判定する内部ヘルパー
+function _pcAutoDetectIcon(name) {
   if (!name) return 'other';
   var s = String(name);
-  // ONU/モデム
   if (/ONU|光モデム|モデム|MODEM|終端装置/i.test(s)) return 'onu';
-  // バーコードリーダー
   if (/バーコード|barcode|BARCODE/i.test(s)) return 'barcode';
-  // スキャナ(画像読取)
   if (/スキャナ|スキャン|scanner|画像読取|DR-C/i.test(s)) return 'scanner';
-  // HDD/NAS/バックアップ
   if (/HDD|hdd|ハードディスク|NAS|nas|バックアップ|backup|ストレージ|ドライブ/i.test(s)) return 'hdd';
-  // UPS/無停電電源
   if (/UPS|ups|無停電|電源装置/i.test(s)) return 'ups';
   return 'other';
 }
@@ -16276,10 +16305,14 @@ function _pcSvgDevice(d, cx, cy, opts) {
   var iconX = cx - iconBoxSize / 2;
   var iconY = cy - iconBoxSize / 2;
   var color = d.color || '#5a7b9e';
-  // アイコンタイプ(d.type が 'other' の場合は名前から自動判定)
+  // アイコンタイプ(d.type が 'other' の場合: 手動指定 iconType > 自動判定)
   var iconType = d.type;
-  if (iconType === 'other' && d.label) {
-    iconType = _pcDetectOtherIcon(d.label);
+  if (iconType === 'other') {
+    if (d.iconType) {
+      iconType = d.iconType;
+    } else if (d.label) {
+      iconType = _pcAutoDetectIcon(d.label);
+    }
   }
 
   function _truncate(s, max) {
@@ -16389,7 +16422,7 @@ function _pcBuildNetworkDiagramSvg(name) {
     if (!o.name || !o.count) return;
     // ONU は左チェーンで使うので top に載せない
     if (onuPaired && onuIndices.indexOf(i) >= 0) return;
-    topDevices.push({ key:'other_'+i, type:'other', label:o.name, count:o.count, color:'#7a6b5a', meta:o });
+    topDevices.push({ key:'other_'+i, type:'other', iconType:o.iconType, label:o.name, count:o.count, color:'#7a6b5a', meta:o });
   });
 
   // 下部ゾーン: レセコン, 薬歴, プリンタ
@@ -16432,7 +16465,7 @@ function _pcBuildNetworkDiagramSvg(name) {
       if (onuPaired) {
         entry.onuChildren = onuIndices.map(function(ui){
           var o = pc.other[ui];
-          return { key:'other_'+ui, type:'other', label:o.name, count:o.count, color:'#7a6b5a', meta:o };
+          return { key:'other_'+ui, type:'other', iconType:o.iconType, label:o.name, count:o.count, color:'#7a6b5a', meta:o };
         });
       }
     } else {
@@ -16692,18 +16725,10 @@ function _renderPharmacyConfigPreview(name) {
   html += '</div>';
 
   // ネットワーク図モードの場合、SVG だけ表示して早期リターン
+  // (オプション・ソフト情報は SVG 内部のボックスで表示済みなので重複表示しない)
   if (_pcPreviewMode === 'network') {
     html += '<div class="pc-diagram pc-network-diagram">';
     html += _pcBuildNetworkDiagramSvg(name);
-    // ソフトウェア & メモ(SVG下)
-    html += '<div class="pc-diagram-summary" style="margin-top:14px">';
-    if (sw.options && sw.options.length) {
-      html += '<div class="pc-summary-row"><span class="pc-summary-label">✨ オプション</span><span class="pc-summary-value">' + _esc(sw.options.join(' / ')) + '</span></div>';
-    }
-    if (pc.notes) {
-      html += '<div class="pc-summary-row"><span class="pc-summary-label">📝 補足</span><span class="pc-summary-value" style="white-space:pre-wrap">' + _esc(pc.notes) + '</span></div>';
-    }
-    html += '</div>';
     html += '</div>';
     el.innerHTML = html;
     return;
@@ -16767,14 +16792,14 @@ function _renderPharmacyConfigPreview(name) {
     html += '</div></div>';
   }
 
-  // その他周辺機器(名前から適切なアイコンを自動判定)
+  // その他周辺機器(手動指定 or 名前から自動判定でアイコン決定)
   var activeOther = (pc.other || []).filter(function(o){ return o.name && o.count > 0; });
   if (activeOther.length) {
     html += '<div class="pc-diagram-section">';
     html += '<div class="pc-diagram-section-title">🔌 その他周辺機器</div>';
     html += '<div class="pc-diagram-row">';
     activeOther.forEach(function(o){
-      var iconType = _pcDetectOtherIcon(o.name);
+      var iconType = _pcDetectOtherIcon(o);
       html += _pcIconBlock(iconType, o.name, o.count, '', '#7a6b5a');
     });
     html += '</div></div>';
