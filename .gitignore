@@ -11,6 +11,10 @@ PROJECT_STATUS.md
 *.swp
 *~
 
+# Mockup / preview HTML files (作業用、本番に含めない)
+mockup-*.html
+preview-*.html
+
 # OS files
 Thumbs.db
 .DS_Store
