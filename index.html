@@ -929,22 +929,32 @@ tr:hover td{background:rgba(90,123,158,.02)}
 
 /* === サブタブバー(営業ホーム配下) === */
 .sub-tab-bar{
-  display:flex;gap:3px;padding:6px 16px;
-  background:var(--s2);border-bottom:1px solid var(--bd);
+  display:flex;gap:6px;padding:10px 18px;
+  background:linear-gradient(180deg, var(--s2) 0%, var(--s1) 100%);
+  border-bottom:2px solid var(--bd);
   align-items:center;flex-wrap:wrap;
   position:sticky;top:0;z-index:10;
+  box-shadow:0 2px 6px rgba(58,90,126,.04);
 }
 .sub-tab{
-  background:transparent;border:1px solid transparent;
-  color:var(--tx3);font-family:inherit;font-size:13px;font-weight:600;
-  padding:6px 14px;border-radius:8px;cursor:pointer;
-  transition:all .15s;display:inline-flex;align-items:center;gap:4px;
+  background:#fff;border:1.5px solid var(--bd);
+  color:var(--tx2);font-family:inherit;font-size:15px;font-weight:700;
+  padding:9px 20px;border-radius:10px;cursor:pointer;
+  transition:all .12s;display:inline-flex;align-items:center;gap:5px;
+  letter-spacing:.02em;
 }
-.sub-tab:hover{background:var(--s3);color:var(--tx)}
+.sub-tab:hover{
+  background:var(--s3);color:var(--tx);
+  border-color:var(--acc);transform:translateY(-1px);
+  box-shadow:0 3px 8px rgba(58,90,126,.10);
+}
 .sub-tab.active{
-  background:#fff;color:var(--acc);font-weight:800;
-  border-color:var(--bd);box-shadow:0 1px 3px rgba(0,0,0,.04);
+  background:var(--acc);color:#fff;font-weight:900;
+  border-color:var(--acc);
+  box-shadow:0 4px 10px rgba(58,90,126,.25);
+  transform:translateY(-1px);
 }
+.sub-tab.active .nb{background:#fff;color:var(--acc)}
 
 /* === 🛠 薬局構成図 (PharmacyConfig) === */
 .pc-section-title{font-size:12px;font-weight:700;color:var(--tx);padding:6px 0 4px;border-bottom:1px solid var(--bd);margin-bottom:8px;letter-spacing:.04em}
@@ -1116,7 +1126,8 @@ tr:hover td{background:rgba(90,123,158,.02)}
 
 <!-- ════════ 営業ホーム配下のサブタブバー(設定中は非表示) ════════ -->
 <div id="sub-tab-bar" class="sub-tab-bar">
-  <button id="subtab-deals" class="sub-tab active" onclick="showTab('deals',this)">🎯 案件・数字</button>
+  <button id="subtab-deal" class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal')">🎯 案件モード</button>
+  <button id="subtab-num"  class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">💰 数字モード</button>
   <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
   <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
   <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
@@ -7686,15 +7697,20 @@ function _syncTopGroupUI(name) {
   if (subBar) subBar.style.display = isSetup ? 'none' : 'flex';
 
   // サブタブのアクティブ状態
+  // deals/dashboard は内部モード(案件/数字)で分岐するので別関数で判定
   var subBtnMap = {
-    deals: 'subtab-deals',
-    dashboard: 'subtab-deals',
     actuals: 'subtab-actuals',
     tasks: 'subtab-tasks',
     referral: 'subtab-referral',
     kpt: 'subtab-kpt'
   };
   var subBtnId = subBtnMap[name];
+  if (name === 'deals' || name === 'dashboard') {
+    // 案件モード or 数字モード のどちらかをアクティブに
+    var numEl = document.getElementById('home-num-mode');
+    var isNumMode = numEl && numEl.style.display !== 'none';
+    subBtnId = isNumMode ? 'subtab-num' : 'subtab-deal';
+  }
   if (subBtnId) {
     var subBtn = document.getElementById(subBtnId);
     if (subBtn) subBtn.classList.add('active');
@@ -12062,6 +12078,10 @@ function setHomeMode(mode) {
       console.error('数字モード描画エラー:', e);
     }
   }
+  // サブタブのアクティブ状態を更新(案件モード or 数字モード)
+  document.querySelectorAll('#sub-tab-bar .sub-tab').forEach(function(b){ b.classList.remove('active'); });
+  var subBtn = document.getElementById(isNum ? 'subtab-num' : 'subtab-deal');
+  if (subBtn) subBtn.classList.add('active');
 }
 
 
@@ -12976,7 +12996,13 @@ function renderActuals() {
             }
           };
         })(bdRowId, 'bd-btn-' + i);
-        tdM.textContent = m;
+        // 拠点ラベルを保持しつつ展開ボタンを追加
+        if (scopeLabel) {
+          tdM.innerHTML = '<span>' + _esc(m) + '</span>' +
+            '<span style="font-size:9.5px;color:' + (isCur?'var(--acc)':'var(--tx3)') + ';font-weight:500;margin-left:6px;opacity:0.75">' + _esc(scopeLabel) + '</span>';
+        } else {
+          tdM.textContent = m;
+        }
         tdM.appendChild(toggleBtn);
 
         // 内訳行（デフォルト非表示）
