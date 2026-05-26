@@ -10956,7 +10956,8 @@ function openAddDealModal() {
   if (spSel) {
     spSel.innerHTML = people.map((p,i) =>
       `<option value="${i}">${p.name||'担当者'+(i+1)}（${p.branch||'—'}）</option>`
-    ).join('');
+    ).join('') +
+    '<option value="office">⚠ 担当者なし(グループ薬局・拠点未確定)</option>';
     // ログインユーザーの担当者をデフォルト選択
     var mySpId = getMyPersonId();
     if (mySpId && mySpId !== '__all__') {
@@ -11074,10 +11075,16 @@ function doAddDeal() {
     return;
   }
   const people    = ap();
-  const spIdx     = parseInt((document.getElementById('adm-sp')||{}).value)||0;
-  const sp        = people[Math.min(spIdx, people.length-1)];
+  const spIdxRaw  = (document.getElementById('adm-sp')||{}).value;
+  const spIdx     = parseInt(spIdxRaw);
+  const sp        = !isNaN(spIdx) && people[spIdx] ? people[spIdx] : null;
   const cat       = (document.getElementById('adm-cat')||{}).value||'直販';
-  const spId      = cat==='グループ薬局' ? 'office' : (sp?sp.id:'sp0');
+  // 担当者を選択していれば常にそれを spId に。
+  // グループ薬局の場合も担当者の拠点が D.groupActuals[拠点] に売上計上される(個人D.actualsには加算されない)
+  // 担当者なし(office)を選んだ場合のみ 'office' になる
+  const spId      = spIdxRaw === 'office'
+    ? 'office'
+    : (sp ? sp.id : 'office');
   const now       = new Date();
   const originMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const status    = (document.getElementById('adm-status')||{}).value||'電話連絡';
