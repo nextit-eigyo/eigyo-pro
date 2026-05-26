@@ -7369,11 +7369,37 @@ function _doConfirmImport(addedMasters){
       if (!D.branchActuals[detectedBranch]) D.branchActuals[detectedBranch] = {s:Array(12).fill(''),p:Array(12).fill('')};
       // 文字列連結を防ぐためparseFloatで明示的に数値化
       var _pn = function(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; };
-      var totalS = (_pn(r.software.s) + _pn(r.hardware.s) + _pn(r.consumables.s) + _pn(r.maintenance.s) + _pn(r.other.s)) / 1000;
-      var totalP = (_pn(r.software.p) + _pn(r.hardware.p) + _pn(r.consumables.p) + _pn(r.maintenance.p) + _pn(r.other.p)) / 1000;
+      var sw_s = _pn(r.software.s) / 1000;
+      var sw_p = _pn(r.software.p) / 1000;
+      var hw_s = _pn(r.hardware.s) / 1000;
+      var hw_p = _pn(r.hardware.p) / 1000;
+      var cs_s = _pn(r.consumables.s) / 1000;
+      var cs_p = _pn(r.consumables.p) / 1000;
+      var mt_s = _pn(r.maintenance.s) / 1000;
+      var mt_p = _pn(r.maintenance.p) / 1000;
+      var ot_s = _pn(r.other.s) / 1000;
+      var ot_p = _pn(r.other.p) / 1000;
+      var totalS = sw_s + hw_s + cs_s + mt_s + ot_s;
+      var totalP = sw_p + hw_p + cs_p + mt_p + ot_p;
       D.branchActuals[detectedBranch].s[mi] = String(Math.round(totalS));
       D.branchActuals[detectedBranch].p[mi] = String(Math.round(totalP));
       log.push(detectedBranch + '実績合計: ' + Math.round(totalS) + '千 (粗利' + Math.round(totalP) + '千)');
+      // ★ 再発防止: カテゴリ別内訳を log に追加して可視化
+      var bdLines = [];
+      bdLines.push('  ├ ソフト: ' + Math.round(sw_s) + '千');
+      bdLines.push('  ├ HW: ' + Math.round(hw_s) + '千');
+      bdLines.push('  ├ 保守: ' + Math.round(mt_s) + '千');
+      bdLines.push('  ├ 消耗品: ' + Math.round(cs_s) + '千');
+      bdLines.push('  └ その他: ' + Math.round(ot_s) + '千');
+      // 内訳のうち1つでも非ゼロなら表示
+      if (sw_s || hw_s || mt_s || cs_s || ot_s) {
+        bdLines.forEach(function(L){ log.push(L); });
+      }
+      // 整合性自動検証: branchActuals = ソフト+HW+保守+消耗品+その他 になっているか
+      var importBreakdownSum = Math.round(sw_s + hw_s + mt_s + cs_s + ot_s);
+      if (Math.abs(importBreakdownSum - Math.round(totalS)) > 1) {
+        log.push('⚠ 内訳合計と branchActuals が一致しません(差: ' + (importBreakdownSum - Math.round(totalS)) + '千)');
+      }
 
       // ソフト実績をExcel確定値として保存（案件管理との差を0にするため）
       if (!D.branchSoftActuals) D.branchSoftActuals = {};
@@ -11840,19 +11866,17 @@ function renderDashboard() {
   ];
 
   // 内訳カードレンダー関数
-  function _renderBreakdownCard(breakdown, title, titleColor) {
+  function _renderBreakdownCard(breakdown, title, titleColor, expectedTotal) {
     // タイトル色から RGB を抽出してカード背景に使う（青系/緑系で自動切替）
     var cardBg, cardBorder;
     if (titleColor === '#3a5a7e') {
-      // 売上系: 渋藍の極薄背景
       cardBg = 'rgba(90,123,158,.05)';
       cardBorder = 'rgba(90,123,158,.22)';
-      titleColor = '#3a5a7e';  // 渋藍に変更
+      titleColor = '#3a5a7e';
     } else {
-      // 粗利系: オリーブの極薄背景
       cardBg = 'rgba(122,142,90,.05)';
       cardBorder = 'rgba(122,142,90,.22)';
-      titleColor = '#4a5a32';  // オリーブ深緑に変更
+      titleColor = '#4a5a32';
     }
     var h = '<div style="background:'+cardBg+';border:1.5px solid '+cardBorder+';border-radius:10px;padding:16px 18px">';
     h += '<div style="font-size:13px;font-weight:800;color:'+titleColor+';margin-bottom:14px;letter-spacing:.02em">' + title + '</div>';
@@ -11875,6 +11899,29 @@ function renderDashboard() {
         h += '<div style="font-size:11px;color:var(--amb);margin-top:4px;font-weight:600">⚠ 照合中: ' + fmtN(breakdown.untracked) + '千</div>';
       }
       h += '</div>';
+
+      // ★ 合計チェック行(再発防止策: 内訳合計 vs 全体合計 を可視化)
+      if (typeof expectedTotal === 'number') {
+        var diff = expectedTotal - totalBreak;
+        var diffAbs = Math.abs(diff);
+        var isOK = diffAbs <= 1;
+        var diffColor = isOK ? '#4a5a32' : '#7a3525';
+        var bgColor = isOK ? 'rgba(122,142,90,.08)' : 'rgba(168,90,74,.10)';
+        var borderColor = isOK ? 'rgba(122,142,90,.3)' : 'rgba(168,90,74,.4)';
+        h += '<div style="margin-top:14px;padding:10px 12px;background:' + bgColor + ';border:1px solid ' + borderColor + ';border-radius:6px">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;gap:8px;flex-wrap:wrap">';
+        h += '<span style="color:var(--tx2);font-weight:600">内訳合計: <strong style="color:var(--tx);font-size:13px">' + fmtN(totalBreak) + '千</strong></span>';
+        h += '<span style="color:var(--tx2);font-weight:600">実績全体: <strong style="color:var(--tx);font-size:13px">' + fmtN(expectedTotal) + '千</strong></span>';
+        h += '<span style="font-weight:800;color:' + diffColor + ';font-size:13px">' + (isOK ? '✅ 一致' : '⚠ 差 ' + fmtN(Math.abs(diff)) + '千') + '</span>';
+        h += '</div>';
+        if (!isOK) {
+          h += '<div style="margin-top:6px;font-size:11px;color:#7a3525;line-height:1.5">' +
+               '内訳の合計が実績全体と一致していません。Excelインポートが不完全な可能性があります。<br>' +
+               '対象月の Excel を再インポートするか、設定→その他→🔧 整合性チェック で原因を特定してください。' +
+               '</div>';
+        }
+        h += '</div>';
+      }
     } else {
       h += '<div style="font-size:12px;color:var(--tx3)">内訳データなし</div>';
     }
@@ -11884,8 +11931,8 @@ function renderDashboard() {
 
   // 内訳行 横並び
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">';
-  html += _renderBreakdownCard(breakdownS, '🥧 売上内訳', '#3a5a7e');
-  html += _renderBreakdownCard(breakdownP, '🥧 粗利益内訳', '#4a5a32');
+  html += _renderBreakdownCard(breakdownS, '🥧 売上内訳', '#3a5a7e', total.s_act);
+  html += _renderBreakdownCard(breakdownP, '🥧 粗利益内訳', '#4a5a32', total.p_act);
   html += '</div>';
 
   // ── 月別推移行（売上 / 粗利益）── 横並び
