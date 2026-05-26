@@ -9384,6 +9384,18 @@ function buildDI(d) {
           ${d.dealType==='既存（バージョンアップ）'?`<span style="font-size:11px;background:rgba(122,142,90,.1);color:var(--grn);padding:2px 8px;border-radius:5px;font-weight:600">既存</span>`:''}
           ${d.dealType==='新規（他社入替）'||d.dealType==='新規（他社入替え）'?`<span style="font-size:11px;background:rgba(168,90,74,.08);color:var(--red);padding:2px 8px;border-radius:5px;font-weight:600">他社</span>`:''}
           ${d.dealType==='新規開局'?`<span style="font-size:11px;background:rgba(200,152,86,.1);color:var(--amb);padding:2px 8px;border-radius:5px;font-weight:600">新規開局</span>`:''}
+          ${
+            // A. 実績未反映バッジ: 売上入力済みだが受注確定されていない
+            (parseFloat(d.sales)||0) > 0 && !d.actualsReflected
+              ? `<span style="font-size:11px;background:rgba(168,90,74,.14);color:var(--red);padding:2px 8px;border-radius:5px;font-weight:800;border:1px solid rgba(168,90,74,.4)" title="売上が入力されていますが、まだ実績にカウントされていません。ステータスを「受注」に変更すると実績に反映されます。">⚠ 実績未反映</span>`
+              : ''
+          }
+          ${
+            // B. 拠点不明バッジ: グループ薬局で _getBranchForGroupDeal が 'office' を返す
+            d.category === 'グループ薬局' && typeof _getBranchForGroupDeal === 'function' && _getBranchForGroupDeal(d) === 'office'
+              ? `<span style="font-size:11px;background:rgba(200,152,86,.16);color:#7a5a2a;padding:2px 8px;border-radius:5px;font-weight:800;border:1px solid rgba(200,152,86,.5)" title="ルート(紹介元)または都道府県から拠点を特定できません。受注しても特定の拠点(神戸/福岡/高知等)の売上に反映されません。ルートまたは都道府県を設定してください。">⚠ 拠点不明</span>`
+              : ''
+          }
         </div>
       </div>
       <!-- ステータス -->
