@@ -7147,14 +7147,28 @@ function _doConfirmImport(addedMasters){
     }
 
     // あいまい一致スコア（0.0〜1.0）
+    // 旧実装は (1) 重複文字を二重カウント (2) 共通サフィックス「薬局」で下駄が
+    //     履かれて誤検知が多かったので、以下の対策を入れた:
+    //   1) 「薬局/薬店/店/支店/ファーマシー」等の共通サフィックスを除去
+    //   2) マルチセット比較で各文字を1回だけカウント
     function fuzzyScore(a, b) {
-      var na = normDealName(a), nb = normDealName(b);
+      function stripCommonSuffix(s) {
+        return String(s||'').replace(/(薬局|薬店|薬舗|ファーマシー|ふぁーまし|支店|店)$/, '');
+      }
+      var na = stripCommonSuffix(normDealName(a));
+      var nb = stripCommonSuffix(normDealName(b));
       if (!na || !nb) return 0;
       if (na === nb) return 1.0;
       if (na.includes(nb) || nb.includes(na)) return 0.9;
+      // マルチセット比較: na の文字を1個ずつ消費していく
+      var naMap = {};
+      for (var i = 0; i < na.length; i++) naMap[na[i]] = (naMap[na[i]]||0) + 1;
       var common = 0;
-      for (var ci = 0; ci < nb.length; ci++) { if (na.includes(nb[ci])) common++; }
-      return common / Math.max(na.length, nb.length);
+      for (var j = 0; j < nb.length; j++) {
+        var c = nb[j];
+        if (naMap[c] && naMap[c] > 0) { common++; naMap[c]--; }
+      }
+      return common / Math.max(na.length, nb.length, 1);
     }
 
     if(addDealsChk && addDealsChk.checked && r.software.deals.length){
