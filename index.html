@@ -1248,10 +1248,14 @@ tr:hover td{background:rgba(90,123,158,.02)}
 .dc-visit-item {
   background:var(--s1); border-left:3px solid var(--cyn);
   padding:8px 12px; border-radius:0 8px 8px 0; margin-bottom:6px;
+  position:relative;
+}
+.dc-visit-item .vi-view {
+  display:flex; flex-direction:column; gap:3px;
 }
 .dc-visit-item .vi-head {
-  display:flex; align-items:center; gap:8px; margin-bottom:3px;
-  font-size:11.5px; color:var(--tx);
+  display:flex; align-items:center; gap:8px;
+  font-size:11.5px; color:var(--tx); flex-wrap:wrap;
 }
 .dc-visit-item .vi-head .date { font-weight:800; }
 .dc-visit-item .vi-head .type {
@@ -1259,8 +1263,52 @@ tr:hover td{background:rgba(90,123,158,.02)}
   font-size:10px; font-weight:700; color:var(--acc);
   border:1px solid var(--bds);
 }
+.dc-visit-item .vi-head .next {
+  background:rgba(200,152,86,.15); color:#7a5a2a;
+  padding:1px 7px; border-radius:6px; font-size:10.5px; font-weight:700;
+}
 .dc-visit-item .vi-body {
   font-size:11.5px; color:var(--tx2); line-height:1.55;
+  white-space:pre-wrap; word-break:break-word;
+}
+.dc-visit-item .vi-actions {
+  position:absolute; top:6px; right:8px;
+  display:flex; gap:3px; opacity:.4; transition:opacity .15s;
+}
+.dc-visit-item:hover .vi-actions { opacity:1; }
+.dc-visit-item .vi-actions button {
+  background:#fff; border:1px solid var(--bd);
+  width:22px; height:22px; border-radius:6px;
+  font-size:11px; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+  color:var(--tx2);
+}
+.dc-visit-item .vi-actions button:hover { background:var(--s2); border-color:var(--acc); color:var(--acc); }
+.dc-visit-item .vi-actions button.del:hover { background:rgba(168,90,74,.1); border-color:var(--red); color:var(--red); }
+.dc-visit-item .vi-edit {
+  margin-top:8px; padding:8px 10px;
+  background:#fff; border:1px solid var(--bd); border-radius:6px;
+}
+.dc-visit-item .vi-edit.hidden { display:none; }
+.dc-visit-item .vi-edit .es-row {
+  display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap;
+}
+.dc-visit-item .vi-edit .es-row > div { flex:1; min-width:90px; }
+.dc-visit-item .vi-edit .es-row > div label {
+  display:block; font-size:10.5px; font-weight:700; color:var(--tx2); margin-bottom:2px;
+}
+.dc-visit-item .vi-edit .es-row > div input,
+.dc-visit-item .vi-edit .es-row > div select,
+.dc-visit-item .vi-edit .es-row > div textarea {
+  width:100%; padding:5px 7px; font-size:12px; box-sizing:border-box;
+  border:1px solid var(--bd); border-radius:5px;
+}
+.dc-visit-item .vi-edit .es-action {
+  display:flex; justify-content:flex-end; gap:6px; margin-top:6px;
+}
+.dc-visit-item .vi-edit .es-action button {
+  padding:5px 14px; font-size:11px; font-weight:700; cursor:pointer;
+  background:var(--acc); color:#fff; border:none; border-radius:6px;
 }
 .dc-visit-empty {
   color:var(--tx3); font-style:italic; font-size:12px;
@@ -6637,29 +6685,101 @@ function rxCls(r){if(!r||r==='—')return'';if(r.startsWith('◎'))return'rx-A';
 function rxShort(r){if(!r||r==='—')return'';return r.replace(/^[◎○△▲✕]\s/,'').split('（')[0]}
 
 function buildVisitRows(d){
-  return(d.visits||[]).map((v,i)=>{
-    var nextHtml = '';
+  if (!d.visits || !d.visits.length) {
+    return '<div class="dc-visit-empty">活動記録はまだありません</div>';
+  }
+  return d.visits.map(function(v, i) {
+    var dealId = d.id;
+    // 次回予定タグ
+    var nextTag = '';
     if (v.nextDate) {
-      var wt = getWaitTypeDef(v.waitType);
+      var wt = (typeof getWaitTypeDef === 'function') ? getWaitTypeDef(v.waitType) : null;
       var wtLabel = wt ? (wt.icon + ' ' + wt.label) : '📅 予定';
-      nextHtml = `<span style="font-size:12px;color:var(--acc);background:rgba(58,90,126,.08);padding:2px 7px;border-radius:10px;flex-shrink:0;font-weight:700">→ ${v.nextDate.slice(5).replace('-','/')} ${wtLabel}</span>`;
+      nextTag = '<span class="next">→ ' + v.nextDate.slice(5).replace('-','/') + ' ' + _esc(wtLabel) + '</span>';
     }
-    var memo = v.memo || '';
-    var isLong = memo.length > 80 || (memo.match(/\n/g)||[]).length >= 2;
-    var memoHtml = isLong
-      ? `<span class="vmemo clip" id="vmemo-${d.id}-${i}" onclick="toggleVMemo('${d.id}',${i})" title="クリックで全文表示">${_esc(memo)}</span><span class="vmemo-toggle" onclick="toggleVMemo('${d.id}',${i});event.stopPropagation()" id="vmemo-tgl-${d.id}-${i}">▼続きを読む</span>`
-      : `<span class="vmemo">${_esc(memo)}</span>`;
-    return `
-    <div class="vr">
-      <span class="vdate">${v.date}</span>
-      <span style="font-size:12px;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0;${v.actType==='電話'?'background:#f0f9ff;color:#0369a1':v.actType==='メール'?'background:#fdf4ff;color:#7e22ce':'background:#f1f5f9;color:#475569'}">${v.actType||'訪問'}</span>
-      ${v.reaction&&v.reaction!=='—'?`<span class="st ${rxCls(v.reaction)}" style="flex-shrink:0;font-size:12px">${rxShort(v.reaction)}</span>`:''}
-      ${v.reason?`<span style="font-size:11px;color:var(--red);flex-shrink:0;font-weight:600">${v.status==='失注'?'失注:':'受注:'}${v.reason}</span>`:''}
-      ${nextHtml}
-      ${memoHtml}
-      <button class="btn sm dr" onclick="delVisit('${d.id}',${i})" style="align-self:flex-start">×</button>
-    </div>`;
-  }).join('')||'<p class="hint">活動記録はまだありません</p>';
+    // 失注/受注理由
+    var reasonTag = '';
+    if (v.reason) {
+      reasonTag = '<span style="font-size:10.5px;color:var(--red);font-weight:700">' + (v.status==='失注'?'失注':'受注') + ': ' + _esc(v.reason) + '</span>';
+    }
+    // ステータスバッジ
+    var statusTag = '';
+    if (v.status && v.status !== v.actType) {
+      var stColor = ({
+        '受注':'var(--grn)','口頭受注':'var(--cyn)','見積提出':'var(--amb)',
+        'デモ・見積提出':'var(--amb)','デモ':'var(--acc)','失注':'var(--red)','延期':'var(--red)'
+      })[v.status] || 'var(--tx3)';
+      statusTag = '<span style="font-size:10.5px;color:'+stColor+';font-weight:700">'+_esc(v.status)+'</span>';
+    }
+    var actTypeIcon = v.actType === '電話' ? '📞' : v.actType === 'メール' ? '✉' : '📍';
+    // 編集フォームの 種別/アクション選択肢
+    var actTypeOpts = ['訪問','電話','メール'].map(function(t){return '<option'+(v.actType===t?' selected':'')+'>'+t+'</option>';}).join('');
+    var statusOpts = getST().map(function(s){return '<option'+(v.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+
+    return ''+
+      '<div class="dc-visit-item" id="vi-'+dealId+'-'+i+'">'+
+        '<div class="vi-actions">'+
+          '<button title="編集" onclick="_toggleVisitEdit(\''+dealId+'\','+i+')">✏</button>'+
+          '<button class="del" title="削除" onclick="delVisit(\''+dealId+'\','+i+')">🗑</button>'+
+        '</div>'+
+        '<div class="vi-view" id="vi-view-'+dealId+'-'+i+'">'+
+          '<div class="vi-head">'+
+            '<span class="date">'+_esc(v.date||'')+'</span>'+
+            '<span class="type">'+actTypeIcon+' '+_esc(v.actType||'訪問')+'</span>'+
+            statusTag+
+            reasonTag+
+            nextTag+
+          '</div>'+
+          (v.memo ? '<div class="vi-body">'+_esc(v.memo)+'</div>' : '')+
+        '</div>'+
+        '<div class="vi-edit hidden" id="vi-edit-'+dealId+'-'+i+'">'+
+          '<div class="es-row">'+
+            '<div><label>活動日</label><input type="date" value="'+_esc(v.date||'')+'" oninput="_updVisitField(\''+dealId+'\','+i+',\'date\',this.value)"></div>'+
+            '<div><label>種別</label><select onchange="_updVisitField(\''+dealId+'\','+i+',\'actType\',this.value)">'+actTypeOpts+'</select></div>'+
+            '<div><label>アクション</label><select onchange="_updVisitField(\''+dealId+'\','+i+',\'status\',this.value)">'+statusOpts+'</select></div>'+
+          '</div>'+
+          '<div class="es-row">'+
+            '<div style="flex:1"><label>補足メモ</label><textarea rows="3" oninput="_updVisitField(\''+dealId+'\','+i+',\'memo\',this.value)">'+_esc(v.memo||'')+'</textarea></div>'+
+          '</div>'+
+          (v.reason || v.status==='失注' || v.status==='受注' ?
+            '<div class="es-row"><div><label>'+(v.status==='失注'?'失注理由':'受注理由')+'</label><input type="text" value="'+_esc(v.reason||'').replace(/"/g,'&quot;')+'" oninput="_updVisitField(\''+dealId+'\','+i+',\'reason\',this.value)"></div></div>'
+            : ''
+          )+
+          '<div class="es-action">'+
+            '<button onclick="_toggleVisitEdit(\''+dealId+'\','+i+')">✓ 完了</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+  }).join('');
+}
+
+// 訪問履歴の編集モード切替
+function _toggleVisitEdit(dealId, idx) {
+  var view = document.getElementById('vi-view-'+dealId+'-'+idx);
+  var edit = document.getElementById('vi-edit-'+dealId+'-'+idx);
+  if (!view || !edit) return;
+  var isEditing = !edit.classList.contains('hidden');
+  if (isEditing) {
+    edit.classList.add('hidden');
+    view.classList.remove('hidden');
+    // 編集完了時に表示部分を再描画(値を反映)
+    var d = D.deals && D.deals.find(function(x){ return x.id === dealId; });
+    if (d) {
+      var vh = document.getElementById('vh-'+dealId);
+      if (vh) vh.innerHTML = buildVisitRows(d);
+    }
+  } else {
+    view.classList.add('hidden');
+    edit.classList.remove('hidden');
+  }
+}
+
+// 訪問履歴のフィールド更新(即時保存)
+function _updVisitField(dealId, idx, field, value) {
+  var d = D.deals && D.deals.find(function(x){ return x.id === dealId; });
+  if (!d || !d.visits || !d.visits[idx]) return;
+  d.visits[idx][field] = value;
+  if (typeof save === 'function') save();
 }
 
 // メモの展開トグル
