@@ -13384,7 +13384,80 @@ function closeWonDetail() {
 // ================================================================
 
 // ── 案件追加モーダル：確実に動作するシンプル版 ─────────────────
+// ⭐ 新仕様(2026/5): 案件追加は「サイドパネルに新規案件を仮作成して開く」に変更。
+//    モーダル多用は馬場さんの方針に反する。
+//    旧モーダルは互換のため残しているが、通常は呼ばれない。
 function openAddDealModal() {
+  return openAddDealAsSidepanel();
+}
+
+// 新規案件を仮作成して、案件タブのサイドパネルで開く
+function openAddDealAsSidepanel() {
+  const people = ap();
+  if (!people.length) {
+    alert('先に ⚙ 設定 → 担当者タブ で担当者を登録してください');
+    if (typeof showTab === 'function') showTab('setup', document.getElementById('tab-setup-btn'));
+    return;
+  }
+  // デフォルト担当者: ログインユーザー → 先頭
+  var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
+  var defSpId = (myId && myId !== '__all__' && people.find(function(p){return p.id === myId;}))
+    ? myId
+    : (people[0] ? people[0].id : 'office');
+  var id = (typeof uid === 'function') ? uid() : 'd' + Date.now();
+  var now = new Date();
+  var newDeal = {
+    id: id, spId: defSpId,
+    name: '',
+    pref: '',
+    category: '直販',
+    productType: '調剤くんV8',
+    dealType: '',
+    route: '', routeRef: '', resecon: '', kyogou: '', productOption: '',
+    originMonth: now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'),
+    deliveryMonth: '', activationMonth: '',
+    sales: '', cost: '',
+    nextAction: '',
+    probability: 2,
+    visits: []
+  };
+  if (!D.deals) D.deals = [];
+  D.deals.unshift(newDeal);
+  if (typeof save === 'function') save();
+
+  // 案件タブ・進行中サブタブに切替
+  if (typeof showTab === 'function') {
+    showTab('deals', document.getElementById('tab-deals-btn'));
+  }
+  if (typeof setDealSubTab === 'function') setDealSubTab('active');
+  // フィルタリセット(新規案件が確実に出るよう)
+  if (typeof cdSp !== 'undefined') cdSp = -1;
+  if (typeof _dealMonthFilter !== 'undefined') _dealMonthFilter = '';
+  if (typeof dealSubTab !== 'undefined') dealSubTab = 'active';
+
+  // レンダ後にサイドパネルを開く
+  setTimeout(function() {
+    try {
+      if (typeof renderDeals === 'function') renderDeals();
+    } catch(e) { console.error('renderDeals エラー:', e); }
+    setTimeout(function() {
+      if (typeof _openSidepanel === 'function') {
+        try {
+          _openSidepanel(id);
+          // 薬局名入力欄にフォーカス
+          setTimeout(function() {
+            var nameInput = document.querySelector('#deal-sidepanel input[onchange*="\'name\'"], #deal-sidepanel input[onchange*="\'name\'"]');
+            if (!nameInput) nameInput = document.querySelector('#deal-sidepanel input[type="text"]');
+            if (nameInput) { nameInput.focus(); nameInput.select && nameInput.select(); }
+          }, 250);
+        } catch(e) { console.error('サイドパネル展開エラー:', e); }
+      }
+    }, 120);
+  }, 80);
+}
+
+// 旧モーダル実装(互換用・通常は呼ばれない)
+function _openAddDealModal_LEGACY() {
   try {
   const people = ap();
   if (!people.length) {
