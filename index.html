@@ -1315,6 +1315,31 @@ tr:hover td{background:rgba(90,123,158,.02)}
   padding:8px; text-align:center;
 }
 
+/* ━━━ Hub&Spoke レスポンシブ調整 ━━━ */
+@media (max-width: 700px) {
+  .dc-body { padding:10px 12px; }
+  .dc-kpi { padding:9px 11px; }
+  .dc-kpi .dc-kpi-main { font-size:15px; }
+  .dc-kpi .dc-kpi-sub { font-size:10px; }
+  .dc-sec-header { padding:8px 11px; }
+  .dc-sec-view { padding:9px 11px; font-size:12px; }
+  .dc-sec-edit { padding:9px 11px; }
+  .dc-sec-view .dc-view-line .key { min-width:60px; font-size:11px; }
+  .dc-sec-view .dc-view-line .val { font-size:11.5px; }
+  .dc-na-card { padding:9px 12px; gap:9px; }
+  .dc-na-card .ic { font-size:18px; }
+  .dc-na-card .msg { font-size:12px; }
+  .dc-na-card .date { font-size:10px; }
+  .dc-visit-item { padding:7px 10px; }
+  .dc-visit-item .vi-actions { top:4px; right:5px; }
+  .dc-visit-item .vi-actions button { width:20px; height:20px; font-size:10px; }
+}
+@media (max-width: 480px) {
+  .dc-sec-view .dc-view-line { flex-direction:column; gap:2px; }
+  .dc-sec-view .dc-view-line .key { min-width:auto; }
+  .dc-sec-header .dc-sec-edit-btn { padding:3px 9px; font-size:10.5px; }
+}
+
 /* 自由メモ表示 */
 .dc-memo-display {
   background:var(--s2); border-left:3px solid var(--acc2);
@@ -12831,85 +12856,100 @@ function openWonDetail(dealId) {
   const people = ap();
   const pp = people.find(p => p.id === d.spId);
   const profit = d.sales !== '' && d.cost !== '' ? Math.round(parseFloat(d.sales) - parseFloat(d.cost)) : null;
-  const PCOLS = {'神戸':'#5a7b9e','福岡':'#7a8e5a','高知':'#c89856'};
-  const ppColor = pp ? (PCOLS[pp.branch||'']||'#8890b8') : '#8890b8';
   const dm = d.deliveryMonth || d.implMonth || '';
-  const lv = d.visits && d.visits.length ? d.visits[d.visits.length-1] : null;
+  const dm_a = d.activationMonth || '';
+  const optsArr = (typeof getOptionArray === 'function') ? getOptionArray(d.productOption||'') : [];
 
-  const visitRows = (d.visits||[]).slice().reverse().map(v => `
-    <div style="padding:8px 0;border-bottom:1px solid var(--bds);display:flex;gap:10px;align-items:flex-start">
-      <div style="flex-shrink:0;width:60px;font-size:12px;color:var(--tx3)">${v.date.slice(5).replace('-','/')}</div>
-      <div style="flex-shrink:0">
-        <span class="st ${STCLS[v.status]||''}" style="font-size:11px">${v.status||''}</span>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:11px;font-weight:600;color:var(--tx)">${v.actType||''} ${v.reaction?'/ '+v.reaction:''}</div>
-        ${v.memo?`<div style="font-size:11px;color:var(--tx2);margin-top:2px">${v.memo}</div>`:''}
-      </div>
-    </div>`).join('');
+  // ── 訪問履歴(時系列, 読み取り専用, Hub&Spoke スタイル) ──
+  const visitRows = (d.visits||[]).slice().reverse().map(v => {
+    var actTypeIcon = v.actType === '電話' ? '📞' : v.actType === 'メール' ? '✉' : '📍';
+    var statusTag = '';
+    if (v.status && v.status !== v.actType) {
+      var stColor = ({
+        '受注':'var(--grn)','口頭受注':'var(--cyn)','見積提出':'var(--amb)',
+        'デモ・見積提出':'var(--amb)','デモ':'var(--acc)','失注':'var(--red)','延期':'var(--red)'
+      })[v.status] || 'var(--tx3)';
+      statusTag = '<span style="font-size:10.5px;color:'+stColor+';font-weight:700">'+_esc(v.status)+'</span>';
+    }
+    return '<div class="dc-visit-item">'+
+      '<div class="vi-view">'+
+        '<div class="vi-head">'+
+          '<span class="date">'+_esc(v.date||'')+'</span>'+
+          '<span class="type">'+actTypeIcon+' '+_esc(v.actType||'訪問')+'</span>'+
+          statusTag+
+        '</div>'+
+        (v.memo?'<div class="vi-body">'+_esc(v.memo)+'</div>':'')+
+      '</div>'+
+    '</div>';
+  }).join('');
 
   document.getElementById('won-detail-content').innerHTML = `
-    <!-- ヘッダー -->
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+    <!-- ━━ ヘッダー ━━ -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1.5px solid var(--bd)">
       <div>
-        <div style="font-size:20px;font-weight:900;margin-bottom:5px">${d.name}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span class="st st-w" style="font-size:12px">受注確定</span>
-          ${pp?`<span style="font-size:12px;font-weight:700;color:${ppColor}">${pp.name}</span><span style="font-size:12px;color:var(--tx3)">${pp.branch||''}</span>`:''}
-          ${d.pref?`<span style="font-size:11px;color:var(--tx3)">📍${d.pref}</span>`:''}
+        <div style="font-size:20px;font-weight:900;margin-bottom:6px;color:var(--tx)">🏥 ${_esc(d.name||'')}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="dc-chip" style="background:rgba(122,142,90,.18);color:#4a5a32;font-weight:700">✓ 受注確定</span>
+          ${pp?`<span class="dc-chip">👤 ${_esc(pp.name)}${pp.branch?' / '+_esc(pp.branch):''}</span>`:''}
+          ${d.pref?`<span class="dc-chip">📍 ${_esc(d.pref)}</span>`:''}
+          ${d.category&&d.category!=='直販'?`<span class="dc-chip acc">${_esc(d.category)}</span>`:''}
         </div>
       </div>
-      <button onclick="closeWonDetail()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx3);padding:4px;line-height:1">×</button>
+      <button onclick="closeWonDetail()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--tx3);padding:4px;line-height:1">×</button>
     </div>
 
-    <!-- 金額カード -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px">
-      <div style="background:rgba(122,142,90,.08);border:1px solid rgba(122,142,90,.2);border-radius:var(--r);padding:11px 13px;text-align:center">
-        <div style="font-size:11px;color:var(--tx3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em">売上</div>
-        <div style="font-size:18px;font-weight:900;color:var(--grn)">${d.sales!==''?fmtN(d.sales)+'千':'—'}</div>
+    <!-- ━━ KPI cards (Hub&Spoke スタイル) ━━ -->
+    <div class="dc-kpi-row" style="margin-bottom:14px">
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">💰</span>金額</div>
+        <div class="dc-kpi-main">${d.sales!==''?fmtN(d.sales)+'<span style="font-size:12px;color:var(--tx3);margin-left:2px">千</span>':'—'}</div>
+        <div class="dc-kpi-sub">${profit!==null?'粗利 <b style="color:var(--grn)">'+fmtN(profit)+'千</b>':''}</div>
       </div>
-      <div style="background:rgba(122,142,90,.05);border:1px solid rgba(122,142,90,.15);border-radius:var(--r);padding:11px 13px;text-align:center">
-        <div style="font-size:11px;color:var(--tx3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em">粗利</div>
-        <div style="font-size:18px;font-weight:900;color:var(--grn)">${profit!==null?fmtN(profit)+'千':'—'}</div>
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">📅</span>日程</div>
+        <div class="dc-kpi-main" style="font-size:14px">${dm?fmtMo(dm)+' 計上':'未設定'}</div>
+        <div class="dc-kpi-sub">${dm_a?'稼働 '+fmtMo(dm_a):''}</div>
       </div>
-      <div style="background:var(--s3);border:1px solid var(--bd);border-radius:var(--r);padding:11px 13px;text-align:center">
-        <div style="font-size:11px;color:var(--tx3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em">計上月（納品月）</div>
-        <div style="font-size:14px;font-weight:800;color:var(--tx)">${dm?fmtMo(dm):'未設定'}</div>
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">📦</span>商品</div>
+        <div class="dc-kpi-main" style="font-size:14px">${d.productType?_esc(d.productType):'—'}</div>
+        <div class="dc-kpi-sub">${d.configType?_esc(d.configType):''}${d.configCount?' / '+_esc(d.configCount):''}</div>
       </div>
-    </div>
-
-    <!-- 詳細情報 -->
-    <div style="background:var(--s3);border-radius:var(--r);padding:13px 15px;margin-bottom:16px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
-        ${[
-          ['商品種別', d.productType||'—'],
-          ['区分', d.category||'直販'],
-          ['案件ルート', d.route||'—'],
-          ['競合', d.kyogou||'—'],
-          ['現在のレセコン', d.resecon||'—'],
-          ['案件種別', d.dealType||'—'],
-          ['発生月', d.originMonth?fmtMo(d.originMonth):'—'],
-          ['稼働月', d.activationMonth?fmtMo(d.activationMonth):'—'],
-        ].map(([k,v])=>`<div><span style="color:var(--tx3)">${k}：</span><span style="font-weight:600">${v}</span></div>`).join('')}
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">🏷</span>案件種別</div>
+        <div class="dc-kpi-main" style="font-size:14px">${d.dealType?_esc(d.dealType):'—'}</div>
+        <div class="dc-kpi-sub">${d.route?'ルート: '+_esc(d.route):''}</div>
       </div>
     </div>
 
-    <!-- 次回アクション -->
-    ${d.nextAction?`<div style="background:rgba(200,152,86,.07);border:1px solid rgba(200,152,86,.2);border-radius:var(--r);padding:10px 13px;margin-bottom:16px;font-size:11px">
-      <span style="font-size:12px;color:var(--amb);font-weight:700">📌 アクション：</span>${d.nextAction}
-    </div>`:''}
+    <!-- ━━ 商品詳細 (chips) ━━ -->
+    ${optsArr.length?'<div class="dc-section"><div class="dc-sec-header"><span class="dc-sec-title"><span class="ic">🚀</span>オプション・詳細</span></div><div class="dc-sec-view"><div class="dc-view-line"><span class="val">'+optsArr.map(function(o){return '<span class="dc-chip">'+_esc(o)+'</span>';}).join('')+'</span></div></div></div>':''}
 
-    <!-- 活動履歴 -->
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">活動履歴 (${(d.visits||[]).length}件)</div>
-      <div style="max-height:260px;overflow-y:auto">
-        ${visitRows || '<div style="font-size:11px;color:var(--tx3);padding:8px 0">活動記録なし</div>'}
+    <!-- ━━ 顧客情報 (chips) ━━ -->
+    <div class="dc-section">
+      <div class="dc-sec-header"><span class="dc-sec-title"><span class="ic">🔍</span>顧客・営業情報</span></div>
+      <div class="dc-sec-view">
+        ${d.resecon?'<div class="dc-view-line"><span class="key">レセコン</span><span class="val"><span class="dc-chip">'+_esc(d.resecon)+'</span></span></div>':''}
+        ${d.kyogou?'<div class="dc-view-line"><span class="key">競合</span><span class="val"><span class="dc-chip warn">'+_esc(d.kyogou)+'</span></span></div>':''}
+        ${d.routeRef?'<div class="dc-view-line"><span class="key">紹介元</span><span class="val">'+_esc(d.routeRef)+'</span></div>':''}
+        ${d.originMonth?'<div class="dc-view-line"><span class="key">発生月</span><span class="val">'+fmtMo(d.originMonth)+'</span></div>':''}
       </div>
     </div>
 
-    <!-- ボタン -->
-    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--bds)">
-      <button class="btn sm" onclick="closeWonDetail();openDealCard('${d.id}')">✏ 詳細編集</button>
+    <!-- ━━ 自由メモ ━━ -->
+    ${d.freeMemo?`<div class="dc-section"><div class="dc-sec-header"><span class="dc-sec-title"><span class="ic">💬</span>自由メモ</span></div><div class="dc-sec-view"><div class="dc-memo-display">${_esc(d.freeMemo)}</div></div></div>`:''}
+
+    <!-- ━━ 訪問履歴 (Hub&Spoke スタイル) ━━ -->
+    <div class="dc-section">
+      <div class="dc-sec-header"><span class="dc-sec-title"><span class="ic">📜</span>訪問履歴 <span style="font-weight:500;color:var(--tx3);font-size:11px;margin-left:4px">${(d.visits||[]).length}件</span></span></div>
+      <div class="dc-sec-view" style="max-height:280px;overflow-y:auto">
+        ${visitRows || '<div class="dc-visit-empty">活動記録はまだありません</div>'}
+      </div>
+    </div>
+
+    <!-- ━━ ボタン ━━ -->
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:14px;border-top:1px solid var(--bds);margin-top:14px">
+      <button class="btn sm" onclick="closeWonDetail();openDealCard('${d.id}')">✏ 詳細編集 (進行中タブで開く)</button>
       <button class="btn pr sm" onclick="closeWonDetail()">閉じる</button>
     </div>`;
 
