@@ -1137,6 +1137,144 @@ tr:hover td{background:rgba(90,123,158,.02)}
   .fab-item { font-size:11.5px; padding:8px 12px; }
 }
 
+/* ════════════════ 案件カード Hub&Spoke レイアウト ════════════════ */
+.dc-body { padding:14px 18px; }
+.dc-kpi-row {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+  margin-bottom:14px;
+}
+@media (max-width: 900px) { .dc-kpi-row { grid-template-columns:repeat(2,1fr); } }
+.dc-kpi {
+  background:#fff; border:1px solid var(--bd); border-radius:10px;
+  padding:11px 13px; position:relative;
+}
+.dc-kpi .dc-kpi-lbl {
+  font-size:10.5px; color:var(--tx3); font-weight:700;
+  display:flex; align-items:center; gap:5px; margin-bottom:3px;
+}
+.dc-kpi .dc-kpi-lbl .ic { font-size:13px; }
+.dc-kpi .dc-kpi-main {
+  font-size:17px; font-weight:900; color:var(--tx); line-height:1.2;
+}
+.dc-kpi .dc-kpi-sub {
+  font-size:11px; color:var(--tx3); margin-top:3px;
+}
+.dc-kpi .dc-kpi-badge {
+  display:inline-block; padding:2px 8px; border-radius:9px;
+  font-size:10.5px; font-weight:900; margin-top:4px;
+}
+.dc-kpi .dc-kpi-badge.k-won { background:#e0e9d3; color:#4a5a32; }
+.dc-kpi .dc-kpi-badge.k-verbal { background:rgba(90,123,158,.18); color:var(--acc); }
+.dc-kpi .dc-kpi-badge.k-mid { background:#fde6c5; color:#7a5a2a; }
+.dc-kpi .dc-kpi-badge.k-low { background:var(--s3); color:var(--tx2); }
+
+.dc-section {
+  background:#fff; border:1px solid var(--bd); border-radius:10px;
+  margin-bottom:10px; overflow:hidden;
+}
+.dc-sec-header {
+  padding:9px 14px; background:var(--s2);
+  display:flex; align-items:center; gap:8px;
+  border-bottom:1px solid var(--bds);
+}
+.dc-sec-header .dc-sec-title {
+  font-size:12px; font-weight:900; color:var(--tx); flex:1;
+  display:flex; align-items:center; gap:6px;
+}
+.dc-sec-header .dc-sec-title .ic { font-size:14px; }
+.dc-sec-header .dc-sec-edit-btn {
+  background:#fff; border:1px solid var(--bd); padding:4px 11px;
+  border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;
+  color:var(--tx2); display:inline-flex; align-items:center; gap:4px;
+}
+.dc-sec-header .dc-sec-edit-btn:hover {
+  background:var(--acc); color:#fff; border-color:var(--acc);
+}
+.dc-sec-header .dc-sec-edit-btn.editing { background:var(--acc); color:#fff; border-color:var(--acc); }
+
+.dc-sec-view {
+  padding:11px 14px; font-size:13px; color:var(--tx);
+}
+.dc-sec-view .dc-view-line {
+  display:flex; align-items:flex-start; gap:10px; margin-bottom:6px;
+}
+.dc-sec-view .dc-view-line:last-child { margin-bottom:0; }
+.dc-sec-view .dc-view-line .key {
+  font-weight:700; color:var(--tx2); min-width:70px; flex-shrink:0; font-size:12px;
+}
+.dc-sec-view .dc-view-line .val { flex:1; font-size:12.5px; }
+.dc-sec-view .dc-chip {
+  display:inline-block; background:var(--s3); color:var(--tx2);
+  padding:2px 9px; border-radius:9px; font-size:11.5px; margin:0 3px 3px 0;
+}
+.dc-sec-view .dc-chip.acc { background:rgba(90,123,158,.15); color:var(--acc); }
+.dc-sec-view .dc-chip.warn { background:rgba(168,90,74,.15); color:var(--red); font-weight:700; }
+.dc-sec-view .dc-empty { color:var(--tx3); font-style:italic; font-size:12px; }
+
+.dc-sec-edit {
+  padding:11px 14px;
+}
+.dc-sec-edit.hidden { display:none; }
+.dc-sec-view.hidden { display:none; }
+
+/* 次のアクション色別カード */
+.dc-na-card {
+  border-radius:8px; padding:11px 14px;
+  display:flex; align-items:center; gap:12px;
+}
+.dc-na-card .ic { font-size:22px; }
+.dc-na-card .body { flex:1; }
+.dc-na-card .date { font-size:11px; font-weight:700; }
+.dc-na-card .msg { font-size:13px; font-weight:700; color:var(--tx); margin-top:2px; }
+.dc-na-card .status {
+  background:#fff; border:1px solid var(--bds); padding:3px 9px;
+  border-radius:7px; font-size:10.5px; font-weight:700; color:var(--tx2);
+}
+.dc-na-amber {
+  background:linear-gradient(135deg, #fff8e7 0%, #faefd5 100%);
+  border:1.5px solid var(--amb);
+}
+.dc-na-amber .date { color:#7a5a2a; }
+.dc-na-gray {
+  background:var(--s1); border:1px solid var(--bd);
+}
+.dc-na-gray .date { color:var(--tx3); }
+.dc-na-red {
+  background:rgba(168,90,74,.06); border:1.5px solid var(--red);
+}
+.dc-na-red .date { color:var(--red); }
+
+/* 訪問履歴アイテム(読み取り表示) */
+.dc-visit-item {
+  background:var(--s1); border-left:3px solid var(--cyn);
+  padding:8px 12px; border-radius:0 8px 8px 0; margin-bottom:6px;
+}
+.dc-visit-item .vi-head {
+  display:flex; align-items:center; gap:8px; margin-bottom:3px;
+  font-size:11.5px; color:var(--tx);
+}
+.dc-visit-item .vi-head .date { font-weight:800; }
+.dc-visit-item .vi-head .type {
+  background:#fff; padding:1px 6px; border-radius:5px;
+  font-size:10px; font-weight:700; color:var(--acc);
+  border:1px solid var(--bds);
+}
+.dc-visit-item .vi-body {
+  font-size:11.5px; color:var(--tx2); line-height:1.55;
+}
+.dc-visit-empty {
+  color:var(--tx3); font-style:italic; font-size:12px;
+  padding:8px; text-align:center;
+}
+
+/* 自由メモ表示 */
+.dc-memo-display {
+  background:var(--s2); border-left:3px solid var(--acc2);
+  border-radius:0 6px 6px 0;
+  padding:9px 13px; font-size:12.5px; color:var(--tx2);
+  font-style:italic; line-height:1.6; min-height:36px;
+}
+
 /* ════════════════ ストーリーパネル (👤自分タブの顔) ════════════════ */
 #story-panel {
   background: linear-gradient(135deg, #fdfbf6 0%, #f5ede0 100%);
@@ -8489,6 +8627,26 @@ function _hideStoryPanel() {
   if (sp) sp.style.display = 'none';
 }
 
+// 案件カードのセクション開閉(読み取り↔編集)
+// dealId = 案件ID, sectionKey = 'basic' | 'price' | 'product' | 'next' | 'memo'
+function _toggleDealSection(dealId, sectionKey) {
+  var prefix = 'dcsec-' + sectionKey + '-' + dealId;
+  var view = document.getElementById(prefix + '-view');
+  var edit = document.getElementById(prefix + '-edit');
+  var btn  = document.getElementById(prefix + '-btn');
+  if (!view || !edit) return;
+  var isEditing = !edit.classList.contains('hidden');
+  if (isEditing) {
+    edit.classList.add('hidden');
+    view.classList.remove('hidden');
+    if (btn) { btn.classList.remove('editing'); btn.innerHTML = '<span>✏</span><span>編集</span>'; }
+  } else {
+    view.classList.add('hidden');
+    edit.classList.remove('hidden');
+    if (btn) { btn.classList.add('editing'); btn.innerHTML = '<span>✓</span><span>完了</span>'; }
+  }
+}
+
 // 案件タブを開いた時、ログインユーザーの案件を初期選択
 // (cdSp をログインユーザーの people 配列インデックスにセット)
 function _autoSelectMyDeals() {
@@ -10751,6 +10909,7 @@ function buildDI(d) {
 function buildDealBody(d) {
   const people = ap();
   const ls = lstat(d);
+  const pp = people.find(p => p.id === d.spId);
   const profit = d.sales !== '' && d.cost !== '' ? parseFloat(d.sales) - parseFloat(d.cost) : null;
   const dm_d = d.deliveryMonth || d.implMonth || '';
   const dm_a = d.activationMonth || '';
@@ -10758,7 +10917,401 @@ function buildDealBody(d) {
   const stOpts = getST().map(s=>`<option>${s}</option>`).join('');
   const reseconMaster = D.reseconMaster || DEFAULT_RESECON_MASTER;
   const reseconOpts = reseconMaster.map(r=>`<option value="${r}"${d.resecon===r?' selected':''}>${r}</option>`).join('');
-  // kyogouOpts は廃止（タグ方式に移行）
+  const visRows = buildVisitRows(d);
+
+  // ── KPI cards用データ ──
+  const probInfo = (function(){
+    var pr = getProb(d);
+    var def = PROB_DEFS.find(function(p){ return p.rank === pr; });
+    return { rank: pr, label: def ? def.label : '未設定', weight: def ? def.weight : 0 };
+  })();
+  var probBadgeCls = probInfo.rank === 5 ? 'k-won'
+                   : probInfo.rank === 4 ? 'k-verbal'
+                   : probInfo.rank === 3 ? 'k-mid'
+                   : 'k-low';
+
+  // ── 次アクション期限別色 ──
+  var nextActionColorCls = 'dc-na-gray';
+  var nextDaysLabel = '';
+  if (d.nextDate) {
+    var today = new Date(); today.setHours(0,0,0,0);
+    var nd = new Date(d.nextDate); nd.setHours(0,0,0,0);
+    if (!isNaN(nd.getTime())) {
+      var diffDays = Math.floor((nd - today) / (1000*60*60*24));
+      if (diffDays < 0) { nextActionColorCls = 'dc-na-red'; nextDaysLabel = (Math.abs(diffDays)+'日経過'); }
+      else if (diffDays <= 7) { nextActionColorCls = 'dc-na-amber'; nextDaysLabel = diffDays === 0 ? '今日' : ('あと'+diffDays+'日'); }
+      else { nextActionColorCls = 'dc-na-gray'; nextDaysLabel = ('あと'+diffDays+'日'); }
+    }
+  } else if (d.nextAction) {
+    nextActionColorCls = 'dc-na-red'; nextDaysLabel = '期限未設定';
+  }
+
+  // ── 課題アクティブ ──
+  var issuesActive = (d.issues || []).map(function(k) {
+    return ISSUE_TYPES.find(function(i){ return i.key === k; });
+  }).filter(Boolean);
+
+  // ── オプション配列 ──
+  var optsArr = (typeof getOptionArray === 'function') ? getOptionArray(d.productOption||'') : [];
+
+  // ── ヘルパ: セクションヘッダー ──
+  function secHeader(sectionKey, icon, title, dealId) {
+    return '<div class="dc-sec-header">' +
+      '<span class="dc-sec-title"><span class="ic">'+icon+'</span>'+title+'</span>' +
+      '<button id="dcsec-'+sectionKey+'-'+dealId+'-btn" class="dc-sec-edit-btn" onclick="event.stopPropagation();_toggleDealSection(\''+dealId+'\',\''+sectionKey+'\')"><span>✏</span><span>編集</span></button>' +
+    '</div>';
+  }
+
+  return `<div class="dc-body">
+
+    <!-- ━━━ KPI cards 4枚 (常時表示・読み取りのみ) ━━━ -->
+    <div class="dc-kpi-row">
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">💰</span>金額</div>
+        <div class="dc-kpi-main">${d.sales!==''?fmtN(d.sales)+'<span style="font-size:12px;color:var(--tx3);margin-left:2px">千</span>':'<span style="color:var(--tx3);font-size:14px">未設定</span>'}</div>
+        <div class="dc-kpi-sub">${profit!==null?'原価 '+fmtN(d.cost)+'千 / 粗利 <b style="color:var(--grn)">'+fmtN(profit)+'千</b>':''}</div>
+      </div>
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">📅</span>日程</div>
+        <div class="dc-kpi-main" style="font-size:14px">${dm_d?fmtMo(dm_d)+' 計上':'<span style="color:var(--tx3)">未設定</span>'}</div>
+        <div class="dc-kpi-sub">${dm_a?'稼働 '+fmtMo(dm_a):''}</div>
+      </div>
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">👤</span>担当</div>
+        <div class="dc-kpi-main" style="font-size:15px">${pp?_esc(pp.name):(d.spId==='office'?'グループ共通':'<span style="color:var(--tx3)">未割当</span>')}</div>
+        <div class="dc-kpi-sub">${pp&&pp.branch?_esc(pp.branch):''}</div>
+      </div>
+      <div class="dc-kpi">
+        <div class="dc-kpi-lbl"><span class="ic">🎯</span>確度・ステージ</div>
+        <div class="dc-kpi-main" style="font-size:14px">${ls?_esc(ls):'<span style="color:var(--tx3)">未設定</span>'}</div>
+        <span class="dc-kpi-badge ${probBadgeCls}">確度${probInfo.rank} ${_esc(probInfo.label)} (${probInfo.weight}%)</span>
+      </div>
+    </div>
+
+    <!-- ━━━ 🏥 基本情報 ━━━ -->
+    <div class="dc-section">
+      ${secHeader('basic','🏥','基本情報',d.id)}
+      <div id="dcsec-basic-${d.id}-view" class="dc-sec-view">
+        <div class="dc-view-line"><span class="key">薬局名</span><span class="val">${_esc(d.name||'(名称未設定)')}</span></div>
+        <div class="dc-view-line"><span class="key">担当者</span><span class="val">${pp?_esc(pp.name)+(pp.branch?' / '+_esc(pp.branch):''):(d.spId==='office'?'グループ薬局(共通)':'<span class="dc-empty">未割当</span>')}</span></div>
+        <div class="dc-view-line"><span class="key">都道府県</span><span class="val">${d.pref?'<span class="dc-chip">📍 '+_esc(d.pref)+'</span>':'<span class="dc-empty">未設定</span>'}</span></div>
+        <div class="dc-view-line"><span class="key">区分</span><span class="val"><span class="dc-chip${(d.category&&d.category!=='直販')?' acc':''}">${_esc(d.category||'直販')}</span></span></div>
+      </div>
+      <div id="dcsec-basic-${d.id}-edit" class="dc-sec-edit hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="ff"><label>薬局名 *</label>
+            <input type="text" class="fi" value="${_esc(d.name||'').replace(/"/g,'&quot;')}" placeholder="○○薬局" oninput="updDeal('${d.id}','name',this.value)" style="font-size:12px;padding:6px 9px">
+          </div>
+          <div class="ff"><label>担当者</label>
+            <select class="fs" onchange="updDeal('${d.id}','spId',this.value)" style="font-size:12px;padding:6px 9px">
+              ${people.map(function(p,i){return '<option value="'+i+'"'+(d.spId===p.id?' selected':'')+'>'+_esc(p.name||'担当者'+(i+1))+'('+_esc(p.branch||'—')+')</option>';}).join('')}
+              <option value="office"${d.spId==='office'?' selected':''}>グループ薬局(共通)</option>
+            </select>
+          </div>
+          <div class="ff"><label>都道府県</label>
+            <select class="fs" onchange="updDeal('${d.id}','pref',this.value)" style="font-size:12px;padding:6px 9px"><option value="">選択</option>${prefOpts}</select>
+          </div>
+          <div class="ff"><label>区分</label>
+            <select class="fs" onchange="updDeal('${d.id}','category',this.value)" style="font-size:12px;padding:6px 9px">
+              <option${(d.category||'直販')==='直販'?' selected':''}>直販</option>
+              <option${d.category==='グループ薬局'?' selected':''}>グループ薬局</option>
+              <option${d.category==='販売店'?' selected':''}>販売店</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━ 💰 金額・日程 ━━━ -->
+    <div class="dc-section">
+      ${secHeader('price','💰','金額・日程',d.id)}
+      <div id="dcsec-price-${d.id}-view" class="dc-sec-view">
+        <div class="dc-view-line"><span class="key">売上</span><span class="val">${d.sales!==''?'<b>'+fmtN(d.sales)+'千</b>':'<span class="dc-empty">未設定</span>'}</span></div>
+        <div class="dc-view-line"><span class="key">原価</span><span class="val">${d.cost!==''?fmtN(d.cost)+'千':'<span class="dc-empty">未設定</span>'}</span></div>
+        <div class="dc-view-line"><span class="key">粗利</span><span class="val" style="color:var(--grn);font-weight:700">${profit!==null?fmtN(profit)+'千':'—'}</span></div>
+        <div class="dc-view-line"><span class="key">計上月</span><span class="val">${dm_d?fmtMo(dm_d):'<span class="dc-empty">未設定</span>'}</span></div>
+        <div class="dc-view-line"><span class="key">稼働月</span><span class="val">${dm_a?fmtMo(dm_a):'<span class="dc-empty">未設定</span>'}</span></div>
+      </div>
+      <div id="dcsec-price-${d.id}-edit" class="dc-sec-edit hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+          <div class="ff"><label>売上(千円)</label>
+            <input type="number" class="fi" value="${d.sales}" placeholder="0" style="font-size:12px;padding:6px 9px"
+              oninput="updDeal('${d.id}','sales',this.value);updateProfit('${d.id}')"
+              onblur="autoConvertToSen(this,'${d.id}','sales')"></div>
+          <div class="ff"><label>原価(千円)</label>
+            <input type="number" class="fi" value="${d.cost}" placeholder="0" style="font-size:12px;padding:6px 9px"
+              oninput="updDeal('${d.id}','cost',this.value);updateProfit('${d.id}')"
+              onblur="autoConvertToSen(this,'${d.id}','cost')"></div>
+          <div class="ff"><label>粗利(自動)</label><div class="fi" id="pd-${d.id}" style="background:rgba(122,142,90,.08);color:var(--grn);font-weight:700;cursor:default;font-size:12px;padding:6px 9px">${profit!==null?fmtN(profit)+'千円':'—'}</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="ff"><label>計上月(納品月)</label><input type="month" class="fi" value="${dm_d}" style="font-size:12px;padding:6px 9px" oninput="updDeal('${d.id}','deliveryMonth',this.value)"></div>
+          <div class="ff"><label>稼働月</label><input type="month" class="fi" value="${dm_a}" style="font-size:12px;padding:6px 9px" oninput="updDeal('${d.id}','activationMonth',this.value)"></div>
+        </div>
+        <p style="font-size:10.5px;color:var(--tx3);margin:6px 0 0">💡 1万円以上で自動千円変換</p>
+      </div>
+    </div>
+
+    <!-- ━━━ 📦 商品・案件情報 ━━━ -->
+    <div class="dc-section">
+      ${secHeader('product','📦','商品・案件情報',d.id)}
+      <div id="dcsec-product-${d.id}-view" class="dc-sec-view">
+        <div class="dc-view-line"><span class="key">商品構成</span><span class="val">
+          ${d.productType?'<span class="dc-chip acc">'+_esc(d.productType)+'</span>':''}
+          ${d.configType?'<span class="dc-chip">'+_esc(d.configType)+'</span>':''}
+          ${d.configCount?'<span class="dc-chip">'+_esc(d.configCount)+'</span>':''}
+          ${!d.productType&&!d.configType?'<span class="dc-empty">未設定</span>':''}
+        </span></div>
+        ${optsArr.length?'<div class="dc-view-line"><span class="key">オプション</span><span class="val">'+optsArr.map(function(o){return '<span class="dc-chip">'+_esc(o)+'</span>';}).join('')+'</span></div>':''}
+        <div class="dc-view-line"><span class="key">案件種別</span><span class="val">${d.dealType?'<span class="dc-chip">'+_esc(d.dealType)+'</span>':'<span class="dc-empty">未設定</span>'}</span></div>
+        <div class="dc-view-line"><span class="key">ルート</span><span class="val">${d.route?_esc(d.route)+(d.routeRef?' / '+_esc(d.routeRef):''):'<span class="dc-empty">未設定</span>'}</span></div>
+        ${d.resecon||(d.kyogou&&d.kyogou.length)?'<div class="dc-view-line"><span class="key">レセコン/競合</span><span class="val">'+(d.resecon?'<span class="dc-chip">レセコン: '+_esc(d.resecon)+'</span>':'')+(d.kyogou?'<span class="dc-chip warn">競合: '+_esc(d.kyogou)+'</span>':'')+'</span></div>':''}
+      </div>
+      <div id="dcsec-product-${d.id}-edit" class="dc-sec-edit hidden">
+        <!-- 1段目: 商品種別/構成種別/構成台数 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="ff"><label>商品種別</label>
+            <select class="fs" style="font-size:12px;padding:6px 9px" onchange="updDeal('${d.id}','productType',this.value);document.getElementById('opt-wrap-${d.id}').style.display=this.value==='ハードウェア'?'none':'';var _isV8=this.value.includes('V8');document.getElementById('config-type-wrap-${d.id}').style.display=_isV8?'':'none';document.getElementById('config-count-wrap-${d.id}').style.display=_isV8?'':'none'">
+              <option value="">未選択</option>
+              <option${(d.productType||'')==='調剤くんV8'?' selected':''}>調剤くんV8</option>
+              <option${(d.productType||'')==='その他ソフト'?' selected':''}>その他ソフト</option>
+              <option${(d.productType||'')==='ハードウェア'?' selected':''}>ハードウェア</option>
+            </select>
+          </div>
+          <div class="ff" id="config-type-wrap-${d.id}" style="${(d.productType||'').includes('V8')?'':'display:none'}">
+            <label>構成種別</label>
+            <select class="fs" style="font-size:12px;padding:6px 9px" onchange="updDeal('${d.id}','configType',this.value)">
+              <option value="">未選択</option>
+              ${(D.configTypeMaster||['STD版','L5版','L10版']).map(function(t){return '<option'+(d.configType===t?' selected':'')+'>'+_esc(t)+'</option>';}).join('')}
+            </select>
+          </div>
+          <div class="ff" id="config-count-wrap-${d.id}" style="${(d.productType||'').includes('V8')?'':'display:none'}">
+            <label>構成台数</label>
+            <select class="fs" style="font-size:12px;padding:6px 9px" onchange="updDeal('${d.id}','configCount',this.value)">
+              <option value="">未選択</option>
+              ${(D.configCountMaster||['1台','SV+1台','SV+2台']).map(function(t){return '<option'+(d.configCount===t?' selected':'')+'>'+_esc(t)+'</option>';}).join('')}
+            </select>
+          </div>
+        </div>
+        <!-- 2段目: オプション/案件種別/ルート -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="ff" id="opt-wrap-${d.id}" style="${(d.productType||'')==='ハードウェア'?'display:none':''}"><label>オプション・詳細</label>
+            <div id="opt-tag-area-${d.id}" style="display:flex;flex-wrap:wrap;gap:5px;min-height:26px;margin-bottom:4px">
+              ${buildOptionTags(d.id, d.productOption||'')}
+            </div>
+            <button class="btn sm" style="font-size:11px;margin-top:2px" onclick="openOptionPanel('${d.id}',this)">＋ オプションを追加</button>
+          </div>
+          <div>
+            <div class="ff"><label>案件種別</label>
+              <select class="fs" style="font-size:12px;padding:6px 9px" onchange="updDeal('${d.id}','dealType',this.value)">
+                <option value="">未選択</option>
+                ${(initDealTypeMaster(),(D.dealTypeMaster&&D.dealTypeMaster.length?D.dealTypeMaster:['新規(他社入替)','既存(バージョンアップ)','新規開局']).map(function(t){return '<option'+(d.dealType===t?' selected':'')+'>'+_esc(t)+'</option>';})).join('')}
+              </select>
+            </div>
+            <div class="ff" style="margin-top:6px"><label>案件ルート</label>
+              <select class="fs" id="route-company-${d.id}" style="font-size:12px;padding:6px 9px"
+                onchange="onCardRouteCompanyChange('${d.id}',this.value)">
+                <option value="">未設定</option>
+                ${(initRefMasterData(), buildRouteCompanyOptionsHTML(d.route||''))}
+              </select>
+              <select class="fs" id="route-branch-${d.id}"
+                style="font-size:12px;padding:6px 9px;margin-top:5px;${getRouteBranchVisible(d.route||'')}"
+                onchange="onCardRouteBranchChange('${d.id}',this.value)">
+                ${buildRouteBranchOptionsHTML(d.route||'')}
+              </select>
+              <input type="hidden" id="route-${d.id}" value="${_esc(d.route||'').replace(/"/g,'&quot;')}">
+              <div id="routeref-wrap-${d.id}" style="margin-top:5px;${(d.route||'')!=='既存顧客紹介'?'display:none':''}">
+                <label style="font-size:11px;color:var(--tx3);font-weight:700;display:block;margin-bottom:4px">紹介元顧客名</label>
+                <input type="text" class="fi" style="font-size:12px;padding:6px 9px" value="${_esc(d.routeRef||'').replace(/"/g,'&quot;')}" placeholder="○○薬局" oninput="updDeal('${d.id}','routeRef',this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 3段目: レセコン/競合 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="ff"><label>Q2. 現在のレセコン</label>
+            <select class="fs" style="font-size:12px;padding:6px 9px" onchange="updDeal('${d.id}','resecon',this.value)">
+              <option value="">選択...</option>
+              ${reseconOpts}
+              <option value="${d.resecon&&!reseconMaster.includes(d.resecon)?_esc(d.resecon):''}"${d.resecon&&!reseconMaster.includes(d.resecon)?' selected':''}>その他</option>
+            </select>
+          </div>
+          <div class="ff"><label>Q3. 競合</label>
+            <div id="kyogou-tag-area-${d.id}" style="display:flex;flex-wrap:wrap;gap:5px;min-height:22px;margin-bottom:4px">
+              ${buildKyogouTags(d.id, d.kyogou||'')}
+            </div>
+            <select class="fs" style="font-size:11px;padding:6px 9px" onchange="addKyogouTag('${d.id}',this)">
+              <option value="">＋ 競合を追加...</option>
+              ${buildKyogouSelectHTML(d.kyogou||'')}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━ 🎯 次のアクション・課題 ━━━ -->
+    <div class="dc-section">
+      ${secHeader('next','🎯','次のアクション・課題',d.id)}
+      <div id="dcsec-next-${d.id}-view" class="dc-sec-view">
+        <div class="dc-na-card ${nextActionColorCls}">
+          <span class="ic">${nextActionColorCls==='dc-na-amber'?'⏰':nextActionColorCls==='dc-na-red'?'🔥':'📅'}</span>
+          <div class="body">
+            <div class="date">${d.nextDate?d.nextDate+' ('+nextDaysLabel+')':nextDaysLabel||'期限未設定'}</div>
+            <div class="msg">${d.nextAction?_esc(d.nextAction):'<span style="color:var(--tx3);font-weight:500;font-style:italic">次のアクション未設定</span>'}</div>
+          </div>
+          ${d.waitType?(function(){var w=WAIT_TYPES.find(function(x){return x.key===d.waitType;});return w?'<span class="status">'+w.icon+' '+_esc(w.label)+'</span>':'';})():''}
+        </div>
+        ${issuesActive.length?'<div class="dc-view-line" style="margin-top:8px"><span class="key">⚠ 課題</span><span class="val">'+issuesActive.map(function(it){return '<span class="dc-chip warn">'+it.icon+' '+_esc(it.label)+'</span>';}).join('')+(d.issueMemo?'<div style="font-size:11.5px;color:var(--tx3);margin-top:4px;font-style:italic">「'+_esc(d.issueMemo)+'」</div>':'')+'</span></div>':''}
+      </div>
+      <div id="dcsec-next-${d.id}-edit" class="dc-sec-edit hidden">
+        <!-- 状況・次回アクション -->
+        <div class="ff" style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--tx2);font-weight:700">📝 状況・次回アクション</label>
+          <div style="display:flex;gap:0">
+            <input type="text" id="na-${d.id}" class="fi" value="${_esc(d.nextAction||'').replace(/"/g,'&quot;')}"
+              placeholder="例:デモ日程調整中 / 来週電話フォロー予定"
+              style="border-radius:var(--r) 0 0 var(--r);font-size:12px;padding:6px 9px"
+              oninput="updDeal('${d.id}','nextAction',this.value)">
+            <button type="button" onclick="openTemplatePicker('na-${d.id}','nextAction')"
+              style="background:var(--s3);border:1px solid var(--bd);border-left:none;border-radius:0 var(--r) var(--r) 0;padding:7px 10px;cursor:pointer;font-size:11px;color:var(--tx3)">💬</button>
+          </div>
+        </div>
+        <!-- 次回予定日 / 待ち種別 -->
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
+          <div class="ff" style="min-width:120px;flex:1">
+            <label style="font-size:11px;color:var(--tx2);font-weight:700">📅 次回予定日</label>
+            <input type="date" id="dnd-${d.id}" class="fi" style="padding:6px 8px;font-size:12px"
+              value="${d.nextDate || ''}"
+              onchange="updNextSchedule('${d.id}','nextDate',this.value)">
+          </div>
+          <div class="ff" style="min-width:130px;flex:1">
+            <label style="font-size:11px;color:var(--tx2);font-weight:700">⏳ 待ち種別</label>
+            <select class="fs" id="dwt-${d.id}" style="padding:6px 8px;font-size:12px"
+              onchange="updNextSchedule('${d.id}','waitType',this.value)">
+              <option value="">— 未指定 —</option>
+              ${WAIT_TYPES.map(function(w){return '<option value="'+w.key+'"'+(d.waitType===w.key?' selected':'')+'>'+w.icon+' '+_esc(w.label)+'</option>';}).join('')}
+            </select>
+          </div>
+          <button class="btn sm" style="align-self:flex-end;padding:6px 8px;font-size:11px" onclick="updNextSchedule('${d.id}','nextDate','');updNextSchedule('${d.id}','waitType','');document.getElementById('dnd-${d.id}').value='';document.getElementById('dwt-${d.id}').value='';" title="次回予定をクリア">クリア</button>
+        </div>
+        <!-- 課題・懸念点 -->
+        <div style="padding-top:8px;border-top:1px dashed var(--bds)">
+          <label style="font-size:11px;color:var(--tx2);font-weight:700;display:block;margin-bottom:6px">⚠️ 課題・懸念点</label>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+            ${ISSUE_TYPES.map(function(it){
+              var checked = (d.issues||[]).indexOf(it.key) >= 0;
+              return '<label style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;font-size:11px;border-radius:6px;cursor:pointer;background:'+(checked?'rgba(200,152,86,.18)':'var(--s1)')+';border:0.5px solid '+(checked?'#c89856':'var(--bds)')+';color:'+(checked?'#6b4a1e':'var(--tx3)')+';font-weight:'+(checked?'700':'500')+'">'+
+                '<input type="checkbox" '+(checked?'checked':'')+' onchange="updDealIssue(\''+d.id+'\',\''+it.key+'\',this.checked)" style="margin:0;cursor:pointer">'+
+                '<span>'+it.icon+' '+_esc(it.label)+'</span>'+
+              '</label>';
+            }).join('')}
+          </div>
+          <input type="text" id="issuememo-${d.id}" class="fi" value="${_esc(d.issueMemo||'').replace(/"/g,'&quot;')}"
+            placeholder="課題の詳細(例:価格は△△円までなら検討)"
+            style="font-size:12px;padding:6px 9px"
+            oninput="updDeal('${d.id}','issueMemo',this.value)">
+        </div>
+        <!-- 確度バー -->
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:linear-gradient(90deg,rgba(90,123,158,.08),rgba(138,90,46,.05));border-radius:var(--r);border:1px solid rgba(90,123,158,.15)">
+          <span style="font-size:11px;font-weight:700;color:var(--acc);white-space:nowrap">📊 受注確度</span>
+          <select class="fs" onchange="updDeal('${d.id}','probability',parseInt(this.value))" style="font-size:13px;font-weight:600;flex:1">
+            ${PROB_DEFS.map(function(p){var cur=getProb(d);return '<option value="'+p.rank+'"'+(cur===p.rank?' selected':'')+'>'+p.rank+'. '+_esc(p.label)+' ('+p.weight+'%) — '+_esc(p.desc)+'</option>';}).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━ 💬 自由メモ ━━━ -->
+    <div class="dc-section">
+      ${secHeader('memo','💬','自由メモ',d.id)}
+      <div id="dcsec-memo-${d.id}-view" class="dc-sec-view">
+        ${d.freeMemo?'<div class="dc-memo-display">'+_esc(d.freeMemo)+'</div>':'<div class="dc-empty">メモはまだありません</div>'}
+      </div>
+      <div id="dcsec-memo-${d.id}-edit" class="dc-sec-edit hidden">
+        <div style="display:flex;gap:0">
+          <textarea id="fm-${d.id}" class="fi" rows="3"
+            placeholder="例:キーマンは社長の山田氏 / 競合より価格重視 / 過去◯◯で取引あり"
+            style="font-size:12px;padding:7px 9px;resize:vertical;border-radius:var(--r) 0 0 var(--r);line-height:1.5"
+            oninput="updDeal('${d.id}','freeMemo',this.value)">${_esc(d.freeMemo||'')}</textarea>
+          <button type="button" onclick="openMemoModal('fm-${d.id}')"
+            style="background:var(--s3);border:1px solid var(--bd);border-left:none;border-radius:0 var(--r) var(--r) 0;padding:8px 10px;cursor:pointer;font-size:13px;color:var(--tx3)" title="全画面で入力">💬</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━ 📜 訪問履歴 (Phase 1: 読み取りのみ) ━━━ -->
+    <div class="dc-section">
+      <div class="dc-sec-header">
+        <span class="dc-sec-title"><span class="ic">📜</span>訪問履歴 <span style="font-weight:500;color:var(--tx3);font-size:11px;margin-left:4px">${(d.visits||[]).length}件</span></span>
+      </div>
+      <div class="dc-sec-view">
+        <div id="vh-${d.id}">${visRows||'<div class="dc-visit-empty">活動記録はまだありません</div>'}</div>
+      </div>
+    </div>
+
+    <!-- ━━━ 📝 活動を記録 (頻繁操作・常時表示) ━━━ -->
+    <div class="dc-section" style="border-color:rgba(58,90,126,.3);background:rgba(58,90,126,.03)">
+      <div class="dc-sec-header" style="background:rgba(58,90,126,.06)">
+        <span class="dc-sec-title" style="color:var(--acc)"><span class="ic">📝</span>活動を記録 (新規追加)</span>
+      </div>
+      <div style="padding:11px 14px">
+        <div class="vadd" style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
+          <div class="ff" style="min-width:110px;flex:0 0 auto"><label>活動日</label><input type="date" id="vd-${d.id}" class="fi" style="padding:6px 9px;font-size:12px"></div>
+          <div class="ff" style="min-width:80px;flex:0 0 auto"><label>種別</label>
+            <select class="fs" id="vtype-${d.id}" style="padding:6px 9px;font-size:12px">
+              <option>訪問</option><option>電話</option><option>メール</option>
+            </select>
+          </div>
+          <div class="ff" style="min-width:120px;flex:1"><label>アクション</label>
+            <select class="fs" id="vs-${d.id}" style="padding:6px 9px;font-size:12px" onchange="toggleReason('${d.id}',this.value)">${stOpts}</select>
+          </div>
+          <div class="ff" id="vreason-wrap-${d.id}" style="flex:1;display:none;min-width:100px"><label id="vreason-lbl-${d.id}">理由</label>
+            <input type="text" class="fi" id="vreason-${d.id}" placeholder="理由を記入" style="padding:6px 9px;font-size:12px">
+          </div>
+        </div>
+        <div class="ff" style="margin-top:6px">
+          <label>補足メモ <span style="font-size:12px;font-weight:500;color:var(--tx3);text-transform:none">長文OK・改行可</span></label>
+          <div style="display:flex;gap:0">
+            <textarea id="vm-${d.id}" class="fi" rows="2"
+              placeholder="自由記入(複数行入力可)&#10;例:①社長と面談&#10;②価格に懸念あり"
+              style="font-size:12px;padding:7px 9px;resize:vertical;line-height:1.5;border-radius:var(--r) 0 0 var(--r);min-height:42px"></textarea>
+            <button type="button" onclick="openMemoModal('vm-${d.id}')"
+              style="background:var(--s3);border:1px solid var(--bd);border-left:none;border-radius:0 var(--r) var(--r) 0;padding:8px 10px;cursor:pointer;font-size:13px;color:var(--tx3)" title="全画面で入力">💬</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+          <button class="btn pr sm" style="padding:8px 22px;font-weight:700;font-size:12px" onclick="addVisit('${d.id}')">記録追加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ━━━ ④ アクションボタン ━━━ -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" onclick="cloneDeal('${d.id}')">📋 クローン</button>
+        <button class="btn sm dr" onclick="delDeal('${d.id}')">🗑 削除</button>
+      </div>
+      <button class="btn sm"
+        style="background:var(--acc);color:#fff;border:1.5px solid var(--acc);font-size:12px;font-weight:700;padding:8px 18px;border-radius:8px"
+        onclick="event.stopPropagation();openConfigDiagram('${d.id}')">
+        🛠 構成図を作成・編集 →
+      </button>
+    </div>
+  </div>`;
+}
+
+// ※ 旧 buildDealBody はここまで(Hub&Spoke 化により全面リニューアル)
+function buildDealBody_LEGACY(d) {
+  // 旧実装(リファレンスとして残置・呼び出されない)
+  const people = ap();
+  const ls = lstat(d);
+  const profit = d.sales !== '' && d.cost !== '' ? parseFloat(d.sales) - parseFloat(d.cost) : null;
+  const dm_d = d.deliveryMonth || d.implMonth || '';
+  const dm_a = d.activationMonth || '';
+  const prefOpts = PREFS.map(p => `<option${p===d.pref?' selected':''}>${p}</option>`).join('');
+  const stOpts = getST().map(s=>`<option>${s}</option>`).join('');
+  const reseconMaster = D.reseconMaster || DEFAULT_RESECON_MASTER;
+  const reseconOpts = reseconMaster.map(r=>`<option value="${r}"${d.resecon===r?' selected':''}>${r}</option>`).join('');
   const visRows = buildVisitRows(d);
 
   return `<div style="padding:14px 18px">
