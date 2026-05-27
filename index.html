@@ -1224,38 +1224,34 @@ body.has-sidepanel #home-deal-mode {
   overflow:auto;
   box-shadow:0 2px 8px rgba(90,75,55,.06);
 }
-.deal-table {
-  width:100%; border-collapse:collapse; font-size:12px;
-  table-layout:fixed;
+/* CSS Grid ベースの行レイアウト (table の幅不一致問題を回避) */
+.deal-grid {
+  font-size:12px;
 }
-/* 列幅: 案件情報(38%) / 進捗+最終活動(30%) / 次の動き(18%) / 金額(14%) */
-/* colgroup より nth-child が確実に効くため両方指定 */
-.deal-table colgroup col.c-info     { width:38%; }
-.deal-table colgroup col.c-progress { width:30%; }
-.deal-table colgroup col.c-next     { width:18%; }
-.deal-table colgroup col.c-amount   { width:14%; }
-.deal-table th:nth-child(1), .deal-table td:nth-child(1) { width:38%; }
-.deal-table th:nth-child(2), .deal-table td:nth-child(2) { width:30%; }
-.deal-table th:nth-child(3), .deal-table td:nth-child(3) { width:18%; }
-.deal-table th:nth-child(4), .deal-table td:nth-child(4) { width:14%; text-align:right; }
-
-.deal-table thead th {
-  background:var(--s3); padding:6px 10px; text-align:left;
+.dg-row {
+  display:grid;
+  grid-template-columns: 38% 30% 18% 14%;
+  gap:0;
+  align-items:center;
+  border-bottom:1px solid var(--bds);
+  transition:background .15s;
+}
+.dg-row.dg-header {
+  background:var(--s3);
+  border-bottom:2px solid var(--bd);
   font-size:10.5px; font-weight:700; color:var(--tx2);
-  border-bottom:2px solid var(--bd); white-space:nowrap;
-  /* position:sticky を削除: table-layout:fixed + overflow:auto と干渉して
-     thead と tbody の列幅が一致しない問題が発生する */
 }
-.deal-table thead th .sort-ic {
-  color:var(--tx3); font-size:9px; margin-left:3px;
+.dg-row.dg-header > div { padding:6px 10px; }
+.dg-row.dg-header > div:last-child { text-align:right; }
+.dg-row.deal-row { cursor:pointer; }
+.dg-row.deal-row:hover { background:var(--s2); }
+.dg-row.deal-row > div { padding:7px 10px; vertical-align:middle; }
+.dg-row.deal-row > div:last-child { text-align:right; }
+.dg-row.deal-row.selected-sp {
+  background:rgba(90,123,158,.08);
+  border-left:3px solid var(--acc);
 }
-.deal-table tbody td {
-  padding:7px 10px; border-bottom:1px solid var(--bds); vertical-align:middle;
-  word-break:break-word;
-}
-.deal-table tbody tr.deal-row { cursor:pointer; transition:background .15s; }
-.deal-table tbody tr.deal-row:hover td { background:var(--s2); }
-.deal-table tbody tr.deal-row.expanded > td { background:rgba(90,123,158,.05); border-bottom-color:transparent; }
+.dg-row.deal-row.selected-sp > div:first-child { padding-left:7px; }
 
 /* 案件情報セル(コンパクト・1〜3行) */
 .dt-info { display:flex; flex-direction:column; gap:3px; }
@@ -9224,8 +9220,8 @@ function _openSidepanel(dealId) {
   panel.setAttribute('aria-hidden', 'false');
   document.body.classList.add('has-sidepanel');
 
-  // 選択中の行をハイライト
-  document.querySelectorAll('.deal-table tr.deal-row').forEach(function(row) {
+  // 選択中の行をハイライト (Grid版)
+  document.querySelectorAll('.dg-row.deal-row').forEach(function(row) {
     if (row.dataset.dealId === dealId) row.classList.add('selected-sp');
     else row.classList.remove('selected-sp');
   });
@@ -9239,7 +9235,7 @@ function _closeSidepanel() {
     panel.setAttribute('aria-hidden', 'true');
   }
   document.body.classList.remove('has-sidepanel');
-  document.querySelectorAll('.deal-table tr.deal-row').forEach(function(row) {
+  document.querySelectorAll('.dg-row.deal-row').forEach(function(row) {
     row.classList.remove('selected-sp');
   });
 }
@@ -9291,18 +9287,18 @@ function renderDealsTableView(deals) {
     sorted.sort(function(a, b){ return (parseFloat(b.sales)||0) - (parseFloat(a.sales)||0); });
   }
 
-  // テーブル生成 (4列構成)
+  // CSS Grid ベースの行レイアウト (4列固定: 38%/30%/18%/14%)
   var wrap = document.createElement('div');
   wrap.id = 'deal-table-wrap';
 
-  var html = '<table class="deal-table">';
-  html += '<colgroup><col class="c-info"><col class="c-progress"><col class="c-next"><col class="c-amount"></colgroup>';
-  html += '<thead><tr>';
-  html += '<th>案件 / 担当・商品</th>';
-  html += '<th>進捗 / 最終活動</th>';
-  html += '<th>次の動き</th>';
-  html += '<th style="text-align:right">金額・計上月</th>';
-  html += '</tr></thead><tbody>';
+  var html = '<div class="deal-grid">';
+  // ヘッダー行
+  html += '<div class="dg-row dg-header">';
+  html += '<div>案件 / 担当・商品</div>';
+  html += '<div>進捗 / 最終活動</div>';
+  html += '<div>次の動き</div>';
+  html += '<div>金額・計上月</div>';
+  html += '</div>';
 
   var people = ap();
   sorted.forEach(function(d) {
@@ -9310,13 +9306,13 @@ function renderDealsTableView(deals) {
     // 案D: 行内展開は廃止 → サイドパネルで表示
   });
 
-  html += '</tbody></table>';
+  html += '</div>';
   wrap.innerHTML = html;
   el.appendChild(wrap);
 
   // サイドパネルが開いていれば、選択中の行を再ハイライト
   if (window._sidepanelDealId) {
-    var sel = el.querySelector('.deal-table tr.deal-row[data-deal-id="'+window._sidepanelDealId+'"]');
+    var sel = el.querySelector('.dg-row.deal-row[data-deal-id="'+window._sidepanelDealId+'"]');
     if (sel) sel.classList.add('selected-sp');
   }
 }
@@ -9474,18 +9470,18 @@ function _dtBuildRow(d, people) {
       + '</div>'
     : '<div class="dt-amount-cell" style="color:var(--tx3);font-size:11px">金額未設定</div>';
 
-  var rowCls = 'deal-row';
+  var rowCls = 'dg-row deal-row';
   if (isWon) rowCls += ' won';
   if (isLost) rowCls += ' lost';
-  if (window._dtExpandedIds.has(d.id)) rowCls += ' expanded';
+  if (window._sidepanelDealId === d.id) rowCls += ' selected-sp';
 
   return ''
-    + '<tr class="'+rowCls+'" data-deal-id="'+d.id+'" id="di-'+d.id+'" onclick="_dtToggleRow(\''+d.id+'\')">'
-    +   '<td>'+infoCell+'</td>'
-    +   '<td>'+progressCell+'</td>'
-    +   '<td>'+nextCell+'</td>'
-    +   '<td>'+amountCell+'</td>'
-    + '</tr>';
+    + '<div class="'+rowCls+'" data-deal-id="'+d.id+'" id="di-'+d.id+'" onclick="_dtToggleRow(\''+d.id+'\')">'
+    +   '<div>'+infoCell+'</div>'
+    +   '<div>'+progressCell+'</div>'
+    +   '<div>'+nextCell+'</div>'
+    +   '<div>'+amountCell+'</div>'
+    + '</div>';
 }
 
 // 詳細行(展開時): buildDealBody を再利用 (KPI + 水平タブ + タブパネル)
