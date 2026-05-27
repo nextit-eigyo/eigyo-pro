@@ -1227,10 +1227,12 @@ tr:hover td{background:rgba(90,123,158,.02)}
 <div id="hdr">
   <div id="logo">EIGYO<em>PRO</em></div>
   <div class="htabs" id="main-tabs">
-    <!-- トップグループ: 営業ホーム / 設定 の2つだけ -->
-    <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
+    <!-- トップグループ: 自分 / チーム / 設定 の3つ -->
+    <button class="htab active" id="tab-self-btn" onclick="setTopGroup('self')">👤 自分 <span class="nb" id="alert-badge" style="display:none">0</span></button>
+    <button class="htab" id="tab-team-btn" onclick="setTopGroup('team')">👥 チーム</button>
     <button class="htab" id="tab-setup-btn" onclick="showTab('setup',this)">⚙ 設定</button>
     <!-- 隠しタブ(他コードからのプログラム参照用に保持) -->
+    <button class="htab" id="tab-deals-btn" onclick="setTopGroup('self')" style="display:none">🏠 営業ホーム</button>
     <button class="htab" id="tab-db-btn" onclick="showTab('dashboard',this)" style="display:none">📊 ダッシュボード</button>
     <button class="htab" id="tab-actions-btn" onclick="showTab('actions',this)" style="display:none">✅ アクション</button>
     <button class="htab" id="tab-actuals-btn" onclick="showTab('actuals',this)" style="display:none">📈 実績確認</button>
@@ -1264,15 +1266,32 @@ tr:hover td{background:rgba(90,123,158,.02)}
   </div>
 </div>
 
-<!-- ════════ 営業ホーム配下のサブタブバー(設定中は非表示) ════════ -->
-<div id="sub-tab-bar" class="sub-tab-bar">
-  <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
-  <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal')">🎯 案件</button>
-  <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
-  <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
-  <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
-  <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
-  <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
+<!-- ════════ 「👤 自分」タブ配下のサブタブバー ════════ -->
+<div id="sub-tab-bar-self" class="sub-tab-bar">
+  <button id="selftab-num"  class="sub-tab active" onclick="_clickSelfSub(this,'num')">📊 数字</button>
+  <button id="selftab-deal" class="sub-tab" onclick="_clickSelfSub(this,'deal')">🎯 自分の案件</button>
+  <button id="selftab-tasks" class="sub-tab" onclick="_clickSelfSub(this,'tasks')">✅ タスク <span class="nb" id="selftab-task-badge" style="display:none">!</span></button>
+  <button id="selftab-referral" class="sub-tab" onclick="_clickSelfSub(this,'referral')">🤝 紹介ネットワーク</button>
+  <button id="selftab-kpt" class="sub-tab" onclick="_clickSelfSub(this,'kpt')">📝 KPT</button>
+</div>
+
+<!-- ════════ 「👥 チーム」タブ配下のサブタブバー ════════ -->
+<div id="sub-tab-bar-team" class="sub-tab-bar" style="display:none">
+  <button id="teamtab-dashboard" class="sub-tab active" onclick="_clickTeamSub(this,'dashboard')">📊 ダッシュボード</button>
+  <button id="teamtab-deal" class="sub-tab" onclick="_clickTeamSub(this,'deal')">🎯 全案件</button>
+  <button id="teamtab-meeting" class="sub-tab" onclick="_clickTeamSub(this,'meeting')">📅 営業会議</button>
+  <button id="teamtab-actuals" class="sub-tab" onclick="_clickTeamSub(this,'actuals')">📊 実績確認</button>
+</div>
+
+<!-- 旧 sub-tab-bar (他コードからの参照用に隠しで残置) -->
+<div id="sub-tab-bar" class="sub-tab-bar" style="display:none">
+  <button id="subtab-num"  class="sub-tab"></button>
+  <button id="subtab-deal" class="sub-tab"></button>
+  <button id="subtab-actuals" class="sub-tab"></button>
+  <button id="subtab-meeting" class="sub-tab"></button>
+  <button id="subtab-tasks" class="sub-tab"><span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
+  <button id="subtab-referral" class="sub-tab"></button>
+  <button id="subtab-kpt" class="sub-tab"></button>
 </div>
 
 <!-- ════════ TOAST NOTIFICATIONS ════════ -->
@@ -4289,6 +4308,13 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     if (typeof setHomeMode === 'function') {
       try { setHomeMode('num'); } catch(e) { console.error('初期モード設定エラー:', e); }
+    }
+    // 3層トップグループの初期化(localStorageから復元)
+    if (typeof _initTopGroup === 'function') {
+      try { _initTopGroup(); } catch(e) { console.error('topGroup初期化エラー:', e); }
+    } else {
+      // _initTopGroup未定義時のフォールバック: 自分タブをアクティブに
+      if (typeof _syncTopBarVisual === 'function') _syncTopBarVisual();
     }
   }, 100);
 });
@@ -8212,43 +8238,123 @@ function showTab(name,btn){
   if(name==='import')initImportCtrl();
 }
 
-// 営業ホームグループ / 設定グループ + サブタブのアクティブ状態を同期
+// ════════ 3層トップグループ(自分/チーム/設定) ════════
+// localStorageから復元
+window._topGroup = (function(){
+  try { return localStorage.getItem('ep_top_group') || 'self'; } catch(e){ return 'self'; }
+})();
+
+// トップタブクリック: グループ切替 + デフォルトサブタブを開く
+function setTopGroup(group) {
+  window._topGroup = group;
+  try { localStorage.setItem('ep_top_group', group); } catch(e) {}
+  _syncTopBarVisual();
+  if (group === 'setup') {
+    showTab('setup', document.getElementById('tab-setup-btn'));
+  } else if (group === 'self') {
+    _clickSelfSub(document.getElementById('selftab-num'), 'num');
+  } else if (group === 'team') {
+    _clickTeamSub(document.getElementById('teamtab-dashboard'), 'dashboard');
+  }
+}
+
+// トップタブとサブタブバーの表示状態を _topGroup に同期
+function _syncTopBarVisual() {
+  var g = window._topGroup || 'self';
+  ['self','team','setup'].forEach(function(k) {
+    var btn = document.getElementById('tab-'+k+'-btn');
+    if (btn) btn.classList[g===k?'add':'remove']('active');
+  });
+  var barSelf = document.getElementById('sub-tab-bar-self');
+  var barTeam = document.getElementById('sub-tab-bar-team');
+  if (barSelf) barSelf.style.display = (g==='self') ? 'flex' : 'none';
+  if (barTeam) barTeam.style.display = (g==='team') ? 'flex' : 'none';
+}
+
+// 自分タブのサブタブクリックハンドラ
+function _clickSelfSub(btn, mode) {
+  window._topGroup = 'self';
+  try { localStorage.setItem('ep_top_group', 'self'); } catch(e){}
+  _syncTopBarVisual();
+  document.querySelectorAll('#sub-tab-bar-self .sub-tab').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (mode === 'num')         { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('num');  _setKanbanScopeIfExists('self'); }
+  else if (mode === 'deal')   { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('deal'); _setKanbanScopeIfExists('self'); }
+  else if (mode === 'tasks')    { showTab('tasks', null); }
+  else if (mode === 'referral') { showTab('referral', null); }
+  else if (mode === 'kpt')      { showTab('kpt', null); if(typeof renderKPT==='function') renderKPT(); }
+}
+
+// チームタブのサブタブクリックハンドラ
+function _clickTeamSub(btn, mode) {
+  window._topGroup = 'team';
+  try { localStorage.setItem('ep_top_group', 'team'); } catch(e){}
+  _syncTopBarVisual();
+  document.querySelectorAll('#sub-tab-bar-team .sub-tab').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (mode === 'dashboard')    { showTab('dashboard', null); }
+  else if (mode === 'deal')    { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('deal'); _setKanbanScopeIfExists('all'); }
+  else if (mode === 'meeting') { showTab('meeting', null); }
+  else if (mode === 'actuals') { showTab('actuals', null); }
+}
+
+function _setKanbanScopeIfExists(scope) {
+  if (typeof _setKanbanScope === 'function') {
+    try { _setKanbanScope(scope); } catch(e) {}
+  }
+}
+
+// showTab から呼ばれる: タブ名に応じてトップグループを推定+UI同期
 function _syncTopGroupUI(name) {
-  // 設定グループに属するタブ
-  var setupTabs = ['setup'];
-  // 「その他メニュー(report/kyogou/monthly等)」は営業ホームグループとして扱う
-  var isSetup = setupTabs.indexOf(name) >= 0;
-
-  // トップボタン
-  var setupBtn = document.getElementById('tab-setup-btn');
-  var homeBtn  = document.getElementById('tab-deals-btn');
-  if (setupBtn) setupBtn.classList[isSetup ? 'add' : 'remove']('active');
-  if (homeBtn)  homeBtn.classList[isSetup ? 'remove' : 'add']('active');
-
-  // サブタブバーの表示/非表示
-  var subBar = document.getElementById('sub-tab-bar');
-  if (subBar) subBar.style.display = isSetup ? 'none' : 'flex';
-
-  // サブタブのアクティブ状態
-  // deals/dashboard は内部モード(案件/数字)で分岐するので別関数で判定
-  var subBtnMap = {
-    actuals: 'subtab-actuals',
-    meeting: 'subtab-meeting',
-    tasks: 'subtab-tasks',
-    referral: 'subtab-referral',
-    kpt: 'subtab-kpt'
-  };
-  var subBtnId = subBtnMap[name];
-  if (name === 'deals' || name === 'dashboard') {
-    // 案件モード or 数字モード のどちらかをアクティブに
-    var numEl = document.getElementById('home-num-mode');
-    var isNumMode = numEl && numEl.style.display !== 'none';
-    subBtnId = isNumMode ? 'subtab-num' : 'subtab-deal';
+  // タブ名 → トップグループ 推定
+  if (name === 'setup') {
+    window._topGroup = 'setup';
+  } else if (name === 'dashboard' || name === 'actuals' || name === 'meeting') {
+    window._topGroup = 'team';
+  } else if (name === 'tasks' || name === 'referral' || name === 'kpt') {
+    window._topGroup = 'self';
+  } else if (name === 'deals') {
+    // 'deals' は自分/チーム両方にあるので、現在のグループを維持
+    if (!window._topGroup || window._topGroup === 'setup') window._topGroup = 'self';
   }
-  if (subBtnId) {
-    var subBtn = document.getElementById(subBtnId);
-    if (subBtn) subBtn.classList.add('active');
+  _syncTopBarVisual();
+
+  // 旧 #sub-tab-bar は隠したまま(空でOK)
+  var oldBar = document.getElementById('sub-tab-bar');
+  if (oldBar) oldBar.style.display = 'none';
+
+  // サブタブのアクティブ同期
+  var g = window._topGroup;
+  if (g === 'self') {
+    document.querySelectorAll('#sub-tab-bar-self .sub-tab').forEach(function(b){ b.classList.remove('active'); });
+    var btnId;
+    var map = { tasks:'selftab-tasks', referral:'selftab-referral', kpt:'selftab-kpt' };
+    btnId = map[name];
+    if (name === 'deals') {
+      var numEl = document.getElementById('home-num-mode');
+      var isNumMode = numEl && numEl.style.display !== 'none';
+      btnId = isNumMode ? 'selftab-num' : 'selftab-deal';
+    }
+    if (btnId) { var b1 = document.getElementById(btnId); if (b1) b1.classList.add('active'); }
+  } else if (g === 'team') {
+    document.querySelectorAll('#sub-tab-bar-team .sub-tab').forEach(function(b){ b.classList.remove('active'); });
+    var btnId2;
+    var map2 = { dashboard:'teamtab-dashboard', meeting:'teamtab-meeting', actuals:'teamtab-actuals' };
+    btnId2 = map2[name];
+    if (name === 'deals') btnId2 = 'teamtab-deal';
+    if (btnId2) { var b2 = document.getElementById(btnId2); if (b2) b2.classList.add('active'); }
   }
+}
+
+// 初期化: localStorageから topGroup を復元して初期画面に飛ぶ
+function _initTopGroup() {
+  var g = window._topGroup || 'self';
+  if (g === 'team') {
+    _clickTeamSub(document.getElementById('teamtab-dashboard'), 'dashboard');
+  } else if (g === 'setup') {
+    showTab('setup', document.getElementById('tab-setup-btn'));
+  }
+  // 'self' は デフォルトで showTab('deals') が呼ばれる想定なので何もしない
 }
 
 // ===== INIT =====
