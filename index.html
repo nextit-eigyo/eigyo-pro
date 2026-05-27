@@ -1819,6 +1819,9 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-deal-tbl th, #tab-meeting .mt-deal-tbl td {
   border:1px solid var(--bd); padding:3px 6px;
 }
+/* 1列目「ユーザー名」は左寄せ固定(他列のtext-align:rightが継承される問題を防ぐ) */
+#tab-meeting .mt-deal-tbl th:first-child,
+#tab-meeting .mt-deal-tbl td:first-child { text-align:left !important; }
 #tab-meeting .mt-deal-tbl th { background:var(--s3); font-weight:700; font-size:10.5px; text-align:center; }
 #tab-meeting .mt-deal-tbl td.num { text-align:right; }
 #tab-meeting .mt-deal-tbl td.ctr { text-align:center; }
