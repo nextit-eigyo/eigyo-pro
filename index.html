@@ -1033,6 +1033,54 @@ tr:hover td{background:rgba(90,123,158,.02)}
   .pc-network-diagram svg { max-height: 90vh; }
 }
 
+/* ════════════════ ストーリーパネル (👤自分タブの顔) ════════════════ */
+#story-panel {
+  background: linear-gradient(135deg, #fdfbf6 0%, #f5ede0 100%);
+  border:1.5px solid var(--bd); border-radius:14px;
+  padding:22px 26px; margin-bottom:18px;
+  box-shadow:0 2px 16px rgba(90,75,55,.05);
+  position:relative;
+}
+#story-panel::before {
+  content:'📖';
+  position:absolute; top:-12px; left:18px;
+  font-size:22px; background:var(--bg); padding:0 8px;
+}
+#story-panel .story-head {
+  display:flex; align-items:baseline; gap:14px; margin-bottom:12px;
+  padding-bottom:10px; border-bottom:1.5px dashed var(--bd); flex-wrap:wrap;
+}
+#story-panel .story-head .ttl {
+  font-size:13px; font-weight:900; color:var(--acc); letter-spacing:.05em;
+}
+#story-panel .story-head .person { font-size:18px; font-weight:900; }
+#story-panel .story-head .term {
+  margin-left:auto; font-size:12px; color:var(--tx3);
+  background:var(--s3); padding:3px 10px; border-radius:10px; font-weight:700;
+}
+#story-panel .story-body { font-size:14.5px; line-height:1.9; color:var(--tx); }
+#story-panel .story-body p { margin:0 0 12px; }
+#story-panel .story-body p:last-child { margin-bottom:0; }
+#story-panel .story-body .hl-g { background:#e0e9d3; color:#4a5a32; padding:2px 8px; border-radius:6px; font-weight:900; }
+#story-panel .story-body .hl-r { background:#f5d5cc; color:#7a3a2a; padding:2px 8px; border-radius:6px; font-weight:900; }
+#story-panel .story-body .hl-a { background:#fde6c5; color:#7a5a2a; padding:2px 8px; border-radius:6px; font-weight:900; }
+#story-panel .story-body .num  { font-weight:900; color:var(--acc); font-size:17px; }
+#story-panel .story-body .dim  { color:var(--tx3); font-style:italic; }
+#story-panel .story-body b { color:var(--tx); font-weight:900; }
+#story-panel .story-foot {
+  display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;
+  padding-top:12px; border-top:1px solid var(--bd);
+}
+#story-panel .story-foot .lnk {
+  background:#fff; border:1px solid var(--bd); padding:7px 14px;
+  border-radius:8px; font-size:12px; font-weight:700;
+  color:var(--tx2); cursor:pointer;
+  display:inline-flex; align-items:center; gap:5px;
+}
+#story-panel .story-foot .lnk:hover { background:var(--s2); border-color:var(--acc); color:var(--acc); }
+#story-panel .story-foot .lnk.pri { background:var(--tx); color:#fff; border-color:var(--tx); }
+#story-panel .story-foot .lnk.pri:hover { background:#000; color:#fff; }
+
 /* ════════════════ MEETING TAB (営業会議レポート) ════════════════ */
 #tab-meeting .meeting-toolbar {
   display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:14px;
@@ -1426,6 +1474,9 @@ tr:hover td{background:rgba(90,123,158,.02)}
   <div id="won-list"></div>
   <div id="plan-view"></div>
   </div><!-- /home-deal-mode -->
+
+  <!-- ストーリーパネル(👤自分タブの数字モードでのみ表示) -->
+  <div id="story-panel" style="display:none"></div>
 
   <!-- 数字モードのコンテンツ（tab-dashboardからコピー） -->
   <div id="home-num-mode" style="display:none"></div>
@@ -8278,11 +8329,167 @@ function _clickSelfSub(btn, mode) {
   _syncTopBarVisual();
   document.querySelectorAll('#sub-tab-bar-self .sub-tab').forEach(function(b){ b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  if (mode === 'num')         { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('num');  _setKanbanScopeIfExists('self'); }
-  else if (mode === 'deal')   { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('deal'); _setKanbanScopeIfExists('self'); }
-  else if (mode === 'tasks')    { showTab('tasks', null); }
-  else if (mode === 'referral') { showTab('referral', null); }
-  else if (mode === 'kpt')      { showTab('kpt', null); if(typeof renderKPT==='function') renderKPT(); }
+  if (mode === 'num')         { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('num');  _setKanbanScopeIfExists('self'); if(typeof renderStoryPanel==='function') renderStoryPanel(); }
+  else if (mode === 'deal')   { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('deal'); _setKanbanScopeIfExists('self'); _hideStoryPanel(); }
+  else if (mode === 'tasks')    { showTab('tasks', null); _hideStoryPanel(); }
+  else if (mode === 'referral') { showTab('referral', null); _hideStoryPanel(); }
+  else if (mode === 'kpt')      { showTab('kpt', null); if(typeof renderKPT==='function') renderKPT(); _hideStoryPanel(); }
+}
+
+// ストーリーパネル非表示(自分→数字 以外で呼ぶ)
+function _hideStoryPanel() {
+  var sp = document.getElementById('story-panel');
+  if (sp) sp.style.display = 'none';
+}
+
+// ストーリーパネル描画
+// 馬場さんモットー「3秒把握 / だから何？排除」を体現
+// 数字を文章で読める形に変換し、自動アクションリンクを提供
+function renderStoryPanel() {
+  var container = document.getElementById('story-panel');
+  if (!container) return;
+
+  var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
+  if (!myId) { container.style.display = 'none'; return; }
+  var me = (D.people || []).find(function(p){ return p.id === myId; });
+  if (!me || !me.name) { container.style.display = 'none'; return; }
+
+  // 現在月のmi(0=4月, 11=3月)
+  var now = new Date();
+  var thisMo = now.getMonth() + 1; // 1-12
+  var thisMi = thisMo >= 4 ? thisMo - 4 : thisMo + 8;
+  var moLabels = ['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+
+  // 個人の予算/実績(グループ薬局除外: D.actuals直接参照)
+  function getBud(field, mi) {
+    var o = D.budgets && D.budgets[myId];
+    return (o && o[field] && parseFloat(o[field][mi])) || 0;
+  }
+  function getAct(field, mi) {
+    var o = D.actuals && D.actuals[myId];
+    return (o && o[field] && parseFloat(o[field][mi])) || 0;
+  }
+
+  // 今月の達成率
+  var thisM_budS = getBud('s', thisMi);
+  var thisM_actS = getAct('s', thisMi);
+  var thisM_ach = thisM_budS > 0 ? (thisM_actS / thisM_budS * 100) : 0;
+
+  // 上期/下期累計
+  var isH1 = thisMi < 6;
+  var halfMis = isH1 ? [0,1,2,3,4,5] : [6,7,8,9,10,11];
+  var halfLbl = isH1 ? '上期' : '下期';
+  var halfBudS = 0, halfActS = 0;
+  halfMis.forEach(function(mi) {
+    halfBudS += getBud('s', mi);
+    if (mi <= thisMi) halfActS += getAct('s', mi);
+  });
+  var halfAch = halfBudS > 0 ? (halfActS / halfBudS * 100) : 0;
+  var halfGap = Math.max(0, halfBudS - halfActS);
+
+  // 翌月の仕込み(グループ薬局除外)
+  var nextMo = thisMo === 12 ? 1 : thisMo + 1;
+  var nextDeals = (D.deals || []).filter(function(d) {
+    if (d.spId !== myId) return false;
+    if (d.category === 'グループ薬局') return false;
+    if (!d.deliveryMonth) return false;
+    var dm = parseInt(String(d.deliveryMonth).split('-')[1]);
+    return dm === nextMo;
+  });
+  var nextHighProb = nextDeals.filter(function(d) {
+    var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
+    var pr = parseInt(d.probability) || 0;
+    return ph === '受注' || ph === '口頭受注' || pr >= 3;
+  }).length;
+  var nextTotalS = nextDeals.reduce(function(s,d){ return s + (parseFloat(d.sales)||0); }, 0);
+  var nextMoLabel = (nextMo + 8) % 12; // mi
+  // simpler: use Japanese month label
+  var nextMoLabelStr = nextMo + '月';
+
+  // 直近7日の受注/口頭受注
+  var sevenDaysAgo = new Date(now.getTime() - 7*24*60*60*1000);
+  var recentWon = [];
+  (D.deals || []).forEach(function(d) {
+    if (d.spId !== myId) return;
+    if (d.category === 'グループ薬局') return;
+    var ph = d.phase || '';
+    if (ph !== '受注' && ph !== '口頭受注') return;
+    if (d.visits && d.visits.length) {
+      var last = d.visits[d.visits.length-1];
+      if (last && last.date) {
+        var ld = new Date(last.date);
+        if (!isNaN(ld.getTime()) && ld >= sevenDaysAgo) recentWon.push(d);
+      }
+    }
+  });
+
+  // === HTML 生成 ===
+  var html = '';
+  html += '<div class="story-head">';
+  html += '<span class="ttl">今月のストーリー</span>';
+  html += '<span class="person">' + _esc(me.name) + (me.branch ? ' / ' + _esc(me.branch) : '') + '</span>';
+  html += '<span class="term">' + fy + '年度 ' + halfLbl + '</span>';
+  html += '</div>';
+  html += '<div class="story-body">';
+
+  // パラグラフ1: 今月 + 累計
+  html += '<p>';
+  html += moLabels[thisMi] + 'の達成率は ';
+  if (thisM_budS === 0) {
+    html += '<span class="dim">予算未設定</span>。';
+  } else if (thisM_ach >= 100) {
+    html += '<span class="hl-g">' + thisM_ach.toFixed(0) + '%</span> で目標達成 🎉。';
+  } else if (thisM_ach >= 80) {
+    html += '<span class="hl-a">' + thisM_ach.toFixed(0) + '%</span> で達成まで あと一歩。';
+  } else {
+    html += '<span class="hl-r">' + thisM_ach.toFixed(0) + '%</span>。';
+  }
+  if (halfBudS > 0) {
+    html += '<br>';
+    html += halfLbl + '累計は <span class="num">' + halfAch.toFixed(0) + '%</span>';
+    if (halfGap > 0) html += ' → 目標まで あと <span class="hl-r">' + Math.round(halfGap).toLocaleString() + '千</span>';
+    else html += ' → <span class="hl-g">目標クリア済み</span>';
+    html += '。';
+  }
+  html += '</p>';
+
+  // パラグラフ2: 翌月の仕込み
+  html += '<p>';
+  html += nextMoLabelStr + 'の仕込み: 進行中 <span class="num">' + nextDeals.length + '件</span>';
+  if (nextDeals.length > 0) {
+    html += ' / 想定売上 <span class="num">' + Math.round(nextTotalS).toLocaleString() + '千</span>';
+    if (nextHighProb >= 2) {
+      html += ' (うち確度A以上 <span class="hl-g">' + nextHighProb + '件</span>)';
+    } else if (nextHighProb === 1) {
+      html += ' (うち確度A以上 <span class="hl-a">1件のみ</span>)';
+    } else {
+      html += ' (<span class="hl-r">確度A以上なし</span>)';
+    }
+  }
+  html += '。';
+  html += '</p>';
+
+  // パラグラフ3: 直近の受注(あれば)
+  if (recentWon.length > 0) {
+    html += '<p>🎉 直近の受注: ';
+    html += recentWon.slice(0, 3).map(function(d){ return '<b>' + _esc(d.name||'') + '</b>'; }).join(' / ');
+    if (recentWon.length > 3) html += ' 他 ' + (recentWon.length - 3) + '件';
+    html += '。お礼TEL推奨。</p>';
+  }
+
+  html += '</div>';
+
+  // アクションリンク
+  html += '<div class="story-foot">';
+  html += '<button class="lnk pri" onclick="_clickSelfSub(document.getElementById(\'selftab-deal\'),\'deal\')">🎯 自分の案件へ →</button>';
+  html += '<button class="lnk" onclick="_clickTeamSub(document.getElementById(\'teamtab-meeting\'),\'meeting\')">📅 営業会議レポート →</button>';
+  if (typeof openAddDealModal === 'function') {
+    html += '<button class="lnk" onclick="openAddDealModal()">＋ 新規案件を追加</button>';
+  }
+  html += '</div>';
+
+  container.innerHTML = html;
+  container.style.display = 'block';
 }
 
 // チームタブのサブタブクリックハンドラ
@@ -8292,10 +8499,17 @@ function _clickTeamSub(btn, mode) {
   _syncTopBarVisual();
   document.querySelectorAll('#sub-tab-bar-team .sub-tab').forEach(function(b){ b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  if (mode === 'dashboard')    { showTab('dashboard', null); }
+  if (mode === 'dashboard')    {
+    // tab-dashboard は home-num-mode 内に物理移動されるため setHomeMode経由
+    showTab('deals', null);
+    if(typeof setHomeMode==='function') setHomeMode('num');
+    _setKanbanScopeIfExists('all');
+  }
   else if (mode === 'deal')    { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('deal'); _setKanbanScopeIfExists('all'); }
   else if (mode === 'meeting') { showTab('meeting', null); }
   else if (mode === 'actuals') { showTab('actuals', null); }
+  // ストーリーパネルは自分タブ専用 → 非表示
+  if (typeof _hideStoryPanel === 'function') _hideStoryPanel();
 }
 
 function _setKanbanScopeIfExists(scope) {
@@ -8353,8 +8567,10 @@ function _initTopGroup() {
     _clickTeamSub(document.getElementById('teamtab-dashboard'), 'dashboard');
   } else if (g === 'setup') {
     showTab('setup', document.getElementById('tab-setup-btn'));
+  } else {
+    // 'self' デフォルト: 自分→数字を明示的にアクティブ化 + ストーリーパネル描画
+    _clickSelfSub(document.getElementById('selftab-num'), 'num');
   }
-  // 'self' は デフォルトで showTab('deals') が呼ばれる想定なので何もしない
 }
 
 // ===== INIT =====
