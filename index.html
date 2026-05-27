@@ -8375,9 +8375,16 @@ function _doConfirmImport(addedMasters){
         const impCost  = Math.round(impDeal.cost  / 1000);
         var normImp = normDealName(impDeal.name);
 
-        // 修正B: 重複チェック（正規化後の完全一致・部分一致）
-        var exactMatch = D.deals.find(function(x){ return x.name && normDealName(x.name) === normImp; });
+        // 修正B(改): 重複チェック - 同名 + 同月 + 同担当者 のみ既存案件として扱う
+        // 旧バグ: 同名薬局が別月で登録されると上書きされて消える(例: はままち薬局 4月分2,910千 / 5月分220千 → 5月分が無視)
+        // 新仕様: 月か担当者が違えば別案件として新規登録
+        var exactMatch = D.deals.find(function(x){
+          return x.name && normDealName(x.name) === normImp
+            && x.deliveryMonth === moStr
+            && x.spId === spId;
+        });
         var partialMatch = !exactMatch && D.deals.find(function(x){
+          if (x.deliveryMonth !== moStr || x.spId !== spId) return false;
           var nx = normDealName(x.name);
           return nx && normImp && (nx.includes(normImp) || normImp.includes(nx));
         });
@@ -8411,6 +8418,8 @@ function _doConfirmImport(addedMasters){
           var bestScore = 0, bestMatch = null;
           D.deals.forEach(function(x){
             if (!x.name) return;
+            // fuzzy一致も同月+同担当者のみ対象(別月案件は独立して扱う)
+            if (x.deliveryMonth !== moStr || x.spId !== spId) return;
             var sc = fuzzyScore(impDeal.name, x.name);
             if (sc > bestScore) { bestScore = sc; bestMatch = x; }
           });
