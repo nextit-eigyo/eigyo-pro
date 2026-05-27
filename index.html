@@ -1037,6 +1037,28 @@ tr:hover td{background:rgba(90,123,158,.02)}
 #tab-meeting .meeting-toolbar {
   display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:14px;
 }
+#tab-meeting .mt-person-region-wrap {
+  background:var(--s1); border:1px solid var(--bd); border-radius:10px;
+  padding:10px 14px; margin-bottom:14px;
+  display:flex; flex-direction:column; gap:10px;
+}
+#tab-meeting .mt-region-block {
+  display:grid; grid-template-columns:140px 1fr; gap:14px; align-items:start;
+}
+@media (max-width: 700px) {
+  #tab-meeting .mt-region-block { grid-template-columns:1fr; gap:6px; }
+}
+#tab-meeting .mt-region-label {
+  font-size:13px; font-weight:900; color:var(--acc);
+  padding:6px 0; border-right:2px solid var(--bd); padding-right:14px;
+  display:flex; flex-direction:column; gap:2px;
+}
+@media (max-width: 700px) {
+  #tab-meeting .mt-region-label { border-right:none; border-bottom:1px solid var(--bd); padding-right:0; padding-bottom:4px; }
+}
+#tab-meeting .mt-region-label .cnt {
+  font-size:10.5px; color:var(--tx3); font-weight:700;
+}
 #tab-meeting .mt-person-tabs { display:flex; gap:4px; flex-wrap:wrap; flex:1; }
 #tab-meeting .mt-pt {
   background:#fff; border:1px solid var(--bd); padding:6px 14px;
@@ -3579,9 +3601,11 @@ function _mtConfInfo(d) {
 }
 function _mtCountNewDeals(spId, misArr) {
   // 新規開局 / 新規(他社入替) で受注済・対象月計上 の案件数をカウント
+  // グループ薬局は拠点扱いのため個人実績から除外
   var cnt = 0;
   (D.deals || []).forEach(function(d) {
     if (d.spId !== spId) return;
+    if (d.category === 'グループ薬局') return;
     var dt = String(d.dealType || '');
     if (!/新規/.test(dt)) return;
     var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
@@ -3592,8 +3616,10 @@ function _mtCountNewDeals(spId, misArr) {
   return cnt;
 }
 function _mtGetMonthDeals(spId, mi) {
+  // グループ薬局は拠点扱いのため個人実績から除外
   var arr = (D.deals || []).filter(function(d) {
     if (d.spId !== spId) return false;
+    if (d.category === 'グループ薬局') return false;
     return _mtDeliveryMi(d) === mi;
   });
   // 確度高い順 → 売上大きい順
@@ -3654,28 +3680,61 @@ function renderMeeting() {
     if (!o || !o[field]) return 0;
     return parseFloat(o[field][mi]) || 0;
   }
+  // 個人実績: グループ薬局を除外して算出
+  // getActualValue はグループ薬局を加算するため、ここでは使わず D.actuals 直接参照
   function getAct(field, mi) {
-    return getActualValue({type:'person', id:selSpId}, field, mi) || 0;
+    var o = D.actuals && D.actuals[selSpId];
+    if (!o || !o[field]) return 0;
+    return parseFloat(o[field][mi]) || 0;
   }
 
   var html = '';
-  // ── ツールバー(担当者切替 + 期間切替) ─────────
+  // ── 期間切替ツールバー(右上に配置) ─────────
   html += '<div class="meeting-toolbar">';
-  html += '<div class="mt-person-tabs">';
-  people.forEach(function(p) {
-    var act = (p.id === selSpId) ? ' active' : '';
-    html += '<button class="mt-pt'+act+'" onclick="_mtSelectPerson(\''+p.id+'\')">';
-    html += _esc(p.name||'(無名)');
-    if (p.branch) html += ' <span class="br">'+_esc(p.branch)+'</span>';
-    html += '</button>';
-  });
-  html += '</div>';
+  html += '<div style="flex:1"></div>';
   html += '<div class="mt-half-tabs">';
   [['h1','上期'],['h2','下期'],['full','通期']].forEach(function(o) {
     var act = (o[0] === half) ? ' active' : '';
     html += '<button class="mt-ht'+act+'" onclick="_mtSelectHalf(\''+o[0]+'\')">'+o[1]+'</button>';
   });
   html += '</div>';
+  html += '</div>';
+
+  // ── 担当者選択(リージョン別グルーピング) ─────────
+  // 拠点マスタから region 情報を取得し、担当者をリージョン別に分類
+  var branchMaster = (typeof getBranchMaster === 'function') ? getBranchMaster() : (D.branchMaster || []);
+  var branchRegion = {};
+  branchMaster.forEach(function(b) {
+    if (b && b.name) branchRegion[b.name] = b.region || '西日本';
+  });
+  var byRegion = { '西日本': [], '東日本': [], 'その他': [] };
+  people.forEach(function(p) {
+    var rgn = branchRegion[p.branch] || (p.branch ? '西日本' : 'その他');
+    if (!byRegion[rgn]) byRegion[rgn] = [];
+    byRegion[rgn].push(p);
+  });
+  // 表示順: 西日本 → 東日本 → その他(拠点未設定)
+  var regionOrder = ['西日本','東日本','その他'];
+  html += '<div class="mt-person-region-wrap">';
+  regionOrder.forEach(function(rgn) {
+    var members = byRegion[rgn] || [];
+    if (!members.length) return;
+    html += '<div class="mt-region-block">';
+    html += '<div class="mt-region-label">';
+    if (rgn === 'その他') html += '👤 拠点未設定';
+    else html += '🗾 ' + rgn + '営業部';
+    html += ' <span class="cnt">'+members.length+'名</span></div>';
+    html += '<div class="mt-person-tabs">';
+    members.forEach(function(p) {
+      var act = (p.id === selSpId) ? ' active' : '';
+      html += '<button class="mt-pt'+act+'" onclick="_mtSelectPerson(\''+p.id+'\')">';
+      html += _esc(p.name||'(無名)');
+      if (p.branch) html += ' <span class="br">'+_esc(p.branch)+'</span>';
+      html += '</button>';
+    });
+    html += '</div>';
+    html += '</div>';
+  });
   html += '</div>';
 
   // ── 担当者ヘッダー ─────────
