@@ -1033,6 +1033,68 @@ tr:hover td{background:rgba(90,123,158,.02)}
   .pc-network-diagram svg { max-height: 90vh; }
 }
 
+/* ════════════════ Ctrl+K コマンドパレット ════════════════ */
+#cmdk-overlay {
+  position:fixed; inset:0;
+  background:rgba(44,39,36,.55);
+  z-index:9999;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding-top:12vh;
+  animation: cmdkFadeIn .15s ease-out;
+}
+@keyframes cmdkFadeIn {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+#cmdk-modal {
+  background:#fff; border-radius:14px;
+  width:min(580px, 92vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  overflow:hidden;
+  display:flex; flex-direction:column;
+  max-height:80vh;
+}
+#cmdk-input {
+  padding:18px 22px; font-size:16px;
+  border:none; border-bottom:1px solid var(--bd);
+  width:100%; outline:none; font-family:inherit;
+  box-sizing:border-box; background:#fff; color:var(--tx);
+}
+#cmdk-input::placeholder { color:var(--tx3); }
+#cmdk-results {
+  flex:1; overflow:auto; max-height:60vh;
+}
+.cmdk-section {
+  padding:8px 18px; font-size:10.5px; font-weight:900;
+  color:var(--tx3); letter-spacing:.12em; background:var(--s2);
+  border-bottom:1px solid var(--bd);
+  position:sticky; top:0;
+}
+.cmdk-item {
+  padding:11px 18px;
+  display:flex; align-items:center; gap:14px;
+  font-size:13px; cursor:pointer;
+  border-bottom:1px solid var(--bds);
+  transition:background .1s;
+}
+.cmdk-item:hover, .cmdk-item.active { background:var(--s3); }
+.cmdk-item .ic { font-size:18px; width:24px; text-align:center; flex-shrink:0; }
+.cmdk-item .ttl { font-weight:700; color:var(--tx); }
+.cmdk-item .sub { font-size:10.5px; color:var(--tx3); margin-top:2px; }
+#cmdk-foot {
+  padding:8px 18px; font-size:10.5px; color:var(--tx3);
+  background:var(--s2); display:flex; justify-content:space-between;
+  border-top:1px solid var(--bd);
+}
+#cmdk-foot kbd {
+  background:#fff; padding:2px 6px; border-radius:4px;
+  font-family:monospace; font-size:10px; border:1px solid var(--bd);
+  margin:0 1px; color:var(--tx2);
+}
+.cmdk-empty {
+  padding:30px; text-align:center; color:var(--tx3); font-size:13px;
+}
+
 /* ════════════════ FAB (Floating Action Button) ════════════════ */
 #fab-wrap {
   position:fixed; right:24px; bottom:24px; z-index:200;
@@ -8601,6 +8663,251 @@ function _syncTopGroupUI(name) {
     if (btnId2) { var b2 = document.getElementById(btnId2); if (b2) b2.classList.add('active'); }
   }
 }
+
+// ════════ Ctrl+K コマンドパレット ════════
+// 全画面共通の高速ナビ。Ctrl+K (Cmd+K) で起動
+window._cmdkState = { open:false, results:[], selectedIdx:0 };
+
+function _cmdkOpen() {
+  var ov = document.getElementById('cmdk-overlay');
+  if (!ov) return;
+  ov.style.display = 'flex';
+  var input = document.getElementById('cmdk-input');
+  if (input) {
+    input.value = '';
+    input.oninput = function() { _cmdkUpdate(input.value); };
+    setTimeout(function(){ input.focus(); }, 30);
+  }
+  _cmdkUpdate('');
+  window._cmdkState.open = true;
+}
+
+function _cmdkClose() {
+  var ov = document.getElementById('cmdk-overlay');
+  if (ov) ov.style.display = 'none';
+  window._cmdkState.open = false;
+}
+
+function _cmdkUpdate(query) {
+  query = String(query||'').trim().toLowerCase();
+  var results = [];
+
+  // 案件(進行中・受注問わず全件)
+  (D.deals||[]).forEach(function(d) {
+    if (!d.name) return;
+    if (query && d.name.toLowerCase().indexOf(query) < 0) return;
+    var ph = d.phase || '';
+    var sp = (D.people||[]).find(function(p){ return p.id === d.spId; });
+    var subParts = [];
+    if (ph) subParts.push(ph);
+    if (d.probability) subParts.push('確度'+d.probability);
+    if (d.sales) subParts.push(d.sales+'千');
+    if (sp) subParts.push(sp.name);
+    results.push({
+      type:'deal', icon:'📋',
+      title: d.name,
+      sub: subParts.join(' / '),
+      action: function() { _cmdkExecOpenDeal(d.id); }
+    });
+  });
+
+  // 薬局マスタ
+  if (D.pharmacies) {
+    Object.keys(D.pharmacies).forEach(function(nm) {
+      if (query && nm.toLowerCase().indexOf(query) < 0) return;
+      var ph = D.pharmacies[nm] || {};
+      var subParts = [];
+      if (ph.software) subParts.push(ph.software);
+      if (ph.notes) subParts.push('メモあり');
+      results.push({
+        type:'pharmacy', icon:'🏥',
+        title: nm,
+        sub: subParts.join(' / ') || '構成図あり',
+        action: function() { _cmdkExecOpenPharmacy(nm); }
+      });
+    });
+  }
+
+  // 担当者
+  (D.people||[]).forEach(function(p) {
+    if (!p.name) return;
+    if (query && p.name.toLowerCase().indexOf(query) < 0) return;
+    results.push({
+      type:'person', icon:'👤',
+      title: p.name,
+      sub: p.branch || '',
+      action: function() { _cmdkExecOpenPerson(p.id); }
+    });
+  });
+
+  // スマートフィルタ(クエリと部分一致時のみ追加)
+  var smarts = [
+    { key:'thisMonthWon', title:'今月の確定案件', icon:'🎯', count:_cmdkCountThisMonthWon },
+    { key:'unvisited7d', title:'未訪問7日以上(確度A以上)', icon:'⚠', count:_cmdkCountUnvisited7d },
+    { key:'highProbPending', title:'確度A以上 未受注', icon:'🔥', count:_cmdkCountHighProbPending }
+  ];
+  smarts.forEach(function(s) {
+    var matchQ = !query || s.title.toLowerCase().indexOf(query) >= 0
+                 || 'スマートフィルタフィルター'.toLowerCase().indexOf(query) >= 0
+                 || 'filter'.indexOf(query) >= 0;
+    if (!matchQ) return;
+    var cnt = s.count();
+    results.push({
+      type:'smart', icon:s.icon,
+      title: s.title + ' (' + cnt + '件)',
+      sub: 'スマートフィルタ',
+      action: function() { _cmdkExecSmart(s.key); }
+    });
+  });
+
+  // 上限30件
+  results = results.slice(0, 30);
+
+  window._cmdkState.results = results;
+  window._cmdkState.selectedIdx = 0;
+  _cmdkRender();
+}
+
+function _cmdkRender() {
+  var box = document.getElementById('cmdk-results');
+  if (!box) return;
+  var st = window._cmdkState;
+  if (!st.results.length) {
+    box.innerHTML = '<div class="cmdk-empty">該当なし</div>';
+    return;
+  }
+  var html = '';
+  var prevType = null;
+  var typeLabels = { deal:'案件', pharmacy:'薬局マスタ', person:'担当者', smart:'スマートフィルタ' };
+  st.results.forEach(function(r, i) {
+    if (r.type !== prevType) {
+      html += '<div class="cmdk-section">▸ ' + typeLabels[r.type] + '</div>';
+      prevType = r.type;
+    }
+    var active = (i === st.selectedIdx) ? ' active' : '';
+    html += '<div class="cmdk-item'+active+'" data-idx="'+i+'">';
+    html += '<span class="ic">'+r.icon+'</span>';
+    html += '<div style="flex:1"><div class="ttl">'+_esc(r.title)+'</div>';
+    if (r.sub) html += '<div class="sub">'+_esc(r.sub)+'</div>';
+    html += '</div></div>';
+  });
+  box.innerHTML = html;
+  // クリックハンドラ
+  box.querySelectorAll('.cmdk-item').forEach(function(el) {
+    el.onclick = function() {
+      var idx = parseInt(el.dataset.idx);
+      _cmdkExec(idx);
+    };
+    el.onmouseenter = function() {
+      st.selectedIdx = parseInt(el.dataset.idx);
+      box.querySelectorAll('.cmdk-item').forEach(function(b){ b.classList.remove('active'); });
+      el.classList.add('active');
+    };
+  });
+  // アクティブ項目を画面内にスクロール
+  var activeEl = box.querySelector('.cmdk-item.active');
+  if (activeEl) {
+    var bR = box.getBoundingClientRect();
+    var aR = activeEl.getBoundingClientRect();
+    if (aR.bottom > bR.bottom) activeEl.scrollIntoView({block:'end'});
+    else if (aR.top < bR.top) activeEl.scrollIntoView({block:'start'});
+  }
+}
+
+function _cmdkExec(idx) {
+  var r = window._cmdkState.results[idx];
+  if (!r || typeof r.action !== 'function') return;
+  _cmdkClose();
+  try { r.action(); } catch(e) { console.error('cmdk action error:', e); }
+}
+
+function _cmdkExecOpenDeal(id) {
+  // 案件カードを開く
+  if (typeof openDealCard === 'function') {
+    setTimeout(function(){ openDealCard(id); }, 50);
+  }
+}
+function _cmdkExecOpenPharmacy(name) {
+  // 構成図を開く
+  if (typeof _pcShow === 'function') {
+    setTimeout(function(){ _pcShow(name); }, 50);
+  }
+}
+function _cmdkExecOpenPerson(id) {
+  // チーム→営業会議へ移動し、該当担当者を選択
+  _clickTeamSub(document.getElementById('teamtab-meeting'), 'meeting');
+  setTimeout(function(){
+    if (typeof _mtSelectPerson === 'function') _mtSelectPerson(id);
+  }, 150);
+}
+function _cmdkExecSmart(key) {
+  // 自分の案件タブへ移動し、トーストでフィルタ案内
+  _clickSelfSub(document.getElementById('selftab-deal'), 'deal');
+  var msg = {
+    thisMonthWon: '💡 「今月の確定案件」を確認: 月別フィルタを「' + (new Date().getMonth()+1) + '月」に設定してください',
+    unvisited7d: '💡 「未訪問7日以上(確度A以上)」: 並び順「期限順」で確認できます',
+    highProbPending: '💡 「確度A以上 未受注」: 並び順「重要度順」で上位を確認してください'
+  }[key];
+  if (msg && typeof _showToast === 'function') {
+    try { _showToast(msg, 'info', 5000); } catch(e){}
+  }
+}
+
+// スマートフィルタの件数計算
+function _cmdkCountThisMonthWon() {
+  var thisMo = (new Date()).getMonth() + 1;
+  return (D.deals||[]).filter(function(d){
+    var ph = d.phase||''; if (ph!=='受注'&&ph!=='口頭受注') return false;
+    if (!d.deliveryMonth) return false;
+    return parseInt(String(d.deliveryMonth).split('-')[1]) === thisMo;
+  }).length;
+}
+function _cmdkCountUnvisited7d() {
+  var t = Date.now() - 7*24*60*60*1000;
+  return (D.deals||[]).filter(function(d){
+    var pr = parseInt(d.probability)||0; if (pr<3) return false;
+    var ph = d.phase||''; if (ph==='受注'||ph==='失注') return false;
+    if (!d.visits||!d.visits.length) return true;
+    var last = d.visits[d.visits.length-1];
+    if (!last.date) return false;
+    return new Date(last.date).getTime() < t;
+  }).length;
+}
+function _cmdkCountHighProbPending() {
+  return (D.deals||[]).filter(function(d){
+    var pr = parseInt(d.probability)||0;
+    var ph = d.phase||'';
+    return pr>=3 && ph!=='受注' && ph!=='失注';
+  }).length;
+}
+
+// グローバルキーバインド: Ctrl+K (Mac: Cmd+K)
+document.addEventListener('keydown', function(e) {
+  // Ctrl+K / Cmd+K で起動・トグル
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    if (window._cmdkState && window._cmdkState.open) _cmdkClose();
+    else _cmdkOpen();
+    return;
+  }
+  // パレットが開いてる時のキー処理
+  if (!window._cmdkState || !window._cmdkState.open) return;
+  if (e.key === 'Escape') { e.preventDefault(); _cmdkClose(); return; }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    var st = window._cmdkState;
+    st.selectedIdx = Math.min(st.selectedIdx + 1, st.results.length - 1);
+    _cmdkRender();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    var st2 = window._cmdkState;
+    st2.selectedIdx = Math.max(st2.selectedIdx - 1, 0);
+    _cmdkRender();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    _cmdkExec(window._cmdkState.selectedIdx);
+  }
+});
 
 // ════════ FAB (Floating Action Button) ════════
 // 右下に常駐するクイック操作ボタン
@@ -18516,6 +18823,18 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
       <button onclick="openTplManager('memo')" style="background:none;border:1px solid var(--bd);border-radius:6px;padding:2px 9px;font-size:12px;cursor:pointer;color:var(--tx3)">⚙ 編集</button>
     </div>
     <div id="memo-full-tpl-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════ Ctrl+K コマンドパレット ════════════════ -->
+<div id="cmdk-overlay" style="display:none" onclick="if(event.target===this)_cmdkClose()">
+  <div id="cmdk-modal" onclick="event.stopPropagation()">
+    <input id="cmdk-input" type="text" placeholder="🔍 案件・薬局・担当者・スマートフィルタを検索..." autocomplete="off">
+    <div id="cmdk-results"></div>
+    <div id="cmdk-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> 移動 / <kbd>Enter</kbd> 開く</span>
+      <span><kbd>Esc</kbd> 閉じる</span>
+    </div>
   </div>
 </div>
 
