@@ -8082,7 +8082,7 @@ function _showFuzzyMatchDialog(pendingList, onComplete) {
       }
     } else if (action === 'new') {
       // 新規案件として登録
-      D.deals.push({
+      var newFuzzyDeal = {
         id: uid(), spId: item.spId,
         name: item.impDeal.name, pref: '',
         deliveryMonth: item.moStr, activationMonth: '',
@@ -8095,7 +8095,10 @@ function _showFuzzyMatchDialog(pendingList, onComplete) {
         visits:[{ date: today2, actType: '受注', status: '受注',
           reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
           memo: 'Excelインポートより自動登録（別案件として確認済み）' }]
-      });
+      };
+      D.deals.push(newFuzzyDeal);
+      // ⭐ 受注扱いで登録したので D.actuals にも即時反映
+      try { if (typeof applyDealToActuals === 'function') applyDealToActuals(newFuzzyDeal, false); } catch(e) { console.error('applyDealToActuals エラー(fuzzy):', e); }
     }
     // スキップの場合は何もしない
     idx++;
@@ -8422,7 +8425,7 @@ function _doConfirmImport(addedMasters){
             var dealMemo = isNoRep
               ? `Excelインポートより自動登録（${ML[mi]}）⚠️担当者未設定・要確認`
               : `Excelインポートより自動登録（${ML[mi]}）`;
-            D.deals.push({
+            var newImpDeal = {
               id: uid(), spId,
               name: impDeal.name, pref: '',
               deliveryMonth: moStr, activationMonth: '',
@@ -8435,7 +8438,10 @@ function _doConfirmImport(addedMasters){
               visits:[{ date: today, actType: '受注', status: '受注',
                 reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
                 memo: dealMemo }]
-            });
+            };
+            D.deals.push(newImpDeal);
+            // ⭐ 受注扱いで登録したので D.actuals にも即時反映(個人実績反映)
+            try { if (typeof applyDealToActuals === 'function') applyDealToActuals(newImpDeal, false); } catch(e) { console.error('applyDealToActuals エラー(import):', e); }
             if (isNoRep) {
               log.push('⚠️ 担当者未設定案件: ' + impDeal.name + ' ' + impSales + '千（要確認）');
             }
@@ -8503,7 +8509,7 @@ function _doConfirmImport(addedMasters){
           gSkipped++;
         } else {
           // 新規登録
-          D.deals.push({
+          var newGroupDeal = {
             id: uid(), spId: gSpId,
             name: gd.name, pref: '',
             deliveryMonth: moStr2, activationMonth: '',
@@ -8516,7 +8522,10 @@ function _doConfirmImport(addedMasters){
             visits:[{ date: today2, actType: '受注', status: '受注',
               reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
               memo: 'Excelインポートより自動登録（グループ薬局: ' + gd.midCat + '）' }]
-          });
+          };
+          D.deals.push(newGroupDeal);
+          // ⭐ グループ薬局案件も実績反映
+          try { if (typeof applyDealToActuals === 'function') applyDealToActuals(newGroupDeal, false); } catch(e) { console.error('applyDealToActuals エラー(group):', e); }
           gAdded++;
         }
       });
