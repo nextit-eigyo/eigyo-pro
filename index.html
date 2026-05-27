@@ -11363,10 +11363,13 @@ function renderWonDeals() {
     return;
   }
 
-  // 予算の合計を計算（営業所別予算ベース）
-  const ob = D.officeBudget || {s:Array(12).fill(''), p:Array(12).fill('')};
-  const totalBudgetS = (ob.s||[]).reduce((s,v)=>s+(parseFloat(v)||0),0);
-  const totalBudgetP = (ob.p||[]).reduce((s,v)=>s+(parseFloat(v)||0),0);
+  // 予算の合計を計算: 全社の年間予算 = 全拠点 branchBudgets の合計
+  // (旧 D.officeBudget は単一営業所前提で他画面と数字がズレるため統一関数経由に変更)
+  let totalBudgetS = 0, totalBudgetP = 0;
+  for (let _mi = 0; _mi < 12; _mi++) {
+    totalBudgetS += getBudgetValue('all', 's', _mi);
+    totalBudgetP += getBudgetValue('all', 'p', _mi);
+  }
 
   // ランキング集計用に「販売店を除外した受注案件」を準備
   // ※累積カード・月別一覧などは販売店を含むwonDealsを使い続ける
@@ -11703,7 +11706,6 @@ function renderSalesPlan() {
   const now = new Date();
   const currentMonth = now.getMonth(); // 0-11 (JS)
   const currentMo = `${now.getFullYear()}-${String(currentMonth+1).padStart(2,'0')}`;
-  const ob = D.officeBudget || {s:Array(12).fill(''), p:Array(12).fill('')};
 
   const monthData = periodMonths.map(mi => {
     const mo = mi+4 <= 12 ? `${fy}-${String(mi+4).padStart(2,'0')}` : `${fy+1}-${String(mi-8).padStart(2,'0')}`;
@@ -11717,7 +11719,8 @@ function renderSalesPlan() {
       const sales = parseFloat(d.sales)||0;
       return s + sales * probWeight(d.probability);
     },0);
-    const bud = parseFloat((ob.s||[])[mi]) || 0;
+    // 月別予算: 全社の月別予算 = 全拠点 branchBudgets の合計 (統一関数経由)
+    const bud = getBudgetValue('all', 's', mi);
     return { mi, mo, label: ML[mi], won, active, wonS, actS, weightedActS, bud, allDeals: mDeals };
   });
 
