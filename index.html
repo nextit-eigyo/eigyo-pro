@@ -1189,6 +1189,17 @@ tr:hover td{background:rgba(90,123,158,.02)}
 #tab-meeting .meeting-toolbar {
   display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:14px;
 }
+#tab-meeting .mt-region-toggle {
+  display:flex; gap:6px; margin-bottom:10px;
+}
+#tab-meeting .mt-rt {
+  background:#fff; border:1px solid var(--bd);
+  padding:7px 16px; border-radius:18px;
+  font-size:12px; font-weight:700; cursor:pointer; color:var(--tx2);
+}
+#tab-meeting .mt-rt:hover { background:var(--s2); }
+#tab-meeting .mt-rt.active { background:var(--acc); color:#fff; border-color:var(--acc); }
+
 #tab-meeting .mt-person-region-wrap {
   background:var(--s1); border:1px solid var(--bd); border-radius:10px;
   padding:10px 14px; margin-bottom:14px;
@@ -1419,7 +1430,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
 <!-- ════════ 営業ホーム配下のサブタブバー(設定中は非表示) ════════ -->
 <div id="sub-tab-bar" class="sub-tab-bar">
   <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
-  <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal')">🎯 案件</button>
+  <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()">🎯 案件</button>
   <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
   <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
   <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
@@ -3716,6 +3727,7 @@ function _mtGetCurrentSpId() {
   return ppl[0] ? ppl[0].id : null;
 }
 function _mtSelectPerson(spId) { _meetingState.spId = spId; renderMeeting(); }
+function _mtSetRegionMode(mode) { _meetingState.regionMode = mode; renderMeeting(); }
 function _mtSelectHalf(half)  { _meetingState.half  = half;  renderMeeting(); }
 function _mtFmtNum(v) {
   if (!v || isNaN(v)) return '<span class="dim">0</span>';
@@ -3855,7 +3867,7 @@ function renderMeeting() {
   html += '</div>';
   html += '</div>';
 
-  // ── 担当者選択(リージョン別グルーピング) ─────────
+  // ── 担当者選択(リージョン別グルーピング + 自分の所属リージョン優先表示) ─────────
   // 拠点マスタから region 情報を取得し、担当者をリージョン別に分類
   var branchMaster = (typeof getBranchMaster === 'function') ? getBranchMaster() : (D.branchMaster || []);
   var branchRegion = {};
@@ -3868,10 +3880,37 @@ function renderMeeting() {
     if (!byRegion[rgn]) byRegion[rgn] = [];
     byRegion[rgn].push(p);
   });
-  // 表示順: 西日本 → 東日本 → その他(拠点未設定)
-  var regionOrder = ['西日本','東日本','その他'];
+
+  // 自分の所属リージョンを判定 (ログインユーザーの拠点 → リージョン)
+  var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
+  var myPerson = myId ? people.find(function(p){ return p.id === myId; }) : null;
+  var myRegion = myPerson ? (branchRegion[myPerson.branch] || '') : '';
+
+  // リージョン表示モード('mine' = 自分の所属のみ / 'all' = 全リージョン)
+  // 初期値は 'mine'(自分の所属リージョンのみ)
+  if (typeof _meetingState.regionMode === 'undefined') {
+    _meetingState.regionMode = myRegion ? 'mine' : 'all';
+  }
+  var regionMode = _meetingState.regionMode;
+
+  // 表示するリージョン一覧を決定
+  var visibleRegions;
+  if (regionMode === 'mine' && myRegion) {
+    visibleRegions = [myRegion]; // 自分の所属のみ
+  } else {
+    visibleRegions = ['西日本','東日本','その他']; // 全部
+  }
+
+  // 表示モード切替トグル(自分の所属リージョンがある場合のみ表示)
+  if (myRegion) {
+    html += '<div class="mt-region-toggle">';
+    html += '<button class="mt-rt'+(regionMode==='mine'?' active':'')+'" onclick="_mtSetRegionMode(\'mine\')">📍 '+_esc(myRegion)+'営業部のみ</button>';
+    html += '<button class="mt-rt'+(regionMode==='all'?' active':'')+'" onclick="_mtSetRegionMode(\'all\')">🌐 全リージョン</button>';
+    html += '</div>';
+  }
+
   html += '<div class="mt-person-region-wrap">';
-  regionOrder.forEach(function(rgn) {
+  visibleRegions.forEach(function(rgn) {
     var members = byRegion[rgn] || [];
     if (!members.length) return;
     html += '<div class="mt-region-block">';
@@ -8448,6 +8487,21 @@ function showTab(name,btn){
 function _hideStoryPanel() {
   var sp = document.getElementById('story-panel');
   if (sp) sp.style.display = 'none';
+}
+
+// 案件タブを開いた時、ログインユーザーの案件を初期選択
+// (cdSp をログインユーザーの people 配列インデックスにセット)
+function _autoSelectMyDeals() {
+  // 既に担当者(数値index)が選択済みなら維持(明示的に切り替えた状態を尊重)
+  if (typeof cdSp === 'number' && cdSp >= 0) return;
+  var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
+  if (!myId) return;
+  var people = (typeof ap === 'function') ? ap() : (D.people||[]);
+  var idx = people.findIndex(function(p){ return p.id === myId; });
+  if (idx < 0) return;
+  cdSp = idx;
+  if (typeof renderDealPtabs === 'function') renderDealPtabs();
+  if (typeof renderDeals === 'function') renderDeals();
 }
 
 // ストーリーパネル描画
@@ -14003,7 +14057,7 @@ function renderActualPtabs() {
   }
   if (c2) c2.style.display = '';
 
-  // 1行目：全社・リージョン・営業所タブ
+  // === 1段目: 全社・リージョン・営業所タブ ===
   const allBtn = document.createElement('button');
   allBtn.className = 'ptab' + (caSp === -1 ? ' active' : '');
   allBtn.textContent = '🌐 全社';
@@ -14039,13 +14093,53 @@ function renderActualPtabs() {
     });
   });
 
-  // 2行目：担当者タブ
-  if (c2) {
-    people.forEach(function(p, i) {
+  // === 2段目: 担当者タブ (案件画面と同じく上段選択に連動してフィルタ) ===
+  if (!c2) { _syncActMainTabUI(); return; }
+
+  let filteredPeople = [];
+  let showSubTabs = true;
+
+  if (caSp === -1) {
+    // 全社: 全員表示
+    filteredPeople = people;
+  } else if (typeof caSp === 'string' && caSp.startsWith('region_')) {
+    // リージョン全体: そのリージョン所属の担当者のみ
+    const regionName = caSp.replace('region_', '');
+    const regionBranchNames = branches
+      .filter(function(b){ return (b.region || '西日本') === regionName; })
+      .map(function(b){ return b.name; });
+    filteredPeople = people.filter(function(p){ return regionBranchNames.indexOf(p.branch) >= 0; });
+  } else if (typeof caSp === 'string' && caSp.startsWith('branch_')) {
+    // 営業所選択: その営業所のメンバーのみ
+    const branchName = caSp.replace('branch_', '');
+    filteredPeople = people.filter(function(p){ return p.branch === branchName; });
+  } else if (typeof caSp === 'number' && caSp >= 0) {
+    // 担当者選択済み: その人の同僚(同じ営業所)を表示
+    const selectedPerson = people[caSp];
+    if (selectedPerson && selectedPerson.branch) {
+      filteredPeople = people.filter(function(p){ return p.branch === selectedPerson.branch; });
+    } else {
+      filteredPeople = people;
+    }
+  } else {
+    filteredPeople = people;
+  }
+
+  if (!filteredPeople.length) {
+    showSubTabs = false;
+  }
+
+  c2.style.display = showSubTabs ? '' : 'none';
+  if (showSubTabs) {
+    filteredPeople.forEach(function(p) {
+      // 元のpeople配列でのインデックスを取得
+      const realIndex = people.findIndex(function(person){ return person.id === p.id; });
       const b = document.createElement('button');
-      b.className = 'ptab' + (i === caSp ? ' active' : '');
-      b.textContent = p.name || '担当者' + (i + 1);
-      b.onclick = function() { caSp = i; renderActuals(); };
+      b.className = 'ptab' + (caSp === realIndex ? ' active' : '');
+      // 案件画面と同じく、名前+営業所表記
+      const branchTag = p.branch ? ' <span style="font-size:9.5px;opacity:.7">'+_esc(p.branch)+'</span>' : '';
+      b.innerHTML = _esc(p.name || '担当者' + (realIndex + 1)) + branchTag;
+      b.onclick = function() { caSp = realIndex; renderActuals(); };
       c2.appendChild(b);
     });
   }
