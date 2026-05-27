@@ -1821,6 +1821,17 @@ body.has-sidepanel #home-deal-mode {
   color:var(--prm); text-decoration-color:var(--prm);
   background:rgba(90,123,158,.08); padding:1px 3px; border-radius:3px;
 }
+/* 種別バッジ(商品種別 + 新規/既存) */
+#tab-meeting .mt-pt, #tab-meeting .mt-dt {
+  display:inline-block; font-size:9.5px; font-weight:700;
+  padding:1px 4px; border-radius:3px; line-height:1.4;
+  vertical-align:middle;
+}
+#tab-meeting .mt-pt.v8    { background:rgba(90,123,158,.15); color:#3a5a7e; }
+#tab-meeting .mt-pt.v8c   { background:rgba(122,142,90,.15); color:#4a5a32; }
+#tab-meeting .mt-pt.other { background:var(--s3); color:var(--tx2); }
+#tab-meeting .mt-dt.new   { background:rgba(200,152,86,.18); color:#7a5a2a; }
+#tab-meeting .mt-dt.exist { background:rgba(122,142,90,.18); color:#4a5a32; }
 #tab-meeting .mt-empty {
   text-align:center; color:var(--tx3); font-size:11px; padding:8px;
   background:var(--s2); border:1px dashed var(--bd); border-radius:6px; margin:0;
@@ -4301,21 +4312,40 @@ function _mtConfInfo(d) {
   if (pr === 2) return { cls:'b',       lbl:'B' };
   return { cls:'c', lbl:'C' };
 }
+// 新規/既存の判定: 案件タイプ「新規開局」「新規(他社入替)」=新規、「既存(バージョンアップ)」=既存
+// 共通条件: 受注確定 + productType='調剤くんV8' + 直販(グループ/販売店除外)
+function _mtIsTargetDeal(d, spId, misArr, typeKind) {
+  if (!d) return false;
+  if (d.spId !== spId) return false;
+  if (d.category === 'グループ薬局' || d.category === '販売店') return false;
+  // 商品種別: 調剤くんV8 のみ対象(保守料・消耗品・追加販売は除外)
+  if ((d.productType || '') !== '調剤くんV8') return false;
+  // 受注確定のみ
+  var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
+  if (ph !== '受注') return false;
+  // 対象月
+  var mi = _mtDeliveryMi(d);
+  if (mi < 0 || misArr.indexOf(mi) < 0) return false;
+  // 案件タイプで判定
+  var dt = String(d.dealType || '');
+  if (typeKind === 'new')      return /新規/.test(dt);
+  if (typeKind === 'existing') return /既存/.test(dt);
+  return false;
+}
+
 function _mtCountNewDeals(spId, misArr) {
-  // 新規開局 / 新規(他社入替) で受注確定済・対象月計上 の案件数をカウント
-  // グループ薬局・販売店は個人実績から除外(新規軒数は直販案件のみ)
-  // 「受注」のみカウント(口頭受注は除外) - 受注済みタブの表示と数字を揃えるため
+  // 新規軒数(新規開局/新規他社入替) ※V8直販案件・受注確定のみ
   var cnt = 0;
   (D.deals || []).forEach(function(d) {
-    if (d.spId !== spId) return;
-    if (d.category === 'グループ薬局') return;
-    if (d.category === '販売店') return;
-    var dt = String(d.dealType || '');
-    if (!/新規/.test(dt)) return;
-    var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
-    if (ph !== '受注') return;
-    var mi = _mtDeliveryMi(d);
-    if (mi >= 0 && misArr.indexOf(mi) >= 0) cnt++;
+    if (_mtIsTargetDeal(d, spId, misArr, 'new')) cnt++;
+  });
+  return cnt;
+}
+function _mtCountExistingDeals(spId, misArr) {
+  // 既存軒数(既存バージョンアップ) ※V8直販案件・受注確定のみ
+  var cnt = 0;
+  (D.deals || []).forEach(function(d) {
+    if (_mtIsTargetDeal(d, spId, misArr, 'existing')) cnt++;
   });
   return cnt;
 }
@@ -4485,13 +4515,15 @@ function renderMeeting() {
   });
   var totSAch = totBudS > 0 ? (totActS / totBudS * 100) : 0;
   var totPAch = totBudP > 0 ? (totActP / totBudP * 100) : 0;
-  var totNew  = _mtCountNewDeals(selSpId, halfMis);
+  // 通期計の新規/既存軒数(V8直販・受注確定のみ)
+  var totNewV8 = _mtCountNewDeals(selSpId, halfMis);
+  var totExist = _mtCountExistingDeals(selSpId, halfMis);
 
   // 累計テーブル(出力順は月別カードの下になるよう、別変数に組み立てる)
   var sumTableHtml = '';
   sumTableHtml += '<table class="mt-sum">';
   sumTableHtml += '<tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th>';
-  sumTableHtml += '<th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th></tr>';
+  sumTableHtml += '<th>粗利実績</th><th>粗利目標</th><th>達成率</th><th title="V8・新規開局/他社入替・受注確定">新規軒数</th><th title="V8・既存バージョンアップ・受注確定">既存軒数</th></tr>';
   // 通期計行(ハイライト)
   sumTableHtml += '<tr class="hl-y">';
   sumTableHtml += '<td class="lbl">'+halfLbl+'計</td>';
@@ -4501,7 +4533,8 @@ function renderMeeting() {
   sumTableHtml += '<td>'+_mtFmtNum(totActP)+'</td>';
   sumTableHtml += '<td>'+_mtFmtNum(totBudP)+'</td>';
   sumTableHtml += '<td class="'+_mtAchCls(totPAch)+'">'+totPAch.toFixed(1)+'%</td>';
-  sumTableHtml += '<td>'+totNew+'軒</td>';
+  sumTableHtml += '<td>'+totNewV8+'軒</td>';
+  sumTableHtml += '<td>'+totExist+'軒</td>';
   sumTableHtml += '</tr>';
   // 累計行
   var cBudS=0,cActS=0,cBudP=0,cActP=0;
@@ -4513,7 +4546,9 @@ function renderMeeting() {
     var sA = cBudS > 0 ? (cActS / cBudS * 100) : 0;
     var pA = cBudP > 0 ? (cActP / cBudP * 100) : 0;
     var rangeLbl = (idx === 0) ? moLabels[mi] : moLabels[halfMis[0]] + '〜' + moLabels[mi];
-    var nCnt = _mtCountNewDeals(selSpId, halfMis.slice(0, idx+1));
+    var slice = halfMis.slice(0, idx+1);
+    var nCnt = _mtCountNewDeals(selSpId, slice);
+    var eCnt = _mtCountExistingDeals(selSpId, slice);
     sumTableHtml += '<tr>';
     sumTableHtml += '<td class="lbl">'+rangeLbl+'</td>';
     sumTableHtml += '<td>'+_mtFmtNum(cActS)+'</td>';
@@ -4523,6 +4558,7 @@ function renderMeeting() {
     sumTableHtml += '<td>'+_mtFmtNum(cBudP)+'</td>';
     sumTableHtml += '<td class="'+_mtAchCls(pA)+'">'+pA.toFixed(1)+'%</td>';
     sumTableHtml += '<td>'+nCnt+'軒</td>';
+    sumTableHtml += '<td>'+eCnt+'軒</td>';
     sumTableHtml += '</tr>';
   });
   sumTableHtml += '</table>';
@@ -4565,6 +4601,7 @@ function renderMeeting() {
       html += '<th style="text-align:left;">ユーザー名</th>';
       html += '<th style="width:38px">訪問</th>';
       html += '<th style="width:34px">販</th>';
+      html += '<th style="width:96px">種別</th>';
       html += '<th style="width:42px">確度</th>';
       html += '<th style="width:34px">台数</th>';
       html += '<th style="width:60px">売上</th>';
@@ -4580,12 +4617,25 @@ function renderMeeting() {
         var salesV  = parseFloat(d.sales) || 0;
         var costV   = parseFloat(d.cost)  || 0;
         var profitV = salesV - costV;
+        // 種別: 商品種別 + 新規/既存タイプを併記
+        var pt = String(d.productType || '');
+        var dt = String(d.dealType || '');
+        var ptBadge = '';
+        if (pt === '調剤くんV8')           ptBadge = '<span class="mt-pt v8">V8</span>';
+        else if (/V8Core/.test(pt))         ptBadge = '<span class="mt-pt v8c">V8C</span>';
+        else if (pt)                        ptBadge = '<span class="mt-pt other">'+_esc(pt.slice(0,4))+'</span>';
+        else                                ptBadge = '<span class="dim">-</span>';
+        var dtBadge = '';
+        if (/新規/.test(dt))                dtBadge = '<span class="mt-dt new">新規</span>';
+        else if (/既存/.test(dt))           dtBadge = '<span class="mt-dt exist">既存</span>';
+        var typeCell = ptBadge + (dtBadge ? ' ' + dtBadge : '');
         // sales/cost は千円単位 → 円換算
         var nmLink = '<a href="#" class="mt-deal-link" onclick="event.preventDefault();_mtOpenDeal(\''+_esc(d.id)+'\')" title="案件詳細を開く">'+nm+'</a>';
         html += '<tr>';
         html += '<td>'+nmLink+cfg+'</td>';
         html += '<td class="ctr">'+_mtLastVisitDate(d)+'</td>';
         html += '<td class="ctr">'+_esc(catS)+'</td>';
+        html += '<td class="ctr">'+typeCell+'</td>';
         html += '<td class="ctr"><span class="mt-conf '+conf.cls+'">'+conf.lbl+'</span></td>';
         html += '<td class="ctr">'+(d.configCount ? _esc(d.configCount) : '<span class="dim">-</span>')+'</td>';
         html += '<td class="num">'+_mtFmtNum(salesV*1000)+'</td>';
