@@ -7873,7 +7873,21 @@ function parseSheet(rows,sheetName,result){
     if(num===1||num===2||num===5){
       result.software.s+=salesV;result.software.p+=profitV;
       if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,sheet:sheetName,noRep:!rep});
-    }else if(num===4){result.hardware.s+=salesV;result.hardware.p+=profitV;
+    }else if(num===4){
+      // ⭐ HW(4_周辺機器)も担当者あり行は個人実績化(馬場さん要望)
+      if (cust && salesV > 0 && rep) {
+        result.software.deals.push({
+          name: cust, sales: salesV, cost: costV, profit: profitV,
+          rep: rep, midCat: midCat,
+          productType: 'ハードウェア',
+          notes: notes, sheet: sheetName, noRep: false,
+          dealType: '既存（バージョンアップ）'
+        });
+        result.software.s += salesV; result.software.p += profitV;
+      } else {
+        // 担当者なし → 拠点合計に積む(従来通り)
+        result.hardware.s += salesV; result.hardware.p += profitV;
+      }
     }else if(num===6){
       // 消耗品は「計」行で集計するため、個別行はスキップ
     }else if(num===7){
