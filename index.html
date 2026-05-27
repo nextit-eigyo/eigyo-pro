@@ -3036,15 +3036,33 @@ function _loadCurrentUserRole(user) {
       // adminConfigに未登録のユーザー（一般担当者でDB登録されていない場合）
       currentUserRole = {role:'staff', region:'', loginId:'', name:''};
     }
+    // ⭐ ログイン中ユーザーの担当者IDを localStorage にも同期(全画面で整合性確保)
+    _syncMyPersonIdFromRole();
     _updateKptTabVisibility();
     // role取得完了後にバッジを再描画（名前を反映）
     showUserBadge(user);
+    // ログイン後、画面を再描画(他のユーザーの実績が表示されるバグ防止)
+    if (typeof rebuildAll === 'function') {
+      try { rebuildAll(); } catch(e) { console.error('rebuildAll エラー:', e); }
+    }
   }).catch(function(e) {
     console.warn('role取得失敗:', e.message);
     currentUserRole = {role:'staff'};
     _updateKptTabVisibility();
     showUserBadge(user);
   });
+}
+
+// ログインユーザー(currentUserRole)から担当者IDを localStorage に書き込み
+// 別アカウントでログインしたら自動的に切り替わる
+function _syncMyPersonIdFromRole() {
+  try {
+    if (typeof _getCurrentSpId !== 'function') return;
+    var spId = _getCurrentSpId();
+    if (spId) {
+      if (typeof setMyPersonId === 'function') setMyPersonId(spId);
+    }
+  } catch(e) { console.warn('_syncMyPersonIdFromRole:', e.message); }
 }
 
 function _updateKptTabVisibility() {
@@ -3452,6 +3470,9 @@ function doLogout() {
   if (FB.mode === 'firebase') fbDisconnect();
   try { if (window.firebase && firebase.apps.length) firebase.auth().signOut(); } catch(e) {}
   currentUser = null;
+  currentUserRole = null;
+  // ⭐ ログアウト時、担当者IDキャッシュをクリア(別アカウントログイン時の混入防止)
+  try { if (typeof clearMyPersonId === 'function') clearMyPersonId(); } catch(e) {}
   showLoginScreen();
   const badge = document.getElementById('user-badge');
   if (badge) badge.remove();
@@ -16730,7 +16751,16 @@ function restoreActualsSize() {
 var _MY_PERSON_KEY = 'eigyo_my_person_id';
 
 function getMyPersonId() {
-  // localStorageに保存済みの担当者IDを返す
+  // ⭐ ログイン中ユーザー(Firebase認証)から担当者IDを優先取得。
+  //   旧バグ: localStorageの値だけを使っていたため、別アカウントでログインしても
+  //          前のユーザーの担当者が残り続けるバグがあった。
+  if (typeof _getCurrentSpId === 'function') {
+    try {
+      var spId = _getCurrentSpId();
+      if (spId) return spId;
+    } catch(e) {}
+  }
+  // フォールバック: localStorage(skipLogin等のオフライン運用、role未取得時)
   try { return localStorage.getItem(_MY_PERSON_KEY) || null; } catch(e) { return null; }
 }
 
