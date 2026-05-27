@@ -4301,8 +4301,9 @@ function _mtConfInfo(d) {
   return { cls:'c', lbl:'C' };
 }
 function _mtCountNewDeals(spId, misArr) {
-  // 新規開局 / 新規(他社入替) で受注済・対象月計上 の案件数をカウント
+  // 新規開局 / 新規(他社入替) で受注確定済・対象月計上 の案件数をカウント
   // グループ薬局・販売店は個人実績から除外(新規軒数は直販案件のみ)
+  // 「受注」のみカウント(口頭受注は除外) - 受注済みタブの表示と数字を揃えるため
   var cnt = 0;
   (D.deals || []).forEach(function(d) {
     if (d.spId !== spId) return;
@@ -4311,7 +4312,7 @@ function _mtCountNewDeals(spId, misArr) {
     var dt = String(d.dealType || '');
     if (!/新規/.test(dt)) return;
     var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
-    if (ph !== '受注' && ph !== '口頭受注') return;
+    if (ph !== '受注') return;
     var mi = _mtDeliveryMi(d);
     if (mi >= 0 && misArr.indexOf(mi) >= 0) cnt++;
   });
