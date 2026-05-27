@@ -4621,13 +4621,17 @@ function renderMeeting() {
         var pt = String(d.productType || '');
         var dt = String(d.dealType || '');
         var ptBadge = '';
+        var isV8 = (pt === '調剤くんV8') || /V8Core/.test(pt);
         if (pt === '調剤くんV8')           ptBadge = '<span class="mt-pt v8">V8</span>';
         else if (/V8Core/.test(pt))         ptBadge = '<span class="mt-pt v8c">V8C</span>';
         else if (pt)                        ptBadge = '<span class="mt-pt other">'+_esc(pt.slice(0,4))+'</span>';
         else                                ptBadge = '<span class="dim">-</span>';
+        // 新規/既存バッジはV8系のみ表示(その他システムは表示不要)
         var dtBadge = '';
-        if (/新規/.test(dt))                dtBadge = '<span class="mt-dt new">新規</span>';
-        else if (/既存/.test(dt))           dtBadge = '<span class="mt-dt exist">既存</span>';
+        if (isV8) {
+          if (/新規/.test(dt))              dtBadge = '<span class="mt-dt new">新規</span>';
+          else if (/既存/.test(dt))         dtBadge = '<span class="mt-dt exist">既存</span>';
+        }
         var typeCell = ptBadge + (dtBadge ? ' ' + dtBadge : '');
         // sales/cost は千円単位 → 円換算
         var nmLink = '<a href="#" class="mt-deal-link" onclick="event.preventDefault();_mtOpenDeal(\''+_esc(d.id)+'\')" title="案件詳細を開く">'+nm+'</a>';
