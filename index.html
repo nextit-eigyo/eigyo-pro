@@ -1154,56 +1154,52 @@ tr:hover td{background:rgba(90,123,158,.02)}
 .deal-table colgroup col.c-amount { width:12%; min-width:130px; }
 
 .deal-table thead th {
-  background:var(--s3); padding:8px 12px; text-align:left;
-  font-size:11px; font-weight:700; color:var(--tx2);
+  background:var(--s3); padding:6px 10px; text-align:left;
+  font-size:10.5px; font-weight:700; color:var(--tx2);
   border-bottom:2px solid var(--bd); white-space:nowrap;
   position:sticky; top:0; z-index:5;
-  cursor:pointer; user-select:none;
 }
-.deal-table thead th:hover { background:var(--s4); }
 .deal-table thead th .sort-ic {
   color:var(--tx3); font-size:9px; margin-left:3px;
 }
-.deal-table thead th.sorted .sort-ic { color:var(--acc); }
 .deal-table tbody td {
-  padding:11px 14px; border-bottom:1px solid var(--bds); vertical-align:top;
+  padding:7px 10px; border-bottom:1px solid var(--bds); vertical-align:middle;
   word-break:break-word;
 }
 .deal-table tbody tr.deal-row { cursor:pointer; transition:background .15s; }
 .deal-table tbody tr.deal-row:hover td { background:var(--s2); }
 .deal-table tbody tr.deal-row.expanded > td { background:rgba(90,123,158,.05); border-bottom-color:transparent; }
 
-/* 案件情報セル(リッチ表示・複数行) */
-.dt-info { display:flex; flex-direction:column; gap:5px; }
+/* 案件情報セル(コンパクト・1〜3行) */
+.dt-info { display:flex; flex-direction:column; gap:3px; }
 .dt-info .row1 {
-  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;
 }
 .dt-info .nm {
-  font-size:14px; font-weight:800; color:var(--tx); line-height:1.2;
+  font-size:13px; font-weight:800; color:var(--tx); line-height:1.2;
 }
 .dt-info .nm.lost { color:var(--tx3); text-decoration:line-through; }
 .dt-info .prob-badge {
-  display:inline-flex; align-items:center; gap:4px;
-  color:#fff; font-size:11px; font-weight:700;
-  padding:2px 9px; border-radius:10px; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:3px;
+  color:#fff; font-size:10px; font-weight:700;
+  padding:1px 7px; border-radius:9px; white-space:nowrap;
 }
-.dt-info .prob-badge .stars { font-size:9.5px; letter-spacing:1px; }
+.dt-info .prob-badge .stars { font-size:9px; letter-spacing:.5px; }
 .dt-info .prob-badge.p1 { background:linear-gradient(135deg,#8a7e6a,#6a5e4a); }
 .dt-info .prob-badge.p2 { background:linear-gradient(135deg,#c89856,#a87a36); }
 .dt-info .prob-badge.p3 { background:linear-gradient(135deg,#5a7b9e,#3a5b7e); }
 .dt-info .prob-badge.p4 { background:linear-gradient(135deg,#8a5a2e,#6a3a0e); }
 .dt-info .prob-badge.p5 { background:linear-gradient(135deg,#7a8e5a,#5a6e3a); }
-.dt-info .row2 {
-  display:flex; align-items:center; gap:5px; flex-wrap:wrap;
-  font-size:11.5px; color:var(--tx3);
+.dt-info .row1 .pp-inline {
+  font-size:11px; color:var(--tx3); margin-left:auto;
 }
-.dt-info .row2 .pp { color:var(--grn); font-weight:700; }
+.dt-info .row1 .pp-inline .pp { color:var(--grn); font-weight:700; }
 .dt-info .pills {
   display:flex; flex-wrap:wrap; gap:3px;
 }
 .dt-info .pills .pill {
-  background:var(--s3); color:var(--tx2); padding:2px 7px;
-  border-radius:4px; font-size:10.5px; font-weight:600;
+  background:var(--s3); color:var(--tx2); padding:1px 6px;
+  border-radius:3px; font-size:10px; font-weight:600;
 }
 .dt-info .pills .pill.prod { background:rgba(90,123,158,.12); color:var(--acc); }
 .dt-info .pills .pill.cfg { background:rgba(99,102,241,.12); color:#6366f1; }
@@ -1211,40 +1207,44 @@ tr:hover td{background:rgba(90,123,158,.02)}
 .dt-info .pills .pill.route { background:rgba(138,90,46,.10); color:var(--acc2); }
 .dt-info .pills .pill.warn { background:rgba(168,90,74,.14); color:var(--red); font-weight:800; }
 
-/* 進捗バー+最終活動セル */
+/* 進捗バー+最終活動セル(コンパクト) */
 .dt-progress-cell {
-  display:flex; flex-direction:column; gap:6px;
+  display:flex; flex-direction:column; gap:4px;
 }
 .dt-progress-bar {
-  display:grid; grid-template-columns:repeat(5,1fr); gap:3px;
+  display:grid; grid-template-columns:repeat(5,1fr); gap:2px;
 }
 .dt-progress-bar .seg {
-  height:8px; border-radius:2px; background:#ebe4d4;
+  height:6px; border-radius:2px; background:#ebe4d4;
 }
 .dt-progress-bar .seg.done { background:#7a8e5a; }
-.dt-progress-bar .seg.current { background:#c89856; box-shadow:0 0 0 1.5px #8a5a2e; }
+.dt-progress-bar .seg.current { background:#c89856; box-shadow:0 0 0 1px #8a5a2e; }
 .dt-progress-labels {
-  display:grid; grid-template-columns:repeat(5,1fr); gap:3px;
-  font-size:10.5px; text-align:center;
+  display:grid; grid-template-columns:repeat(5,1fr); gap:2px;
+  font-size:9.5px; text-align:center;
 }
 .dt-progress-labels span { color:var(--tx3); }
 .dt-progress-labels span.done { color:#4a5a32; }
 .dt-progress-labels span.current { color:#8a5a2e; font-weight:700; }
 .dt-last-activity {
   background:var(--s2); border-left:2px solid #b4b2a9;
-  padding:5px 9px; border-radius:0 4px 4px 0;
-  font-size:11px; color:var(--tx2); line-height:1.4;
+  padding:3px 8px; border-radius:0 4px 4px 0;
+  font-size:10.5px; color:var(--tx2); line-height:1.35;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .dt-last-activity .lbl { color:var(--tx3); }
 .dt-last-activity .empty { color:var(--tx3); font-style:italic; }
 
-/* 次の動きセル */
+/* 次の動きセル(コンパクト) */
 .dt-next-cell .next-card {
-  border-radius:7px; padding:8px 11px; font-size:11.5px;
+  border-radius:6px; padding:5px 9px; font-size:11px;
 }
-.dt-next-cell .next-card .lbl { font-size:10px; font-weight:700; letter-spacing:.04em; margin-bottom:3px; }
-.dt-next-cell .next-card .msg { font-size:12.5px; font-weight:700; line-height:1.3; }
-.dt-next-cell .next-card .deadline { font-size:10.5px; margin-top:4px; }
+.dt-next-cell .next-card .lbl-msg {
+  display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
+}
+.dt-next-cell .next-card .lbl { font-size:9.5px; font-weight:700; letter-spacing:.03em; flex-shrink:0; }
+.dt-next-cell .next-card .msg { font-size:12px; font-weight:700; line-height:1.25; }
+.dt-next-cell .next-card .deadline { font-size:10px; margin-top:2px; }
 .dt-next-cell .next-card.urgent {
   background:rgba(168,90,74,.06); border:1px solid rgba(168,90,74,.3);
 }
@@ -1265,23 +1265,25 @@ tr:hover td{background:rgba(90,123,158,.02)}
 }
 .dt-next-cell .next-card.won .lbl { color:#4a5a32; }
 
-/* 金額セル */
+/* 金額セル(コンパクト・2行) */
 .dt-amount-cell {
-  text-align:right;
+  text-align:right; line-height:1.3;
+}
+.dt-amount-cell .row1 {
+  display:flex; align-items:baseline; justify-content:flex-end; gap:5px; flex-wrap:wrap;
 }
 .dt-amount-cell .sales {
   font-size:14px; font-weight:800; color:var(--tx);
   font-variant-numeric:tabular-nums;
 }
 .dt-amount-cell .sales .u {
-  font-size:11px; color:var(--tx3); margin-left:1px;
+  font-size:10px; color:var(--tx3); margin-left:1px;
 }
 .dt-amount-cell .profit {
-  font-size:11px; color:#4a5a32; font-weight:700; margin-top:2px;
+  font-size:10.5px; color:#4a5a32; font-weight:700;
 }
 .dt-amount-cell .month {
-  font-size:10.5px; color:var(--tx3); margin-top:5px;
-  padding-top:5px; border-top:1px solid var(--bds);
+  font-size:10px; color:var(--tx3); margin-top:2px;
 }
 
 /* 行展開エリア(タブ式) */
@@ -9176,10 +9178,10 @@ function _dtBuildRow(d, people) {
     pillsHtml += '<span class="pill warn">⚠ 実績未反映</span>';
   }
 
-  var personRow = pp
-    ? '<span class="pp">'+_esc(pp.name)+'</span><span>('+_esc(pp.branch||'—')+')</span>'
-    : '<span style="color:var(--amb)">⚠ 未割当</span>';
-  if (d.pref) personRow += '<span>📍 '+_esc(d.pref)+'</span>';
+  // 担当者情報を1行目右側にインライン表示(行高さ圧縮)
+  var personInline = pp
+    ? '<span class="pp">'+_esc(pp.name)+'</span>('+_esc(pp.branch||'—')+')'+(d.pref?' / 📍'+_esc(d.pref):'')
+    : '<span style="color:var(--amb)">⚠ 未割当</span>'+(d.pref?' / 📍'+_esc(d.pref):'');
 
   var infoCell = ''
     + '<div class="dt-info">'
@@ -9190,8 +9192,8 @@ function _dtBuildRow(d, people) {
     +       '<span>'+_esc(PROB_LABELS[probKey-1]||ls||'未設定')+'</span>'
     +       '<span>'+(PROB_PCTS[probKey-1]||0)+'%</span>'
     +     '</span>'
+    +     '<span class="pp-inline">'+personInline+'</span>'
     +   '</div>'
-    +   '<div class="row2">'+personRow+'</div>'
     +   (pillsHtml ? '<div class="pills">'+pillsHtml+'</div>' : '')
     + '</div>';
 
@@ -9278,19 +9280,20 @@ function _dtBuildRow(d, people) {
   var nextCell = ''
     + '<div class="dt-next-cell">'
     +   '<div class="next-card '+nextCardClass+'">'
-    +     '<div class="lbl">'+nextLbl+'</div>'
-    +     '<div class="msg">'+nextMsg+'</div>'
+    +     '<div class="lbl-msg"><span class="lbl">'+nextLbl+'</span><span class="msg">'+nextMsg+'</span></div>'
     +     (deadlineText ? '<div class="deadline">'+deadlineText+'</div>' : '')
     +   '</div>'
     + '</div>';
 
-  // ④ 金額セル
+  // ④ 金額セル(2行コンパクト: 売上+粗利を1行 / 計上月を1行)
   var dmText = dm ? (dm.replace('-','年')+'月') : '未設定';
   var amountCell = sales > 0
     ? ''
       + '<div class="dt-amount-cell">'
-      +   '<div class="sales">'+fmtN(Math.round(sales))+'<span class="u">千</span></div>'
-      +   '<div class="profit">粗利 '+fmtN(Math.round(profit))+'千 ('+profitRate+'%)</div>'
+      +   '<div class="row1">'
+      +     '<span class="sales">'+fmtN(Math.round(sales))+'<span class="u">千</span></span>'
+      +     '<span class="profit">粗利 '+fmtN(Math.round(profit))+' ('+profitRate+'%)</span>'
+      +   '</div>'
       +   '<div class="month">📅 '+dmText+'</div>'
       + '</div>'
     : '<div class="dt-amount-cell" style="color:var(--tx3);font-size:11px">金額未設定</div>';
