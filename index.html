@@ -1752,15 +1752,17 @@ tr:hover td{background:rgba(90,123,158,.02)}
       </select>
       <label class="tog" style="font-size:12px"><input type="checkbox" id="show-lost" onchange="renderDeals()" checked><span>失注・延期も表示</span></label>
       <label class="tog" style="font-size:12px"><input type="checkbox" id="show-v8only" onchange="renderDeals()" checked><span>V8のみ</span></label>
-      <select id="deal-prob-filter" class="fi" style="width:auto;padding:7px 10px;font-size:12px" onchange="renderDeals()" title="受注確度で絞り込み">
-        <option value="">📊 全確度</option>
-        <option value="5">5. 受注 (100%)</option>
-        <option value="4">4. 口頭受注 (80%)</option>
-        <option value="3">3. 中 (50%)</option>
-        <option value="2">2. 低 (20%)</option>
-        <option value="1">1. 不確定 (10%)</option>
-        <option value="3+">3〜5 (有望以上)</option>
-        <option value="4+">4〜5 (受注確実)</option>
+      <!-- 確度フィルタ: プルダウン → ワンクリックボタン群 -->
+      <div id="deal-prob-btns" style="display:flex;gap:3px;background:var(--s3);border-radius:9px;padding:3px;flex-shrink:0" title="受注確度で絞り込み">
+        <button class="dprob-btn active" data-prob="" onclick="_setProbFilter('')" style="font-size:11.5px;padding:5px 11px;border:none;background:var(--tx);color:#fff;border-radius:6px;font-weight:700;cursor:pointer">📊 全</button>
+        <button class="dprob-btn" data-prob="4+" onclick="_setProbFilter('4+')" style="font-size:11.5px;padding:5px 11px;border:none;background:transparent;color:var(--tx2);border-radius:6px;font-weight:700;cursor:pointer">★★★★ 4以上</button>
+        <button class="dprob-btn" data-prob="3+" onclick="_setProbFilter('3+')" style="font-size:11.5px;padding:5px 11px;border:none;background:transparent;color:var(--tx2);border-radius:6px;font-weight:700;cursor:pointer">★★★ 3以上</button>
+        <button class="dprob-btn" data-prob="2" onclick="_setProbFilter('2')" style="font-size:11.5px;padding:5px 11px;border:none;background:transparent;color:var(--tx2);border-radius:6px;font-weight:700;cursor:pointer">★★ 検討中</button>
+        <button class="dprob-btn" data-prob="1" onclick="_setProbFilter('1')" style="font-size:11.5px;padding:5px 11px;border:none;background:transparent;color:var(--tx2);border-radius:6px;font-weight:700;cursor:pointer">★ 不確定</button>
+      </div>
+      <!-- 旧プルダウン(JS参照用に hidden で残置) -->
+      <select id="deal-prob-filter" style="display:none">
+        <option value="" selected></option>
       </select>
       <div id="deal-count-badge" style="font-size:12px;color:var(--tx3);flex-shrink:0"></div>
     </div>
@@ -8818,6 +8820,30 @@ function _toggleDealSection(dealId, sectionKey) {
   }
 }
 
+// 確度フィルタ ボタン版: ワンクリック切替 + 旧selectとも同期
+function _setProbFilter(value) {
+  // 旧select(隠し)に値を反映 → renderDeals が読む
+  var sel = document.getElementById('deal-prob-filter');
+  if (sel) {
+    // optionが無ければ動的に追加
+    var found = Array.prototype.find.call(sel.options, function(o){ return o.value === value; });
+    if (!found) {
+      var opt = document.createElement('option');
+      opt.value = value; opt.textContent = value;
+      sel.appendChild(opt);
+    }
+    sel.value = value;
+  }
+  // ボタンUI更新
+  document.querySelectorAll('#deal-prob-btns .dprob-btn').forEach(function(b) {
+    var isActive = b.dataset.prob === value;
+    b.style.background = isActive ? 'var(--tx)' : 'transparent';
+    b.style.color = isActive ? '#fff' : 'var(--tx2)';
+    b.classList[isActive ? 'add' : 'remove']('active');
+  });
+  if (typeof renderDeals === 'function') renderDeals();
+}
+
 // 案件タブを開いた時、ログインユーザーの案件を初期選択
 // (cdSp をログインユーザーの people 配列インデックスにセット)
 function _autoSelectMyDeals() {
@@ -10893,7 +10919,8 @@ function renderDeals() {
   let deals = D.deals.filter(d => {
     // 名前が未設定の空案件は非表示（インポート過程で生成された空データ等）
     if (!d.name || !d.name.trim()) return false;
-    // 受注案件は進行中リストに表示（編集可能）
+    // 受注案件は進行中タブから除外(受注済みタブで表示)
+    if (lstat(d) === '受注') return false;
     // 失注フィルター
     if (!showLost && ['失注','延期'].includes(lstat(d))) return false;
     // V8フィルター
