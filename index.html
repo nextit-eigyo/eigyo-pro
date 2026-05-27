@@ -1379,12 +1379,10 @@ tr:hover td{background:rgba(90,123,158,.02)}
 <div id="hdr">
   <div id="logo">EIGYO<em>PRO</em></div>
   <div class="htabs" id="main-tabs">
-    <!-- トップグループ: 自分 / チーム / 設定 の3つ -->
-    <button class="htab active" id="tab-self-btn" onclick="setTopGroup('self')">👤 自分 <span class="nb" id="alert-badge" style="display:none">0</span></button>
-    <button class="htab" id="tab-team-btn" onclick="setTopGroup('team')">👥 チーム</button>
+    <!-- トップグループ: 営業ホーム / 設定 の2つだけ -->
+    <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
     <button class="htab" id="tab-setup-btn" onclick="showTab('setup',this)">⚙ 設定</button>
     <!-- 隠しタブ(他コードからのプログラム参照用に保持) -->
-    <button class="htab" id="tab-deals-btn" onclick="setTopGroup('self')" style="display:none">🏠 営業ホーム</button>
     <button class="htab" id="tab-db-btn" onclick="showTab('dashboard',this)" style="display:none">📊 ダッシュボード</button>
     <button class="htab" id="tab-actions-btn" onclick="showTab('actions',this)" style="display:none">✅ アクション</button>
     <button class="htab" id="tab-actuals-btn" onclick="showTab('actuals',this)" style="display:none">📈 実績確認</button>
@@ -1418,32 +1416,15 @@ tr:hover td{background:rgba(90,123,158,.02)}
   </div>
 </div>
 
-<!-- ════════ 「👤 自分」タブ配下のサブタブバー ════════ -->
-<div id="sub-tab-bar-self" class="sub-tab-bar">
-  <button id="selftab-num"  class="sub-tab active" onclick="_clickSelfSub(this,'num')">📊 数字</button>
-  <button id="selftab-deal" class="sub-tab" onclick="_clickSelfSub(this,'deal')">🎯 自分の案件</button>
-  <button id="selftab-tasks" class="sub-tab" onclick="_clickSelfSub(this,'tasks')">✅ タスク <span class="nb" id="selftab-task-badge" style="display:none">!</span></button>
-  <button id="selftab-referral" class="sub-tab" onclick="_clickSelfSub(this,'referral')">🤝 紹介ネットワーク</button>
-  <button id="selftab-kpt" class="sub-tab" onclick="_clickSelfSub(this,'kpt')">📝 KPT</button>
-</div>
-
-<!-- ════════ 「👥 チーム」タブ配下のサブタブバー ════════ -->
-<div id="sub-tab-bar-team" class="sub-tab-bar" style="display:none">
-  <button id="teamtab-dashboard" class="sub-tab active" onclick="_clickTeamSub(this,'dashboard')">📊 ダッシュボード</button>
-  <button id="teamtab-deal" class="sub-tab" onclick="_clickTeamSub(this,'deal')">🎯 全案件</button>
-  <button id="teamtab-meeting" class="sub-tab" onclick="_clickTeamSub(this,'meeting')">📅 営業会議</button>
-  <button id="teamtab-actuals" class="sub-tab" onclick="_clickTeamSub(this,'actuals')">📊 実績確認</button>
-</div>
-
-<!-- 旧 sub-tab-bar (他コードからの参照用に隠しで残置) -->
-<div id="sub-tab-bar" class="sub-tab-bar" style="display:none">
-  <button id="subtab-num"  class="sub-tab"></button>
-  <button id="subtab-deal" class="sub-tab"></button>
-  <button id="subtab-actuals" class="sub-tab"></button>
-  <button id="subtab-meeting" class="sub-tab"></button>
-  <button id="subtab-tasks" class="sub-tab"><span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
-  <button id="subtab-referral" class="sub-tab"></button>
-  <button id="subtab-kpt" class="sub-tab"></button>
+<!-- ════════ 営業ホーム配下のサブタブバー(設定中は非表示) ════════ -->
+<div id="sub-tab-bar" class="sub-tab-bar">
+  <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
+  <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal')">🎯 案件</button>
+  <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
+  <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
+  <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
+  <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
+  <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
 </div>
 
 <!-- ════════ TOAST NOTIFICATIONS ════════ -->
@@ -4463,13 +4444,6 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     if (typeof setHomeMode === 'function') {
       try { setHomeMode('num'); } catch(e) { console.error('初期モード設定エラー:', e); }
-    }
-    // 3層トップグループの初期化(localStorageから復元)
-    if (typeof _initTopGroup === 'function') {
-      try { _initTopGroup(); } catch(e) { console.error('topGroup初期化エラー:', e); }
-    } else {
-      // _initTopGroup未定義時のフォールバック: 自分タブをアクティブに
-      if (typeof _syncTopBarVisual === 'function') _syncTopBarVisual();
     }
   }, 100);
 });
@@ -8393,85 +8367,115 @@ function showTab(name,btn){
   if(name==='import')initImportCtrl();
 }
 
-// ════════ 3層トップグループ(自分/チーム/設定) ════════
-// localStorageから復元
-window._topGroup = (function(){
-  try { return localStorage.getItem('ep_top_group') || 'self'; } catch(e){ return 'self'; }
-})();
-
-// トップタブクリック: グループ切替 + デフォルトサブタブを開く
-function setTopGroup(group) {
-  window._topGroup = group;
-  try { localStorage.setItem('ep_top_group', group); } catch(e) {}
-  _syncTopBarVisual();
-  if (group === 'setup') {
-    showTab('setup', document.getElementById('tab-setup-btn'));
-  } else if (group === 'self') {
-    _clickSelfSub(document.getElementById('selftab-num'), 'num');
-  } else if (group === 'team') {
-    _clickTeamSub(document.getElementById('teamtab-dashboard'), 'dashboard');
-  }
-}
-
-// トップタブとサブタブバーの表示状態を _topGroup に同期
-function _syncTopBarVisual() {
-  var g = window._topGroup || 'self';
-  ['self','team','setup'].forEach(function(k) {
-    var btn = document.getElementById('tab-'+k+'-btn');
-    if (btn) btn.classList[g===k?'add':'remove']('active');
-  });
-  var barSelf = document.getElementById('sub-tab-bar-self');
-  var barTeam = document.getElementById('sub-tab-bar-team');
-  if (barSelf) barSelf.style.display = (g==='self') ? 'flex' : 'none';
-  if (barTeam) barTeam.style.display = (g==='team') ? 'flex' : 'none';
-}
-
-// 自分タブのサブタブクリックハンドラ
-function _clickSelfSub(btn, mode) {
-  window._topGroup = 'self';
-  try { localStorage.setItem('ep_top_group', 'self'); } catch(e){}
-  _syncTopBarVisual();
-  document.querySelectorAll('#sub-tab-bar-self .sub-tab').forEach(function(b){ b.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
-  if (mode === 'num')         { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('num');  _setKanbanScopeIfExists('self'); if(typeof renderStoryPanel==='function') renderStoryPanel(); }
-  else if (mode === 'deal')   { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('deal'); _setKanbanScopeIfExists('self'); _hideStoryPanel(); }
-  else if (mode === 'tasks')    { showTab('tasks', null); _hideStoryPanel(); }
-  else if (mode === 'referral') { showTab('referral', null); _hideStoryPanel(); }
-  else if (mode === 'kpt')      { showTab('kpt', null); if(typeof renderKPT==='function') renderKPT(); _hideStoryPanel(); }
-}
-
-// ストーリーパネル非表示(自分→数字 以外で呼ぶ)
+// ストーリーパネル非表示(数字モード以外で呼ぶ)
 function _hideStoryPanel() {
   var sp = document.getElementById('story-panel');
   if (sp) sp.style.display = 'none';
 }
 
 // ストーリーパネル描画
-// 馬場さんモットー「3秒把握 / だから何？排除」を体現
-// 数字を文章で読める形に変換し、自動アクションリンクを提供
+// ログインユーザのrole(currentUserRole)に応じて自動的にスコープが切り替わる
+// - super_admin → 全社のストーリー
+// - region_admin → 該当リージョン(西日本/東日本)のストーリー
+// - staff (それ以外) → 個人のストーリー (馬場さん含む営業マン)
 function renderStoryPanel() {
   var container = document.getElementById('story-panel');
   if (!container) return;
 
+  // role判定 (Firebase adminConfig/roles から currentUserRole に格納される)
+  var role = (typeof currentUserRole === 'object' && currentUserRole) ? (currentUserRole.role || 'staff') : 'staff';
+  var roleRegion = (typeof currentUserRole === 'object' && currentUserRole) ? (currentUserRole.region || '') : '';
   var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
-  if (!myId) { container.style.display = 'none'; return; }
-  var me = (D.people || []).find(function(p){ return p.id === myId; });
-  if (!me || !me.name) { container.style.display = 'none'; return; }
+  var me = myId ? (D.people || []).find(function(p){ return p.id === myId; }) : null;
+
+  // スコープ決定
+  var scope; // 'person' | 'region' | 'all'
+  var scopeLabel = '';
+  var scopePerson = '';
+  if (role === 'super_admin') {
+    scope = 'all';
+    scopeLabel = '全社';
+    scopePerson = me ? me.name + ' (統括ビュー)' : '全社統括';
+  } else if (role === 'region_admin' && roleRegion) {
+    scope = 'region';
+    scopeLabel = roleRegion + '営業部';
+    scopePerson = me ? me.name + ' (マネージャビュー)' : roleRegion + 'マネージャ';
+  } else {
+    // staff (個人) - ログイン未確認の場合もここ
+    if (!me || !me.name) { container.style.display = 'none'; return; }
+    scope = 'person';
+    scopeLabel = me.name;
+    scopePerson = me.branch || '';
+  }
 
   // 現在月のmi(0=4月, 11=3月)
   var now = new Date();
-  var thisMo = now.getMonth() + 1; // 1-12
+  var thisMo = now.getMonth() + 1;
   var thisMi = thisMo >= 4 ? thisMo - 4 : thisMo + 8;
   var moLabels = ['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
 
-  // 個人の予算/実績(グループ薬局除外: D.actuals直接参照)
+  // スコープに応じた予算/実績集計
   function getBud(field, mi) {
-    var o = D.budgets && D.budgets[myId];
-    return (o && o[field] && parseFloat(o[field][mi])) || 0;
+    if (scope === 'person') {
+      var o = D.budgets && D.budgets[myId];
+      return (o && o[field] && parseFloat(o[field][mi])) || 0;
+    } else if (scope === 'region') {
+      var total = 0;
+      var branches = (typeof getBranchMaster === 'function' ? getBranchMaster() : (D.branchMaster||[]))
+        .filter(function(b){ return (b.region||'西日本') === roleRegion; });
+      branches.forEach(function(b) {
+        (D.people||[]).filter(function(p){ return p.branch === b.name; }).forEach(function(p) {
+          var po = D.budgets && D.budgets[p.id];
+          if (po && po[field] && po[field][mi] !== '' && po[field][mi] != null) total += parseFloat(po[field][mi]) || 0;
+        });
+        var bo = D.branchBudgets && D.branchBudgets[b.name];
+        if (bo && bo[field] && bo[field][mi] !== '' && bo[field][mi] != null) total += parseFloat(bo[field][mi]) || 0;
+      });
+      return total;
+    } else { // all
+      var total2 = 0;
+      (D.people||[]).forEach(function(p) {
+        var po2 = D.budgets && D.budgets[p.id];
+        if (po2 && po2[field] && po2[field][mi] !== '' && po2[field][mi] != null) total2 += parseFloat(po2[field][mi]) || 0;
+      });
+      Object.keys(D.branchBudgets||{}).forEach(function(bn) {
+        var bo2 = D.branchBudgets[bn];
+        if (bo2 && bo2[field] && bo2[field][mi] !== '' && bo2[field][mi] != null) total2 += parseFloat(bo2[field][mi]) || 0;
+      });
+      return total2;
+    }
   }
   function getAct(field, mi) {
-    var o = D.actuals && D.actuals[myId];
-    return (o && o[field] && parseFloat(o[field][mi])) || 0;
+    if (scope === 'person') {
+      // 個人実績: グループ薬局除外のため D.actuals 直接参照
+      var o = D.actuals && D.actuals[myId];
+      return (o && o[field] && parseFloat(o[field][mi])) || 0;
+    } else if (scope === 'region') {
+      if (typeof getActualValue === 'function') {
+        return getActualValue('__region__' + roleRegion, field, mi) || 0;
+      }
+      return 0;
+    } else { // all
+      if (typeof getActualValue === 'function') {
+        return getActualValue('all', field, mi) || 0;
+      }
+      return 0;
+    }
+  }
+
+  // スコープに該当する案件をフィルタ (グループ薬局除外)
+  function scopeDealFilter(d) {
+    if (d.category === 'グループ薬局') return false;
+    if (scope === 'person') return d.spId === myId;
+    if (scope === 'region') {
+      var sp = (D.people||[]).find(function(p){ return p.id === d.spId; });
+      if (!sp) return false;
+      var br = (typeof getBranchMaster === 'function' ? getBranchMaster() : (D.branchMaster||[]))
+        .find(function(b){ return b.name === sp.branch; });
+      return br && (br.region||'西日本') === roleRegion;
+    }
+    if (scope === 'all') return true;
+    return false;
   }
 
   // 今月の達成率
@@ -8491,11 +8495,10 @@ function renderStoryPanel() {
   var halfAch = halfBudS > 0 ? (halfActS / halfBudS * 100) : 0;
   var halfGap = Math.max(0, halfBudS - halfActS);
 
-  // 翌月の仕込み(グループ薬局除外)
+  // 翌月の仕込み
   var nextMo = thisMo === 12 ? 1 : thisMo + 1;
   var nextDeals = (D.deals || []).filter(function(d) {
-    if (d.spId !== myId) return false;
-    if (d.category === 'グループ薬局') return false;
+    if (!scopeDealFilter(d)) return false;
     if (!d.deliveryMonth) return false;
     var dm = parseInt(String(d.deliveryMonth).split('-')[1]);
     return dm === nextMo;
@@ -8506,16 +8509,13 @@ function renderStoryPanel() {
     return ph === '受注' || ph === '口頭受注' || pr >= 3;
   }).length;
   var nextTotalS = nextDeals.reduce(function(s,d){ return s + (parseFloat(d.sales)||0); }, 0);
-  var nextMoLabel = (nextMo + 8) % 12; // mi
-  // simpler: use Japanese month label
   var nextMoLabelStr = nextMo + '月';
 
   // 直近7日の受注/口頭受注
   var sevenDaysAgo = new Date(now.getTime() - 7*24*60*60*1000);
   var recentWon = [];
   (D.deals || []).forEach(function(d) {
-    if (d.spId !== myId) return;
-    if (d.category === 'グループ薬局') return;
+    if (!scopeDealFilter(d)) return;
     var ph = d.phase || '';
     if (ph !== '受注' && ph !== '口頭受注') return;
     if (d.visits && d.visits.length) {
@@ -8531,7 +8531,7 @@ function renderStoryPanel() {
   var html = '';
   html += '<div class="story-head">';
   html += '<span class="ttl">今月のストーリー</span>';
-  html += '<span class="person">' + _esc(me.name) + (me.branch ? ' / ' + _esc(me.branch) : '') + '</span>';
+  html += '<span class="person">' + _esc(scopeLabel) + (scopePerson ? ' / ' + _esc(scopePerson) : '') + '</span>';
   html += '<span class="term">' + fy + '年度 ' + halfLbl + '</span>';
   html += '</div>';
   html += '<div class="story-body">';
@@ -8578,15 +8578,15 @@ function renderStoryPanel() {
     html += '<p>🎉 直近の受注: ';
     html += recentWon.slice(0, 3).map(function(d){ return '<b>' + _esc(d.name||'') + '</b>'; }).join(' / ');
     if (recentWon.length > 3) html += ' 他 ' + (recentWon.length - 3) + '件';
-    html += '。お礼TEL推奨。</p>';
+    html += '。' + (scope === 'person' ? 'お礼TEL推奨。' : '') + '</p>';
   }
 
   html += '</div>';
 
   // アクションリンク
   html += '<div class="story-foot">';
-  html += '<button class="lnk pri" onclick="_clickSelfSub(document.getElementById(\'selftab-deal\'),\'deal\')">🎯 自分の案件へ →</button>';
-  html += '<button class="lnk" onclick="_clickTeamSub(document.getElementById(\'teamtab-meeting\'),\'meeting\')">📅 営業会議レポート →</button>';
+  html += '<button class="lnk pri" onclick="showTab(\'deals\',document.getElementById(\'subtab-deal\'));if(typeof setHomeMode===\'function\')setHomeMode(\'deal\')">🎯 案件一覧へ →</button>';
+  html += '<button class="lnk" onclick="showTab(\'meeting\',document.getElementById(\'subtab-meeting\'))">📅 営業会議レポート →</button>';
   if (typeof openAddDealModal === 'function') {
     html += '<button class="lnk" onclick="openAddDealModal()">＋ 新規案件を追加</button>';
   }
@@ -8596,71 +8596,35 @@ function renderStoryPanel() {
   container.style.display = 'block';
 }
 
-// チームタブのサブタブクリックハンドラ
-function _clickTeamSub(btn, mode) {
-  window._topGroup = 'team';
-  try { localStorage.setItem('ep_top_group', 'team'); } catch(e){}
-  _syncTopBarVisual();
-  document.querySelectorAll('#sub-tab-bar-team .sub-tab').forEach(function(b){ b.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
-  if (mode === 'dashboard')    {
-    // tab-dashboard は home-num-mode 内に物理移動されるため setHomeMode経由
-    showTab('deals', null);
-    if(typeof setHomeMode==='function') setHomeMode('num');
-    _setKanbanScopeIfExists('all');
-  }
-  else if (mode === 'deal')    { showTab('deals', null); if(typeof setHomeMode==='function') setHomeMode('deal'); _setKanbanScopeIfExists('all'); }
-  else if (mode === 'meeting') { showTab('meeting', null); }
-  else if (mode === 'actuals') { showTab('actuals', null); }
-  // ストーリーパネルは自分タブ専用 → 非表示
-  if (typeof _hideStoryPanel === 'function') _hideStoryPanel();
-}
-
-function _setKanbanScopeIfExists(scope) {
-  if (typeof _setKanbanScope === 'function') {
-    try { _setKanbanScope(scope); } catch(e) {}
-  }
-}
-
-// showTab から呼ばれる: タブ名に応じてトップグループを推定+UI同期
+// 営業ホームグループ / 設定グループ + サブタブのアクティブ状態を同期
 function _syncTopGroupUI(name) {
-  // タブ名 → トップグループ 推定
-  if (name === 'setup') {
-    window._topGroup = 'setup';
-  } else if (name === 'dashboard' || name === 'actuals' || name === 'meeting') {
-    window._topGroup = 'team';
-  } else if (name === 'tasks' || name === 'referral' || name === 'kpt') {
-    window._topGroup = 'self';
-  } else if (name === 'deals') {
-    // 'deals' は自分/チーム両方にあるので、現在のグループを維持
-    if (!window._topGroup || window._topGroup === 'setup') window._topGroup = 'self';
+  var setupTabs = ['setup'];
+  var isSetup = setupTabs.indexOf(name) >= 0;
+
+  var setupBtn = document.getElementById('tab-setup-btn');
+  var homeBtn  = document.getElementById('tab-deals-btn');
+  if (setupBtn) setupBtn.classList[isSetup ? 'add' : 'remove']('active');
+  if (homeBtn)  homeBtn.classList[isSetup ? 'remove' : 'add']('active');
+
+  var subBar = document.getElementById('sub-tab-bar');
+  if (subBar) subBar.style.display = isSetup ? 'none' : 'flex';
+
+  var subBtnMap = {
+    actuals: 'subtab-actuals',
+    meeting: 'subtab-meeting',
+    tasks: 'subtab-tasks',
+    referral: 'subtab-referral',
+    kpt: 'subtab-kpt'
+  };
+  var subBtnId = subBtnMap[name];
+  if (name === 'deals' || name === 'dashboard') {
+    var numEl = document.getElementById('home-num-mode');
+    var isNumMode = numEl && numEl.style.display !== 'none';
+    subBtnId = isNumMode ? 'subtab-num' : 'subtab-deal';
   }
-  _syncTopBarVisual();
-
-  // 旧 #sub-tab-bar は隠したまま(空でOK)
-  var oldBar = document.getElementById('sub-tab-bar');
-  if (oldBar) oldBar.style.display = 'none';
-
-  // サブタブのアクティブ同期
-  var g = window._topGroup;
-  if (g === 'self') {
-    document.querySelectorAll('#sub-tab-bar-self .sub-tab').forEach(function(b){ b.classList.remove('active'); });
-    var btnId;
-    var map = { tasks:'selftab-tasks', referral:'selftab-referral', kpt:'selftab-kpt' };
-    btnId = map[name];
-    if (name === 'deals') {
-      var numEl = document.getElementById('home-num-mode');
-      var isNumMode = numEl && numEl.style.display !== 'none';
-      btnId = isNumMode ? 'selftab-num' : 'selftab-deal';
-    }
-    if (btnId) { var b1 = document.getElementById(btnId); if (b1) b1.classList.add('active'); }
-  } else if (g === 'team') {
-    document.querySelectorAll('#sub-tab-bar-team .sub-tab').forEach(function(b){ b.classList.remove('active'); });
-    var btnId2;
-    var map2 = { dashboard:'teamtab-dashboard', meeting:'teamtab-meeting', actuals:'teamtab-actuals' };
-    btnId2 = map2[name];
-    if (name === 'deals') btnId2 = 'teamtab-deal';
-    if (btnId2) { var b2 = document.getElementById(btnId2); if (b2) b2.classList.add('active'); }
+  if (subBtnId) {
+    var subBtn = document.getElementById(subBtnId);
+    if (subBtn) subBtn.classList.add('active');
   }
 }
 
@@ -8834,15 +8798,23 @@ function _cmdkExecOpenPharmacy(name) {
   }
 }
 function _cmdkExecOpenPerson(id) {
-  // チーム→営業会議へ移動し、該当担当者を選択
-  _clickTeamSub(document.getElementById('teamtab-meeting'), 'meeting');
+  // 案件タブ + 担当者フィルタ
+  showTab('deals', document.getElementById('subtab-deal'));
+  if (typeof setHomeMode === 'function') setHomeMode('deal');
   setTimeout(function(){
-    if (typeof _mtSelectPerson === 'function') _mtSelectPerson(id);
-  }, 150);
+    var people = (typeof ap === 'function') ? ap() : (D.people||[]);
+    var idx = people.findIndex(function(p){ return p.id === id; });
+    if (idx >= 0 && typeof cdSp !== 'undefined') {
+      cdSp = idx;
+      if (typeof renderDealPtabs === 'function') renderDealPtabs();
+      if (typeof renderDeals === 'function') renderDeals();
+    }
+  }, 100);
 }
 function _cmdkExecSmart(key) {
-  // 自分の案件タブへ移動し、トーストでフィルタ案内
-  _clickSelfSub(document.getElementById('selftab-deal'), 'deal');
+  // 案件タブへ移動し、トーストでフィルタ案内
+  showTab('deals', document.getElementById('subtab-deal'));
+  if (typeof setHomeMode === 'function') setHomeMode('deal');
   var msg = {
     thisMonthWon: '💡 「今月の確定案件」を確認: 月別フィルタを「' + (new Date().getMonth()+1) + '月」に設定してください',
     unvisited7d: '💡 「未訪問7日以上(確度A以上)」: 並び順「期限順」で確認できます',
@@ -8941,10 +8913,13 @@ function _fabAction(action) {
       try { openTaskModal(); } catch(e) { console.error('タスク追加エラー:', e); alert('タスク追加モーダルを開けませんでした'); }
     }
   } else if (action === 'addVisit') {
-    // 訪問記録: 自分の案件タブへ移動 + ヒント表示
-    _clickSelfSub(document.getElementById('selftab-deal'), 'deal');
-    if (typeof _showToast === 'function') {
-      try { _showToast('💡 案件カードを開いて「訪問記録を追加」してください', 'info', 4000); } catch(e){}
+    // 訪問記録: Ctrl+K を開いて該当案件を検索 → 開く流れ
+    if (typeof _cmdkOpen === 'function') {
+      try { _cmdkOpen(); } catch(e) {}
+      // ヒント表示
+      if (typeof _showToast === 'function') {
+        try { _showToast('💡 訪問記録する案件名を入力 → Enter で案件カードを開きます', 'info', 4000); } catch(e){}
+      }
     }
   } else if (action === 'applyActuals') {
     if (typeof applyAllWonToActuals === 'function') {
@@ -8960,19 +8935,6 @@ document.addEventListener('click', function(e) {
   if (!wrap) return;
   if (!wrap.contains(e.target)) _fabClose();
 });
-
-// 初期化: localStorageから topGroup を復元して初期画面に飛ぶ
-function _initTopGroup() {
-  var g = window._topGroup || 'self';
-  if (g === 'team') {
-    _clickTeamSub(document.getElementById('teamtab-dashboard'), 'dashboard');
-  } else if (g === 'setup') {
-    showTab('setup', document.getElementById('tab-setup-btn'));
-  } else {
-    // 'self' デフォルト: 自分→数字を明示的にアクティブ化 + ストーリーパネル描画
-    _clickSelfSub(document.getElementById('selftab-num'), 'num');
-  }
-}
 
 // ===== INIT =====
 // ── 異常値クリーンアップ：1兆超など明らかにおかしい値を0にリセット ──
@@ -13434,6 +13396,15 @@ function setHomeMode(mode) {
     } catch(e) {
       console.error('数字モード描画エラー:', e);
     }
+    // ストーリーパネル描画 (ログインユーザのrole別スコープで自動切替)
+    try {
+      if (typeof renderStoryPanel === 'function') renderStoryPanel();
+    } catch(e) {
+      console.error('ストーリーパネル描画エラー:', e);
+    }
+  } else {
+    // 案件モード時はストーリーパネル非表示
+    if (typeof _hideStoryPanel === 'function') _hideStoryPanel();
   }
   // サブタブのアクティブ状態を更新(案件モード or 数字モード)
   document.querySelectorAll('#sub-tab-bar .sub-tab').forEach(function(b){ b.classList.remove('active'); });
