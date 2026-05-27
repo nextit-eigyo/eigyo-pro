@@ -1227,7 +1227,6 @@ body.has-sidepanel #home-deal-mode {
 .deal-table {
   width:100%; border-collapse:collapse; font-size:12px;
   table-layout:fixed;
-  min-width:900px; /* 狭画面ではラッパー側で横スクロール */
 }
 /* 列幅: 案件情報(38%) / 進捗+最終活動(30%) / 次の動き(18%) / 金額(14%) */
 /* colgroup より nth-child が確実に効くため両方指定 */
@@ -1244,7 +1243,8 @@ body.has-sidepanel #home-deal-mode {
   background:var(--s3); padding:6px 10px; text-align:left;
   font-size:10.5px; font-weight:700; color:var(--tx2);
   border-bottom:2px solid var(--bd); white-space:nowrap;
-  position:sticky; top:0; z-index:5;
+  /* position:sticky を削除: table-layout:fixed + overflow:auto と干渉して
+     thead と tbody の列幅が一致しない問題が発生する */
 }
 .deal-table thead th .sort-ic {
   color:var(--tx3); font-size:9px; margin-left:3px;
