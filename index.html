@@ -2028,6 +2028,7 @@ body.has-sidepanel #home-deal-mode {
         <option value="origin">発生月</option><option value="delivery" selected>計上月（納品月）</option>
       </select>
       <label class="tog" style="font-size:12px"><input type="checkbox" id="show-lost" onchange="renderDeals()" checked><span>失注・延期も表示</span></label>
+      <label class="tog" style="font-size:12px"><input type="checkbox" id="show-won" onchange="_persistShowWon();renderDeals()"><span>受注済みも表示</span></label>
       <label class="tog" style="font-size:12px"><input type="checkbox" id="show-v8only" onchange="renderDeals()" checked><span>V8のみ</span></label>
       <!-- 確度フィルタ: プルダウン → ワンクリックボタン群 -->
       <div id="deal-prob-btns" style="display:flex;gap:3px;background:var(--s3);border-radius:9px;padding:3px;flex-shrink:0" title="受注確度で絞り込み">
@@ -5006,6 +5007,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const first=document.getElementById('tab-db-btn');if(first)first.classList.add('active');
   // Set initial task view
   setTaskView('board');
+  // 「受注済みも表示」トグルの状態を復元
+  if (typeof _restoreShowWon === 'function') _restoreShowWon();
   // renderSetup on start
   renderSetup();
   // renderReport stats
@@ -9259,6 +9262,21 @@ function _setProbFilter(value) {
 
 // 案件タブを開いた時、ログインユーザーの案件を初期選択
 // (cdSp をログインユーザーの people 配列インデックスにセット)
+// 「受注済みも表示」トグルの状態を localStorage に保存/復元
+function _persistShowWon() {
+  try {
+    var cb = document.getElementById('show-won');
+    if (cb) localStorage.setItem('ep_show_won_in_active', cb.checked ? '1' : '0');
+  } catch(e) {}
+}
+function _restoreShowWon() {
+  try {
+    var v = localStorage.getItem('ep_show_won_in_active');
+    var cb = document.getElementById('show-won');
+    if (cb && v === '1') cb.checked = true;
+  } catch(e) {}
+}
+
 function _autoSelectMyDeals() {
   // 既に担当者(数値index)が選択済みなら維持(明示的に切り替えた状態を尊重)
   if (typeof cdSp === 'number' && cdSp >= 0) return;
@@ -11366,8 +11384,9 @@ function renderDeals() {
   let deals = D.deals.filter(d => {
     // 名前が未設定の空案件は非表示（インポート過程で生成された空データ等）
     if (!d.name || !d.name.trim()) return false;
-    // 受注案件は進行中タブから除外(受注済みタブで表示)
-    if (lstat(d) === '受注') return false;
+    // 受注案件は通常進行中タブから除外(受注済みタブで表示) ※「受注済みも表示」トグルONなら含める
+    const _showWon = document.getElementById('show-won')?.checked;
+    if (!_showWon && lstat(d) === '受注') return false;
     // 失注フィルター
     if (!showLost && ['失注','延期'].includes(lstat(d))) return false;
     // V8フィルター
