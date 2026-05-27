@@ -644,15 +644,10 @@ tr:hover td{background:rgba(90,123,158,.02)}
 
 
 /* ── Deals sub-tabs ── */
-#deal-sub-active.active,#deal-sub-won.active,#deal-sub-plan.active{
+#deal-sub-active.active,#deal-sub-won.active{
   background:var(--tx);color:#fff;border-color:var(--tx)
 }
 #deal-sub-won.active{background:var(--grn);border-color:var(--grn)}
-#deal-sub-plan.active{background:var(--acc);border-color:var(--acc)}
-/* ── Plan view grid responsive ── */
-@media(max-width:900px){
-  #plan-view [style*="grid-template-columns:repeat(12"]{grid-template-columns:repeat(6,1fr)!important}
-}
 
 
 /* ── Won detail side panel ── */
@@ -1817,6 +1812,14 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-deal-tbl td.num { text-align:right; }
 #tab-meeting .mt-deal-tbl td.ctr { text-align:center; }
 #tab-meeting .mt-deal-tbl .dim { font-size:10px; color:var(--tx3); margin-left:3px; }
+#tab-meeting .mt-deal-link {
+  color:var(--tx); text-decoration:underline; text-decoration-color:rgba(90,123,158,.4);
+  text-underline-offset:2px; cursor:pointer; font-weight:600;
+}
+#tab-meeting .mt-deal-link:hover {
+  color:var(--prm); text-decoration-color:var(--prm);
+  background:rgba(90,123,158,.08); padding:1px 3px; border-radius:3px;
+}
 #tab-meeting .mt-empty {
   text-align:center; color:var(--tx3); font-size:11px; padding:8px;
   background:var(--s2); border:1px dashed var(--bd); border-radius:6px; margin:0;
@@ -1990,21 +1993,18 @@ body.has-sidepanel #home-deal-mode {
   <div id="home-deal-mode">
   <!-- ===== 案件モード内 固定ヘッダー（サブタブ＋フィルターバー） ===== -->
   <div class="deal-mode-sticky">
-  <!-- メインサブタブ（進行中 / 受注済み / 売上計画） -->
+  <!-- メインサブタブ（進行中 / 受注済み） -->
   <div style="display:flex;gap:3px;background:var(--s3);border-radius:12px;padding:3px;margin-bottom:12px;width:fit-content">
     <button class="btn sm active" id="deal-sub-active"   onclick="setDealSubTab('active')"  style="font-size:13px;padding:7px 14px">📋 進行中案件</button>
     <button class="btn sm"        id="deal-sub-won"      onclick="setDealSubTab('won')"     style="font-size:13px;padding:7px 14px">🏆 受注済み</button>
-    <button class="btn sm"        id="deal-sub-plan"     onclick="setDealSubTab('plan')"    style="font-size:13px;padding:7px 14px">📅 売上計画</button>
   </div>
 
   <!-- フィルターバー（進行中用） -->
   <div id="filter-bar-active" style="background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:12px 16px;margin-bottom:12px">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <div class="ptabs" id="dptabs" style="margin-bottom:0;flex:1;min-width:200px"></div>
-      <div id="kanban-scope-toggle" style="display:flex;gap:2px;background:var(--s3);border-radius:9px;padding:2px;flex-shrink:0">
-        <button id="scope-self-btn" class="btn sm" onclick="_setKanbanScope('self')" style="font-size:12px;padding:6px 13px;background:var(--tx);color:#fff;border-color:var(--tx)" title="自分の所属する営業所/営業部の案件のみ表示">👤 営業ビュー</button>
-        <button id="scope-all-btn" class="btn sm" onclick="_setKanbanScope('all')" style="font-size:12px;padding:6px 13px" title="全社の案件を表示">👥 管理職ビュー</button>
-      </div>
+      <!-- 旧 営業ビュー/管理職ビュー トグルは削除(拠点別タブで代替可能) -->
+      <div id="kanban-scope-toggle" style="display:none"></div>
       <div style="display:flex;gap:2px;background:var(--s3);border-radius:9px;padding:2px;flex-shrink:0" title="並び順">
         <button id="sort-priority-btn" class="btn sm" onclick="setDealSort('priority')" style="font-size:12px;padding:6px 13px;background:var(--tx);color:#fff;border-color:var(--tx)">🎯 重要度順</button>
         <button id="sort-phase-btn"    class="btn sm" onclick="setDealSort('phase')"    style="font-size:12px;padding:6px 13px">📊 フェーズ順</button>
@@ -2066,17 +2066,6 @@ body.has-sidepanel #home-deal-mode {
     </div>
   </div>
 
-  <!-- 売上計画フィルターバー -->
-  <div id="filter-bar-plan" style="display:none;background:rgba(90,123,158,.06);border:1px solid rgba(90,123,158,.2);border-radius:var(--rl);padding:12px 16px;margin-bottom:12px">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <div class="ptabs" id="plan-ptabs" style="margin-bottom:0;flex:1;min-width:200px"></div>
-      <div style="display:flex;gap:4px;background:var(--s3);border-radius:9px;padding:2px;flex-shrink:0">
-        <button class="btn sm active" id="plan-period-all" onclick="setPlanPeriod('all',this)" style="font-size:11px">通期</button>
-        <button class="btn sm"        id="plan-period-h1"  onclick="setPlanPeriod('h1',this)"  style="font-size:11px">上期</button>
-        <button class="btn sm"        id="plan-period-h2"  onclick="setPlanPeriod('h2',this)"  style="font-size:11px">下期</button>
-      </div>
-    </div>
-  </div>
   </div><!-- /.deal-mode-sticky -->
   <!-- コンテンツ -->
   <div id="risk-view"></div>
@@ -2084,7 +2073,6 @@ body.has-sidepanel #home-deal-mode {
   <div id="actions-view"></div>
   <div id="deal-list"></div>
   <div id="won-list"></div>
-  <div id="plan-view"></div>
   </div><!-- /home-deal-mode -->
 
   <!-- ストーリーパネル(👤自分タブの数字モードでのみ表示) -->
@@ -4271,6 +4259,35 @@ function _mtLastVisitDate(d) {
   if (parts.length === 3) return parts[1].replace(/^0/,'') + '/' + parts[2].replace(/^0/,'');
   return _esc(last.date);
 }
+// 営業会議画面から案件詳細を開く: 案件タブへ遷移→サイドパネル表示
+function _mtOpenDeal(dealId) {
+  if (!dealId) return;
+  var d = (D.deals||[]).find(function(x){ return x.id === dealId; });
+  if (!d) { console.warn('_mtOpenDeal: deal not found', dealId); return; }
+  // 案件タブへ切り替え
+  if (typeof showTab === 'function') {
+    showTab('deals', document.getElementById('tab-deals-btn'));
+  }
+  // 進行中/受注済みのうち該当タブを選択
+  var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
+  var isWon = (ph === '受注');
+  if (typeof setDealSubTab === 'function') {
+    setDealSubTab(isWon ? 'won' : 'active');
+  }
+  // フィルタをリセットして対象案件が確実に出るように
+  if (typeof cdSp !== 'undefined') cdSp = -1;
+  if (typeof _dealMonthFilter !== 'undefined') _dealMonthFilter = '';
+  // レンダ後にサイドパネルを開く
+  setTimeout(function() {
+    if (typeof renderDeals === 'function') renderDeals();
+    if (typeof _openSidepanel === 'function') {
+      setTimeout(function(){ _openSidepanel(dealId); }, 80);
+    } else if (typeof openDealCard === 'function') {
+      openDealCard(dealId);
+    }
+  }, 100);
+}
+
 function _mtConfInfo(d) {
   var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
   if (ph === '受注')      return { cls:'kakutei', lbl:'確定' };
@@ -4466,20 +4483,22 @@ function renderMeeting() {
   var totPAch = totBudP > 0 ? (totActP / totBudP * 100) : 0;
   var totNew  = _mtCountNewDeals(selSpId, halfMis);
 
-  html += '<table class="mt-sum">';
-  html += '<tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th>';
-  html += '<th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th></tr>';
+  // 累計テーブル(出力順は月別カードの下になるよう、別変数に組み立てる)
+  var sumTableHtml = '';
+  sumTableHtml += '<table class="mt-sum">';
+  sumTableHtml += '<tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th>';
+  sumTableHtml += '<th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th></tr>';
   // 通期計行(ハイライト)
-  html += '<tr class="hl-y">';
-  html += '<td class="lbl">'+halfLbl+'計</td>';
-  html += '<td>'+_mtFmtNum(totActS)+'</td>';
-  html += '<td>'+_mtFmtNum(totBudS)+'</td>';
-  html += '<td class="'+_mtAchCls(totSAch)+'">'+totSAch.toFixed(1)+'%</td>';
-  html += '<td>'+_mtFmtNum(totActP)+'</td>';
-  html += '<td>'+_mtFmtNum(totBudP)+'</td>';
-  html += '<td class="'+_mtAchCls(totPAch)+'">'+totPAch.toFixed(1)+'%</td>';
-  html += '<td>'+totNew+'軒</td>';
-  html += '</tr>';
+  sumTableHtml += '<tr class="hl-y">';
+  sumTableHtml += '<td class="lbl">'+halfLbl+'計</td>';
+  sumTableHtml += '<td>'+_mtFmtNum(totActS)+'</td>';
+  sumTableHtml += '<td>'+_mtFmtNum(totBudS)+'</td>';
+  sumTableHtml += '<td class="'+_mtAchCls(totSAch)+'">'+totSAch.toFixed(1)+'%</td>';
+  sumTableHtml += '<td>'+_mtFmtNum(totActP)+'</td>';
+  sumTableHtml += '<td>'+_mtFmtNum(totBudP)+'</td>';
+  sumTableHtml += '<td class="'+_mtAchCls(totPAch)+'">'+totPAch.toFixed(1)+'%</td>';
+  sumTableHtml += '<td>'+totNew+'軒</td>';
+  sumTableHtml += '</tr>';
   // 累計行
   var cBudS=0,cActS=0,cBudP=0,cActP=0;
   halfMis.forEach(function(mi, idx) {
@@ -4491,20 +4510,20 @@ function renderMeeting() {
     var pA = cBudP > 0 ? (cActP / cBudP * 100) : 0;
     var rangeLbl = (idx === 0) ? moLabels[mi] : moLabels[halfMis[0]] + '〜' + moLabels[mi];
     var nCnt = _mtCountNewDeals(selSpId, halfMis.slice(0, idx+1));
-    html += '<tr>';
-    html += '<td class="lbl">'+rangeLbl+'</td>';
-    html += '<td>'+_mtFmtNum(cActS)+'</td>';
-    html += '<td>'+_mtFmtNum(cBudS)+'</td>';
-    html += '<td class="'+_mtAchCls(sA)+'">'+sA.toFixed(1)+'%</td>';
-    html += '<td>'+_mtFmtNum(cActP)+'</td>';
-    html += '<td>'+_mtFmtNum(cBudP)+'</td>';
-    html += '<td class="'+_mtAchCls(pA)+'">'+pA.toFixed(1)+'%</td>';
-    html += '<td>'+nCnt+'軒</td>';
-    html += '</tr>';
+    sumTableHtml += '<tr>';
+    sumTableHtml += '<td class="lbl">'+rangeLbl+'</td>';
+    sumTableHtml += '<td>'+_mtFmtNum(cActS)+'</td>';
+    sumTableHtml += '<td>'+_mtFmtNum(cBudS)+'</td>';
+    sumTableHtml += '<td class="'+_mtAchCls(sA)+'">'+sA.toFixed(1)+'%</td>';
+    sumTableHtml += '<td>'+_mtFmtNum(cActP)+'</td>';
+    sumTableHtml += '<td>'+_mtFmtNum(cBudP)+'</td>';
+    sumTableHtml += '<td class="'+_mtAchCls(pA)+'">'+pA.toFixed(1)+'%</td>';
+    sumTableHtml += '<td>'+nCnt+'軒</td>';
+    sumTableHtml += '</tr>';
   });
-  html += '</table>';
+  sumTableHtml += '</table>';
 
-  // ── 月別カード ─────────
+  // ── 月別カード(上に表示) ─────────
   html += '<div class="mt-month-grid">';
   halfMis.forEach(function(mi) {
     var budS = getBud('s', mi);
@@ -4558,8 +4577,9 @@ function renderMeeting() {
         var costV   = parseFloat(d.cost)  || 0;
         var profitV = salesV - costV;
         // sales/cost は千円単位 → 円換算
+        var nmLink = '<a href="#" class="mt-deal-link" onclick="event.preventDefault();_mtOpenDeal(\''+_esc(d.id)+'\')" title="案件詳細を開く">'+nm+'</a>';
         html += '<tr>';
-        html += '<td>'+nm+cfg+'</td>';
+        html += '<td>'+nmLink+cfg+'</td>';
         html += '<td class="ctr">'+_mtLastVisitDate(d)+'</td>';
         html += '<td class="ctr">'+_esc(catS)+'</td>';
         html += '<td class="ctr"><span class="mt-conf '+conf.cls+'">'+conf.lbl+'</span></td>';
@@ -4576,18 +4596,10 @@ function renderMeeting() {
   });
   html += '</div>';
 
-  // ── 保有ユーザー軒数 ─────────
-  var ru = _mtPharmacyCounts();
-  html += '<div class="mt-ru-wrap">';
-  html += '<div class="mt-ru-title">📊 保有ユーザー軒数 (全社・薬局マスタ集計)</div>';
-  html += '<div class="mt-ru-grid">';
-  html += '<div class="mt-ru-cell"><div class="lbl">with</div><div class="val">'+ru.withCnt+'<span class="u">軒</span></div></div>';
-  html += '<div class="mt-ru-cell"><div class="lbl">V7</div><div class="val">'+ru.v7+'<span class="u">軒</span></div></div>';
-  html += '<div class="mt-ru-cell"><div class="lbl">V8</div><div class="val">'+ru.v8+'<span class="u">軒</span></div></div>';
-  html += '<div class="mt-ru-cell"><div class="lbl">合計</div><div class="val">'+ru.total+'<span class="u">軒</span></div></div>';
-  html += '<div class="mt-ru-cell"><div class="lbl">'+fy+'年度 新規</div><div class="val">'+ru.newY+'<span class="u">軒</span></div></div>';
-  html += '</div>';
-  html += '</div>';
+  // 月別カードの下に累計テーブルを出力(上下入れ替え)
+  html += sumTableHtml;
+
+  // 旧「保有ユーザー軒数」セクションは削除(現状不要との判断)
 
   body.innerHTML = html;
 }
@@ -6268,7 +6280,7 @@ function _daysSinceLastVisit(d) {
 }
 
 // グローバル: ビュー範囲モード ('self'=自分の所属拠点 / 'all'=全社)
-var _kanbanViewScope = 'self';
+var _kanbanViewScope = 'all'; // 旧トグル(営業ビュー/管理職ビュー)は削除済。デフォルト全社表示に固定
 
 function _setKanbanScope(scope) {
   _kanbanViewScope = scope;
@@ -9243,6 +9255,10 @@ function _setProbFilter(value) {
 function _autoSelectMyDeals() {
   // 既に担当者(数値index)が選択済みなら維持(明示的に切り替えた状態を尊重)
   if (typeof cdSp === 'number' && cdSp >= 0) return;
+  _forceSelectMyDeals();
+}
+// ストーリーパネル等から「自分の案件一覧へ」と明示遷移する時に使う(強制版)
+function _forceSelectMyDeals() {
   var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
   if (!myId) return;
   var people = (typeof ap === 'function') ? ap() : (D.people||[]);
@@ -9326,22 +9342,31 @@ function renderStoryPanel() {
     return false;
   }
 
-  // 今月の達成率
+  // 今月の達成率(売上・粗利)
   var thisM_budS = getBud('s', thisMi);
   var thisM_actS = getAct('s', thisMi);
-  var thisM_ach = thisM_budS > 0 ? (thisM_actS / thisM_budS * 100) : 0;
+  var thisM_achS = thisM_budS > 0 ? (thisM_actS / thisM_budS * 100) : 0;
+  var thisM_budP = getBud('p', thisMi);
+  var thisM_actP = getAct('p', thisMi);
+  var thisM_achP = thisM_budP > 0 ? (thisM_actP / thisM_budP * 100) : 0;
 
-  // 上期/下期累計
+  // 上期/下期累計(売上・粗利)
   var isH1 = thisMi < 6;
   var halfMis = isH1 ? [0,1,2,3,4,5] : [6,7,8,9,10,11];
   var halfLbl = isH1 ? '上期' : '下期';
-  var halfBudS = 0, halfActS = 0;
+  var halfBudS = 0, halfActS = 0, halfBudP = 0, halfActP = 0;
   halfMis.forEach(function(mi) {
     halfBudS += getBud('s', mi);
-    if (mi <= thisMi) halfActS += getAct('s', mi);
+    halfBudP += getBud('p', mi);
+    if (mi <= thisMi) {
+      halfActS += getAct('s', mi);
+      halfActP += getAct('p', mi);
+    }
   });
-  var halfAch = halfBudS > 0 ? (halfActS / halfBudS * 100) : 0;
-  var halfGap = Math.max(0, halfBudS - halfActS);
+  var halfAchS = halfBudS > 0 ? (halfActS / halfBudS * 100) : 0;
+  var halfGapS = Math.max(0, halfBudS - halfActS);
+  var halfAchP = halfBudP > 0 ? (halfActP / halfBudP * 100) : 0;
+  var halfGapP = Math.max(0, halfBudP - halfActP);
 
   // 翌月の仕込み
   var nextMo = thisMo === 12 ? 1 : thisMo + 1;
@@ -9357,6 +9382,7 @@ function renderStoryPanel() {
     return ph === '受注' || ph === '口頭受注' || pr >= 3;
   }).length;
   var nextTotalS = nextDeals.reduce(function(s,d){ return s + (parseFloat(d.sales)||0); }, 0);
+  var nextTotalP = nextDeals.reduce(function(s,d){ return s + ((parseFloat(d.sales)||0) - (parseFloat(d.cost)||0)); }, 0);
   var nextMoLabelStr = nextMo + '月';
 
   // 直近7日の受注/口頭受注
@@ -9384,24 +9410,43 @@ function renderStoryPanel() {
   html += '</div>';
   html += '<div class="story-body">';
 
-  // パラグラフ1: 今月 + 累計
-  html += '<p>';
-  html += moLabels[thisMi] + 'の達成率は ';
-  if (thisM_budS === 0) {
-    html += '<span class="dim">予算未設定</span>。';
-  } else if (thisM_ach >= 100) {
-    html += '<span class="hl-g">' + thisM_ach.toFixed(0) + '%</span> で目標達成 🎉。';
-  } else if (thisM_ach >= 80) {
-    html += '<span class="hl-a">' + thisM_ach.toFixed(0) + '%</span> で達成まで あと一歩。';
-  } else {
-    html += '<span class="hl-r">' + thisM_ach.toFixed(0) + '%</span>。';
+  // パラグラフ1: 今月 達成率(売上・粗利)
+  function _achTag(ach) {
+    if (ach >= 100) return '<span class="hl-g">' + ach.toFixed(0) + '%</span>';
+    if (ach >= 80)  return '<span class="hl-a">' + ach.toFixed(0) + '%</span>';
+    return '<span class="hl-r">' + ach.toFixed(0) + '%</span>';
   }
-  if (halfBudS > 0) {
-    html += '<br>';
-    html += halfLbl + '累計は <span class="num">' + halfAch.toFixed(0) + '%</span>';
-    if (halfGap > 0) html += ' → 目標まで あと <span class="hl-r">' + Math.round(halfGap).toLocaleString() + '千</span>';
-    else html += ' → <span class="hl-g">目標クリア済み</span>';
+  html += '<p>';
+  html += moLabels[thisMi] + 'の達成率: ';
+  if (thisM_budS === 0 && thisM_budP === 0) {
+    html += '<span class="dim">予算未設定</span>。';
+  } else {
+    var parts = [];
+    if (thisM_budS > 0) parts.push('売上 ' + _achTag(thisM_achS));
+    if (thisM_budP > 0) parts.push('<b>粗利 ' + _achTag(thisM_achP) + '</b>');
+    html += parts.join(' / ');
+    var bestAch = Math.max(thisM_achS, thisM_achP);
+    if (bestAch >= 100) html += ' 🎉';
     html += '。';
+  }
+  // 上期/下期累計
+  if (halfBudS > 0 || halfBudP > 0) {
+    html += '<br>';
+    html += halfLbl + '累計: ';
+    var hparts = [];
+    if (halfBudS > 0) {
+      var s = '売上 <span class="num">' + halfAchS.toFixed(0) + '%</span>';
+      if (halfGapS > 0) s += ' (あと <span class="hl-r">' + Math.round(halfGapS).toLocaleString() + '千</span>)';
+      else s += ' <span class="hl-g">達成</span>';
+      hparts.push(s);
+    }
+    if (halfBudP > 0) {
+      var p = '<b>粗利 <span class="num">' + halfAchP.toFixed(0) + '%</span></b>';
+      if (halfGapP > 0) p += ' (あと <span class="hl-r">' + Math.round(halfGapP).toLocaleString() + '千</span>)';
+      else p += ' <span class="hl-g">達成</span>';
+      hparts.push(p);
+    }
+    html += hparts.join(' / ') + '。';
   }
   html += '</p>';
 
@@ -9410,6 +9455,7 @@ function renderStoryPanel() {
   html += nextMoLabelStr + 'の仕込み: 進行中 <span class="num">' + nextDeals.length + '件</span>';
   if (nextDeals.length > 0) {
     html += ' / 想定売上 <span class="num">' + Math.round(nextTotalS).toLocaleString() + '千</span>';
+    html += ' / <b>想定粗利 <span class="num">' + Math.round(nextTotalP).toLocaleString() + '千</span></b>';
     if (nextHighProb >= 2) {
       html += ' (うち確度A以上 <span class="hl-g">' + nextHighProb + '件</span>)';
     } else if (nextHighProb === 1) {
@@ -9433,7 +9479,7 @@ function renderStoryPanel() {
 
   // アクションリンク
   html += '<div class="story-foot">';
-  html += '<button class="lnk pri" onclick="showTab(\'deals\',document.getElementById(\'subtab-deal\'));if(typeof setHomeMode===\'function\')setHomeMode(\'deal\')">🎯 案件一覧へ →</button>';
+  html += '<button class="lnk pri" onclick="showTab(\'deals\',document.getElementById(\'subtab-deal\'));if(typeof setHomeMode===\'function\')setHomeMode(\'deal\');if(typeof _forceSelectMyDeals===\'function\')_forceSelectMyDeals()">🎯 案件一覧へ →</button>';
   html += '<button class="lnk" onclick="showTab(\'meeting\',document.getElementById(\'subtab-meeting\'))">📅 営業会議レポート →</button>';
   if (typeof openAddDealModal === 'function') {
     html += '<button class="lnk" onclick="openAddDealModal()">＋ 新規案件を追加</button>';
@@ -12353,21 +12399,21 @@ function updDeal(id, field, val) {
 // 案件管理 サブタブ制御
 // ================================================================
 
-var dealSubTab = 'active'; // 'active' | 'won' | 'plan'
+var dealSubTab = 'active'; // 'active' | 'won'
 var wonPeriod  = 'all';    // 'all' | 'h1' | 'h2' | 'month'
 var wonMonth   = '';       // '2026-04' etc
-var planPeriod = 'all';    // 'all' | 'h1' | 'h2'
-var planBranch = -1;       // -1=全, branch index
 
 function setDealSubTab(tab) {
+  // 'plan' は廃止 → 'active' にフォールバック
+  if (tab === 'plan') tab = 'active';
   dealSubTab = tab;
   // タブボタン切替
-  ['active','won','plan'].forEach(t => {
+  ['active','won'].forEach(t => {
     const b = document.getElementById('deal-sub-'+t);
     if (b) b.classList.toggle('active', t === tab);
   });
   // フィルターバー切替
-  const bars = { active:'filter-bar-active', won:'filter-bar-won', plan:'filter-bar-plan' };
+  const bars = { active:'filter-bar-active', won:'filter-bar-won' };
   Object.entries(bars).forEach(([k,id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = k === tab ? '' : 'none';
@@ -12378,7 +12424,6 @@ function setDealSubTab(tab) {
   const rv = document.getElementById('risk-view');
   const av = document.getElementById('actions-view');
   const wl = document.getElementById('won-list');
-  const pln = document.getElementById('plan-view');
   // 進行中タブ以外: 進行中の4ビューを完全に隠す+空にする
   if (tab !== 'active') {
     if (pv) { pv.style.display = 'none'; pv.innerHTML = ''; }
@@ -12391,19 +12436,14 @@ function setDealSubTab(tab) {
     if (rv) rv.style.display = '';
     if (av) av.style.display = '';
   }
-  // 受注済み・売上計画タブ用
+  // 受注済みタブ用
   if (wl) {
     wl.style.display = tab === 'won' ? '' : 'none';
     if (tab !== 'won') wl.innerHTML = '';
   }
-  if (pln) {
-    pln.style.display = tab === 'plan' ? '' : 'none';
-    if (tab !== 'plan') pln.innerHTML = '';
-  }
 
   if (tab === 'active') renderDeals();
   if (tab === 'won')    { initWonTabs(); renderWonDeals(); }
-  if (tab === 'plan')   { initPlanTabs(); renderSalesPlan(); }
 
   // タブ切替後、ページトップへスムーズスクロール（視覚的フィードバック）
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) {}
@@ -12443,24 +12483,7 @@ function initWonTabs() {
   });
 }
 
-function initPlanTabs() {
-  const c = document.getElementById('plan-ptabs');
-  if (!c || c.children.length) return;
-  const PCOLS = {'神戸':'#5a7b9e','福岡':'#7a8e5a','高知':'#c89856'};
-  const people = ap();
-  const allBtn = document.createElement('button');
-  allBtn.className = 'ptab active'; allBtn.textContent = '全担当者';
-  allBtn.onclick = () => { planBranch = -1; c.querySelectorAll('.ptab').forEach(b=>b.classList.remove('active')); allBtn.classList.add('active'); renderSalesPlan(); };
-  c.appendChild(allBtn);
-  people.forEach((p, i) => {
-    const b = document.createElement('button');
-    b.className = 'ptab'; b.style.fontSize='11px';
-    b.style.borderLeft = `3px solid ${PCOLS[p.branch||'']||'#8890b8'}`;
-    b.textContent = p.name || '担当者'+(i+1);
-    b.onclick = () => { planBranch = i; c.querySelectorAll('.ptab').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderSalesPlan(); };
-    c.appendChild(b);
-  });
-}
+// 旧 initPlanTabs は削除済(売上計画タブは実績確認と機能重複のため廃止)
 
 var wonBranchFilter = -1;
 
@@ -12478,14 +12501,7 @@ function setWonPeriod(period, btn) {
   renderWonDeals();
 }
 
-function setPlanPeriod(period, btn) {
-  planPeriod = period;
-  ['all','h1','h2'].forEach(p => {
-    const b = document.getElementById('plan-period-'+p);
-    if (b) b.classList.toggle('active', p === period);
-  });
-  renderSalesPlan();
-}
+// 旧 setPlanPeriod は削除済(売上計画タブ廃止)
 
 // ── 期間フィルター ─────────────────────────────────────────────
 function inPeriod(deliveryMonth, period) {
@@ -12859,202 +12875,7 @@ function renderWonDeals() {
   `;
 }
 
-// ── 売上計画ビュー ─────────────────────────────────────────────
-function renderSalesPlan() {
-  const el = document.getElementById('plan-view'); if (!el) return;
-  const people = ap();
-
-  // 対象月インデックス
-  const periodMonths = planPeriod === 'h1' ? [0,1,2,3,4,5]
-                     : planPeriod === 'h2' ? [6,7,8,9,10,11]
-                     : [0,1,2,3,4,5,6,7,8,9,10,11];
-
-  // 対象案件（失注以外）
-  const allDeals = (D.deals||[]).filter(d => {
-    if (!d.name) return false;
-    if (lstat(d) === '失注') return false;
-    const dm = d.deliveryMonth || d.implMonth || '';
-    const mi = implToFyIdx(dm);
-    return mi >= 0 && periodMonths.includes(mi);
-  }).filter(d => {
-    if (planBranch < 0) return true;
-    const sp = people[planBranch];
-    return sp && d.spId === sp.id;
-  });
-
-  // 確度別の加重係数
-  const PROB_WEIGHTS = { 5: 1.0, 4: 0.8, 3: 0.6, 2: 0.3, 1: 0.1 };
-  const probWeight = (p) => PROB_WEIGHTS[parseInt(p)] || 0;
-
-  // 月別データを集計
-  const now = new Date();
-  const currentMonth = now.getMonth(); // 0-11 (JS)
-  const currentMo = `${now.getFullYear()}-${String(currentMonth+1).padStart(2,'0')}`;
-
-  const monthData = periodMonths.map(mi => {
-    const mo = mi+4 <= 12 ? `${fy}-${String(mi+4).padStart(2,'0')}` : `${fy+1}-${String(mi-8).padStart(2,'0')}`;
-    const mDeals = allDeals.filter(d => (d.deliveryMonth || d.implMonth || '') === mo);
-    const won = mDeals.filter(d => lstat(d) === '受注');
-    const active = mDeals.filter(d => lstat(d) !== '受注');
-    const wonS = won.reduce((s,d)=>s+(parseFloat(d.sales)||0),0);
-    const actS = active.reduce((s,d)=>s+(parseFloat(d.sales)||0),0);
-    // 加重: 進行中案件のみ確度ベースで加重
-    const weightedActS = active.reduce((s,d)=>{
-      const sales = parseFloat(d.sales)||0;
-      return s + sales * probWeight(d.probability);
-    },0);
-    // 月別予算: 全社の月別予算 = 全拠点 branchBudgets の合計 (統一関数経由)
-    const bud = getBudgetValue('all', 's', mi);
-    return { mi, mo, label: ML[mi], won, active, wonS, actS, weightedActS, bud, allDeals: mDeals };
-  });
-
-  // 着地予想 = 確定 + 進行中加重
-  const totalWon = monthData.reduce((s,m) => s + m.wonS, 0);
-  const totalWeightedAct = monthData.reduce((s,m) => s + m.weightedActS, 0);
-  const projectedTotal = totalWon + totalWeightedAct;
-  const totalActRaw = monthData.reduce((s,m) => s + m.actS, 0);
-  const totalBudget = monthData.reduce((s,m) => s + m.bud, 0);
-  const budgetPct = totalBudget > 0 ? Math.round(projectedTotal / totalBudget * 100) : null;
-  const remainingDays = (() => {
-    // 期末までの残日数を計算（簡易：planPeriodの最終月の月末まで）
-    const lastMi = periodMonths[periodMonths.length - 1];
-    const lastMonth = lastMi+4 <= 12 ? lastMi+4 : lastMi-8;
-    const lastYear = lastMi+4 <= 12 ? fy : fy+1;
-    const endDate = new Date(lastYear, lastMonth, 0); // 月末
-    return Math.max(0, Math.ceil((endDate - now) / (1000*60*60*24)));
-  })();
-
-  // 着地予想カードHTML
-  const periodLabel = planPeriod === 'h1' ? '上半期' : planPeriod === 'h2' ? '下半期' : '通期';
-  const projHtml = `
-    <div style="background:linear-gradient(135deg,rgba(200,152,86,.08),rgba(200,152,86,.02));border:1.5px solid rgba(200,152,86,.25);border-radius:12px;padding:16px 20px;margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:800;color:#8a5a2e">🎯 ${periodLabel} 着地予想</div>
-        <div style="font-size:11px;color:var(--tx2)">残り <b style="color:var(--tx)">${remainingDays}日</b></div>
-      </div>
-      <div style="display:flex;gap:30px;padding:0 4px">
-        <div style="flex:1">
-          <div style="font-size:11px;font-weight:700;color:var(--tx2);letter-spacing:.04em;margin-bottom:6px">受注確定 + 進行中(加重) = 着地予想</div>
-          <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-            <span style="font-size:32px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;color:var(--tx)">${fmtN(Math.round(projectedTotal))}</span>
-            <span style="font-size:14px;color:var(--tx2);font-weight:700">千円</span>
-            ${budgetPct !== null ? `<span style="display:inline-block;font-size:12px;font-weight:800;padding:2px 8px;border-radius:8px;${budgetPct >= 100 ? 'background:rgba(122,142,90,.18);color:#4a5a32' : 'background:rgba(200,152,86,.18);color:#8a5a2e'}">予算比 ${budgetPct}%</span>` : ''}
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:8px;color:var(--tx2)">
-            <span>確定 <b style="color:var(--tx);font-weight:800;font-size:13px;font-variant-numeric:tabular-nums">${fmtN(Math.round(totalWon))}千</b></span>
-            <span>進行中 (加重) <b style="color:#5a7b9e;font-weight:800;font-size:13px;font-variant-numeric:tabular-nums">${fmtN(Math.round(totalWeightedAct))}千</b></span>
-            <span>進行中(全体) <b style="color:var(--tx3);font-weight:700;font-size:12px;font-variant-numeric:tabular-nums">${fmtN(Math.round(totalActRaw))}千</b></span>
-            ${totalBudget > 0 ? `<span>予算 <b style="color:var(--tx);font-weight:800;font-size:13px;font-variant-numeric:tabular-nums">${fmtN(Math.round(totalBudget))}千</b></span>` : ''}
-          </div>
-        </div>
-      </div>
-    </div>`;
-
-  // 月別バーチャート: 受注/進行中/予算GAP/予算ライン
-  const maxBarH = Math.max(1, ...monthData.map(m => Math.max(m.wonS + m.actS, m.bud)));
-  const barChartHtml = `
-    <div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:14px 18px;margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:800;color:var(--tx)">📊 月別 着地見通し</div>
-        <div style="display:flex;gap:14px;font-size:11px;color:var(--tx2);flex-wrap:wrap">
-          <span><span style="display:inline-block;width:10px;height:10px;background:#7a8e5a;border-radius:2px;margin-right:4px;vertical-align:middle"></span>受注確定</span>
-          <span><span style="display:inline-block;width:10px;height:10px;background:rgba(90,123,158,.5);border-radius:2px;margin-right:4px;vertical-align:middle"></span>進行中見込</span>
-          <span><span style="display:inline-block;width:10px;height:10px;background:repeating-linear-gradient(45deg,rgba(168,90,74,.12),rgba(168,90,74,.12) 3px,rgba(168,90,74,.22) 3px,rgba(168,90,74,.22) 6px);border-radius:2px;margin-right:4px;vertical-align:middle"></span>予算GAP</span>
-          <span><span style="display:inline-block;width:18px;height:0;border-top:2px dashed #a85a4a;margin-right:4px;vertical-align:middle"></span>予算ライン</span>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(${periodMonths.length},1fr);gap:8px;align-items:end;height:200px;padding:0 4px">
-        ${monthData.map(m => {
-          const isCurrent = m.mo === currentMo;
-          const total = m.wonS + m.actS;
-          const wonH = total > 0 ? (m.wonS / maxBarH * 160) : 0;
-          const actH = total > 0 ? (m.actS / maxBarH * 160) : 0;
-          const totalH = wonH + actH;
-          const budH = m.bud > 0 ? (m.bud / maxBarH * 160) : 0;
-          const gapH = Math.max(0, budH - totalH);
-          const finalH = totalH + gapH;
-          const budLinePos = m.bud > 0 ? `bottom:${budH}px` : '';
-          return `<div style="display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;position:relative;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-            ${isCurrent ? '<div style="content:\'\';position:absolute;left:50%;top:0;bottom:0;width:calc(100% + 4px);background:rgba(90,123,158,.06);border-radius:6px;z-index:0;transform:translateX(-50%)"></div>' : ''}
-            ${total > 0 ? `<div style="font-size:11px;font-weight:700;color:var(--tx);margin-bottom:3px;font-variant-numeric:tabular-nums;position:relative;z-index:2">${fmtN(Math.round(total))}</div>` : '<div style="font-size:11px;color:var(--tx3);position:relative;z-index:2">—</div>'}
-            <div style="display:flex;flex-direction:column;width:100%;gap:1px;position:relative;z-index:1;height:${finalH}px">
-              ${gapH > 0 ? `<div style="background:repeating-linear-gradient(45deg,rgba(168,90,74,.12),rgba(168,90,74,.12) 3px,rgba(168,90,74,.22) 3px,rgba(168,90,74,.22) 6px);height:${gapH}px;border-radius:3px 3px 0 0"></div>` : ''}
-              ${actH > 0 ? `<div style="background:rgba(90,123,158,.5);border-bottom:${m.wonS > 0 ? '1px solid #5a7b9e' : '0'};height:${actH}px;${gapH === 0 ? 'border-radius:3px 3px 0 0' : ''}"></div>` : ''}
-              ${wonH > 0 ? `<div style="background:#7a8e5a;height:${wonH}px;border-radius:0 0 3px 3px"></div>` : ''}
-              ${m.bud > 0 ? `<div style="position:absolute;left:-2px;right:-2px;height:2px;background:#a85a4a;z-index:2;${budLinePos};border-top:2px dashed #a85a4a"></div>` : ''}
-            </div>
-            <div style="font-size:11px;${isCurrent ? 'color:var(--tx);font-weight:800' : 'color:var(--tx2);font-weight:600'};margin-top:5px;padding-top:5px;border-top:0.5px solid var(--bds);position:relative;z-index:2;width:100%;text-align:center">${m.label}${isCurrent ? '<div style="display:block;font-size:9px;padding:1px 5px;background:#5a7b9e;color:#fff;border-radius:6px;margin-top:2px;font-weight:700;width:fit-content;margin-left:auto;margin-right:auto">今月</div>' : ''}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-
-  // 月別詳細リスト（アコーディオン風）
-  const monthListHtml = `
-    <div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:14px 18px">
-      <div style="font-size:14px;font-weight:800;color:var(--tx);margin-bottom:10px;padding-bottom:8px;border-bottom:0.5px solid var(--bds)">📋 月別 詳細</div>
-      ${monthData.map(m => {
-        const isCurrent = m.mo === currentMo;
-        const total = m.wonS + m.actS;
-        const wonPct = total > 0 ? (m.wonS / Math.max(total, m.bud) * 100) : 0;
-        const actPct = total > 0 ? (m.actS / Math.max(total, m.bud) * 100) : 0;
-        const gapPct = m.bud > total ? ((m.bud - total) / m.bud * 100) : 0;
-        const achievePct = m.bud > 0 ? Math.round(total / m.bud * 100) : null;
-        const status = achievePct === null ? '—' : achievePct >= 100 ? '✓ 達成' : achievePct >= 70 ? `▴ ${achievePct}%` : `▼ ${achievePct}%`;
-        const statusBg = achievePct === null ? 'background:var(--s3);color:var(--tx3)' : achievePct >= 100 ? 'background:rgba(122,142,90,.15);color:#4a5a32' : achievePct >= 70 ? 'background:rgba(200,152,86,.15);color:#8a5a2e' : 'background:rgba(168,90,74,.15);color:#7a3525';
-        const dealsList = m.allDeals.length > 0 ? m.allDeals.slice(0, 8).map(d => {
-          const pp = people.find(p=>p.id===d.spId);
-          const isWon = lstat(d) === '受注';
-          const prob = d.probability ? `P${d.probability}` : '';
-          return `<div style="display:grid;grid-template-columns:30px 1fr 90px 70px;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;font-size:12px;cursor:pointer;${isWon ? 'background:rgba(122,142,90,.06)' : ''}" onclick="openDealCard('${d.id}')" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background='${isWon?'rgba(122,142,90,.06)':''}'">
-            <span style="font-size:10px;font-weight:700;text-align:center;padding:2px 4px;border-radius:5px;background:${isWon?'rgba(122,142,90,.18)':'rgba(90,123,158,.15)'};color:${isWon?'#4a5a32':'#3a5a7e'}">${isWon?'受注':prob}</span>
-            <span style="font-weight:${isWon?700:600};color:var(--tx)">${_esc(d.name)} <span style="color:var(--tx3);font-size:11px">${pp?'/ '+_esc(pp.name):''}</span></span>
-            <span style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:${isWon?'#4a5a32':'#5a7b9e'}">${d.sales!==''?fmtN(d.sales)+'千':'—'}</span>
-            <span style="text-align:center;color:var(--tx3);font-size:11px">›</span>
-          </div>`;
-        }).join('') + (m.allDeals.length > 8 ? `<div style="font-size:11px;color:var(--tx3);padding:4px 8px;text-align:center">他 ${m.allDeals.length - 8} 件</div>` : '') : '<div style="font-size:11px;color:var(--tx3);padding:8px;text-align:center">案件なし</div>';
-
-        return `<details style="border-bottom:0.5px solid var(--bds);padding:8px 0" ${isCurrent ? 'open' : ''}>
-          <summary style="display:grid;grid-template-columns:60px 1fr 130px 70px 80px 20px;gap:10px;align-items:center;cursor:pointer;list-style:none;padding:4px 0;${isCurrent ? 'font-weight:800' : ''}">
-            <div style="font-weight:800;font-size:13px;color:${isCurrent ? '#5a7b9e' : 'var(--tx)'}">${m.label}${isCurrent ? ' (今月)' : ''}</div>
-            <div style="display:flex;gap:1px;height:8px;background:var(--bds);border-radius:4px;overflow:hidden">
-              ${wonPct > 0 ? `<div style="background:#7a8e5a;width:${wonPct}%"></div>` : ''}
-              ${actPct > 0 ? `<div style="background:rgba(90,123,158,.5);width:${actPct}%"></div>` : ''}
-              ${gapPct > 0 ? `<div style="background:repeating-linear-gradient(45deg,rgba(168,90,74,.12),rgba(168,90,74,.12) 3px,rgba(168,90,74,.22) 3px,rgba(168,90,74,.22) 6px);width:${gapPct}%"></div>` : ''}
-            </div>
-            <div style="text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">${fmtN(Math.round(total))}千${m.bud > 0 ? `<small style="font-size:10px;color:var(--tx3);font-weight:500;margin-left:2px"> / ${fmtN(Math.round(m.bud))}</small>` : ''}</div>
-            <div style="text-align:right;font-size:11px;color:var(--tx2);font-weight:600">${m.won.length + m.active.length}件${m.won.length > 0 && m.active.length > 0 ? ` (${m.won.length}+${m.active.length})` : ''}</div>
-            <span style="text-align:right;font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px;${statusBg};text-align:center;justify-self:end">${status}</span>
-            <div style="color:var(--tx3);font-size:14px;text-align:right">▼</div>
-          </summary>
-          <div style="padding:8px 12px 10px 70px;display:flex;flex-direction:column;gap:2px">
-            ${dealsList}
-          </div>
-        </details>`;
-      }).join('')}
-    </div>`;
-
-  // 納品月未設定の警告
-  const noDelivery = (D.deals||[]).filter(d => {
-    if (lstat(d) === '失注') return false;
-    if (!d.name) return false;
-    if (planBranch >= 0) { const sp=people[planBranch]; if(!sp||d.spId!==sp.id) return false; }
-    return !d.deliveryMonth && !d.implMonth;
-  });
-  const warnHtml = noDelivery.length ? `
-    <div style="background:rgba(200,152,86,.07);border:1px solid rgba(200,152,86,.2);border-radius:var(--rl);padding:11px 15px;margin-top:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--amb);margin-bottom:8px">⚠ 計上月（納品月）未設定 ${noDelivery.length}件（着地予想に反映されません）</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${noDelivery.slice(0,10).map(d => {
-          const pp = people.find(p=>p.id===d.spId);
-          return `<div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer" onclick="openDealCard('${d.id}')">${_esc(d.name)} <span style="color:var(--tx3)">${pp?'/ '+_esc(pp.name):''}</span></div>`;
-        }).join('')}
-        ${noDelivery.length > 10 ? `<div style="font-size:11px;color:var(--tx3);padding:4px">他 ${noDelivery.length-10}件...</div>` : ''}
-      </div>
-    </div>` : '';
-
-  el.innerHTML = projHtml + barChartHtml + monthListHtml + warnHtml;
-}
+// 旧 renderSalesPlan は削除済(売上計画タブ廃止・実績確認と機能重複のため)
 
 // ── 受注確定ボタン V8のみに限定（上書き） ─────────────────────
 const __origBuildDealBody = buildDealBody;
@@ -13580,16 +13401,16 @@ function doAddDeal() {
   // 追加した案件をすぐ表示
   cdSp = -1;
   dealSubTab = 'active';
-  ['active','won','plan'].forEach(t => {
+  ['active','won'].forEach(t => {
     const b = document.getElementById('deal-sub-'+t);
     if (b) b.classList.toggle('active', t==='active');
   });
-  const bars = {active:'filter-bar-active',won:'filter-bar-won',plan:'filter-bar-plan'};
+  const bars = {active:'filter-bar-active',won:'filter-bar-won'};
   Object.entries(bars).forEach(([k,bid]) => {
     const el = document.getElementById(bid); if (el) el.style.display = k==='active'?'':'none';
   });
   ['pipeline-view','deal-list'].forEach(id2 => { const el=document.getElementById(id2); if(el)el.style.display=''; });
-  ['won-list','plan-view'].forEach(id2 => { const el=document.getElementById(id2); if(el)el.style.display='none'; });
+  ['won-list'].forEach(id2 => { const el=document.getElementById(id2); if(el)el.style.display='none'; });
 
   setDealView('list');
   setTimeout(() => {
