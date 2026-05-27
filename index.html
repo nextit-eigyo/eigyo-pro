@@ -1140,7 +1140,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
 /* ════════════════ 案件サイドパネル(案D) ════════════════ */
 #deal-sidepanel {
   position:fixed; top:50px; right:0; bottom:0;
-  width:460px; background:#fff;
+  width:min(720px, 55vw); background:#fff;
   border-left:1.5px solid var(--bd);
   box-shadow:-4px 0 24px rgba(0,0,0,.12);
   transform:translateX(100%);
@@ -1183,9 +1183,9 @@ tr:hover td{background:rgba(90,123,158,.02)}
 /* サイドパネル内では buildDealBody の余白を縮小 */
 .dsp-body .dc-body { padding:10px 12px; max-width:none; margin:0; }
 
-/* パネル開いてる時: 案件エリアを左に圧縮 */
+/* パネル開いてる時: 案件エリアを左に圧縮 (パネル幅 + 20px gap) */
 body.has-sidepanel #home-deal-mode {
-  margin-right: 480px;
+  margin-right: min(740px, 57vw);
 }
 #home-deal-mode {
   transition:margin-right .25s ease-out;
@@ -1226,7 +1226,7 @@ body.has-sidepanel #home-deal-mode {
 }
 /* CSS Grid ベースの行レイアウト (table の幅不一致問題を回避) */
 .deal-grid {
-  font-size:12px;
+  font-size:13px;
 }
 .dg-row {
   display:grid;
@@ -1239,9 +1239,9 @@ body.has-sidepanel #home-deal-mode {
 .dg-row.dg-header {
   background:var(--s3);
   border-bottom:2px solid var(--bd);
-  font-size:10.5px; font-weight:700; color:var(--tx2);
+  font-size:12px; font-weight:700; color:var(--tx2);
 }
-.dg-row.dg-header > div { padding:6px 10px; }
+.dg-row.dg-header > div { padding:7px 10px; }
 .dg-row.dg-header > div:last-child { text-align:right; }
 .dg-row.deal-row { cursor:pointer; }
 .dg-row.deal-row:hover { background:var(--s2); }
@@ -1259,30 +1259,30 @@ body.has-sidepanel #home-deal-mode {
   display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;
 }
 .dt-info .nm {
-  font-size:13px; font-weight:800; color:var(--tx); line-height:1.2;
+  font-size:15px; font-weight:800; color:var(--tx); line-height:1.2;
 }
 .dt-info .nm.lost { color:var(--tx3); text-decoration:line-through; }
 .dt-info .prob-badge {
   display:inline-flex; align-items:center; gap:3px;
-  color:#fff; font-size:10px; font-weight:700;
-  padding:1px 7px; border-radius:9px; white-space:nowrap;
+  color:#fff; font-size:11px; font-weight:700;
+  padding:2px 8px; border-radius:9px; white-space:nowrap;
 }
-.dt-info .prob-badge .stars { font-size:9px; letter-spacing:.5px; }
+.dt-info .prob-badge .stars { font-size:10px; letter-spacing:.5px; }
 .dt-info .prob-badge.p1 { background:linear-gradient(135deg,#8a7e6a,#6a5e4a); }
 .dt-info .prob-badge.p2 { background:linear-gradient(135deg,#c89856,#a87a36); }
 .dt-info .prob-badge.p3 { background:linear-gradient(135deg,#5a7b9e,#3a5b7e); }
 .dt-info .prob-badge.p4 { background:linear-gradient(135deg,#8a5a2e,#6a3a0e); }
 .dt-info .prob-badge.p5 { background:linear-gradient(135deg,#7a8e5a,#5a6e3a); }
 .dt-info .row1 .pp-inline {
-  font-size:11px; color:var(--tx3); margin-left:auto;
+  font-size:12px; color:var(--tx3); margin-left:auto;
 }
 .dt-info .row1 .pp-inline .pp { color:var(--grn); font-weight:700; }
 .dt-info .pills {
   display:flex; flex-wrap:wrap; gap:3px;
 }
 .dt-info .pills .pill {
-  background:var(--s3); color:var(--tx2); padding:1px 6px;
-  border-radius:3px; font-size:10px; font-weight:600;
+  background:var(--s3); color:var(--tx2); padding:2px 7px;
+  border-radius:4px; font-size:11px; font-weight:600;
 }
 .dt-info .pills .pill.prod { background:rgba(90,123,158,.12); color:var(--acc); }
 .dt-info .pills .pill.cfg { background:rgba(99,102,241,.12); color:#6366f1; }
@@ -1304,15 +1304,15 @@ body.has-sidepanel #home-deal-mode {
 .dt-progress-bar .seg.current { background:#c89856; box-shadow:0 0 0 1px #8a5a2e; }
 .dt-progress-labels {
   display:grid; grid-template-columns:repeat(5,1fr); gap:2px;
-  font-size:9.5px; text-align:center;
+  font-size:11px; text-align:center;
 }
 .dt-progress-labels span { color:var(--tx3); }
 .dt-progress-labels span.done { color:#4a5a32; }
 .dt-progress-labels span.current { color:#8a5a2e; font-weight:700; }
 .dt-last-activity {
   background:var(--s2); border-left:2px solid #b4b2a9;
-  padding:3px 8px; border-radius:0 4px 4px 0;
-  font-size:10.5px; color:var(--tx2); line-height:1.35;
+  padding:4px 9px; border-radius:0 4px 4px 0;
+  font-size:12px; color:var(--tx2); line-height:1.4;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .dt-last-activity .lbl { color:var(--tx3); }
@@ -1320,14 +1320,14 @@ body.has-sidepanel #home-deal-mode {
 
 /* 次の動きセル(コンパクト) */
 .dt-next-cell .next-card {
-  border-radius:6px; padding:5px 9px; font-size:11px;
+  border-radius:6px; padding:6px 10px; font-size:12px;
 }
 .dt-next-cell .next-card .lbl-msg {
   display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
 }
-.dt-next-cell .next-card .lbl { font-size:9.5px; font-weight:700; letter-spacing:.03em; flex-shrink:0; }
-.dt-next-cell .next-card .msg { font-size:12px; font-weight:700; line-height:1.25; }
-.dt-next-cell .next-card .deadline { font-size:10px; margin-top:2px; }
+.dt-next-cell .next-card .lbl { font-size:11px; font-weight:700; letter-spacing:.03em; flex-shrink:0; }
+.dt-next-cell .next-card .msg { font-size:13px; font-weight:700; line-height:1.3; }
+.dt-next-cell .next-card .deadline { font-size:11px; margin-top:3px; }
 .dt-next-cell .next-card.urgent {
   background:rgba(168,90,74,.06); border:1px solid rgba(168,90,74,.3);
 }
@@ -1356,17 +1356,17 @@ body.has-sidepanel #home-deal-mode {
   display:flex; align-items:baseline; justify-content:flex-end; gap:5px; flex-wrap:wrap;
 }
 .dt-amount-cell .sales {
-  font-size:14px; font-weight:800; color:var(--tx);
+  font-size:16px; font-weight:800; color:var(--tx);
   font-variant-numeric:tabular-nums;
 }
 .dt-amount-cell .sales .u {
-  font-size:10px; color:var(--tx3); margin-left:1px;
+  font-size:11px; color:var(--tx3); margin-left:1px;
 }
 .dt-amount-cell .profit {
-  font-size:10.5px; color:#4a5a32; font-weight:700;
+  font-size:12px; color:#4a5a32; font-weight:700;
 }
 .dt-amount-cell .month {
-  font-size:10px; color:var(--tx3); margin-top:2px;
+  font-size:11px; color:var(--tx3); margin-top:2px;
 }
 
 /* 行展開エリア(タブ式) */
@@ -9094,13 +9094,19 @@ function showTab(name,btn){
 window._dealTabState = window._dealTabState || {};
 function _switchDealTab(dealId, tabKey) {
   window._dealTabState[dealId] = tabKey;
-  var el = document.getElementById('di-' + dealId);
-  if (!el) return;
-  el.querySelectorAll('.dt-tab').forEach(function(t) {
-    t.classList[t.dataset.tab === tabKey ? 'add' : 'remove']('active');
-  });
-  el.querySelectorAll('.dt-pane').forEach(function(p) {
-    p.classList[p.dataset.pane === tabKey ? 'add' : 'remove']('active');
+  // 行(di-XXX) と サイドパネル(deal-sidepanel) 両方を検索対象に
+  var searchAreas = [];
+  var rowEl = document.getElementById('di-' + dealId);
+  if (rowEl) searchAreas.push(rowEl);
+  var panel = document.getElementById('deal-sidepanel');
+  if (panel && window._sidepanelDealId === dealId) searchAreas.push(panel);
+  searchAreas.forEach(function(area) {
+    area.querySelectorAll('.dt-tab').forEach(function(t) {
+      t.classList[t.dataset.tab === tabKey ? 'add' : 'remove']('active');
+    });
+    area.querySelectorAll('.dt-pane').forEach(function(p) {
+      p.classList[p.dataset.pane === tabKey ? 'add' : 'remove']('active');
+    });
   });
 }
 function _getDealTab(dealId) {
