@@ -1381,9 +1381,6 @@ body.has-sidepanel #home-deal-mode {
   padding:30px; text-align:center; color:var(--tx3); font-size:13px;
 }
 
-/* ビュー切替ボタン */
-.dview-btn.active { background:var(--tx) !important; color:#fff !important; }
-
 /* ━━━ 案件カード 水平タブナビ(案①) ━━━ */
 .dt-tabbar {
   display:flex; gap:2px; padding:6px 12px 0;
@@ -2043,11 +2040,7 @@ body.has-sidepanel #home-deal-mode {
       <select id="deal-prob-filter" style="display:none">
         <option value="" selected></option>
       </select>
-      <!-- ビュー切替: テーブル / カード -->
-      <div id="deal-view-toggle" style="display:flex;gap:2px;background:var(--s3);border-radius:7px;padding:2px;flex-shrink:0" title="表示モード切替">
-        <button class="dview-btn" data-view="table" onclick="_setDealView('table')" style="font-size:11.5px;padding:5px 10px;border:none;background:var(--tx);color:#fff;border-radius:5px;font-weight:700;cursor:pointer">📊 テーブル</button>
-        <button class="dview-btn" data-view="card" onclick="_setDealView('card')" style="font-size:11.5px;padding:5px 10px;border:none;background:transparent;color:var(--tx2);border-radius:5px;font-weight:700;cursor:pointer">🎴 カード</button>
-      </div>
+      <!-- ビュー切替トグルは削除済(テーブル固定) -->
       <div id="deal-count-badge" style="font-size:12px;color:var(--tx3);flex-shrink:0"></div>
     </div>
   </div>
@@ -5007,10 +5000,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof setHomeMode === 'function') {
       try { setHomeMode('num'); } catch(e) { console.error('初期モード設定エラー:', e); }
     }
-    // 案件ビューモード(table/card)を localStorage から復元
-    if (typeof _setDealView === 'function') {
-      try { _setDealView(window._dealViewMode || 'table'); } catch(e) { console.error('viewMode 初期化エラー:', e); }
-    }
+    // 案件ビューモードは 'table' 固定(カードビュー削除済)→ 初期化呼び出し不要
   }, 100);
 });
 
@@ -5200,12 +5190,16 @@ function getIssueDef(key) {
   return ISSUE_TYPES.find(function(i){ return i.key === key; }) || null;
 }
 
+// 受注確度の統一マスタ(全画面で参照: テーブル/カード/KPI/プルダウン)
+// weight と pct は同値(別名)。両方の参照に対応するため両方持つ。
+// 旧バグ: グローバルとローカルで定義が3重(「中50%」vs「提案中60%」)
+// → 馬場さんの「数字ミスNG」モットーに反するため統一
 const PROB_DEFS = [
-  { rank: 1, label: '不確定', weight: 10, color: '#aaaaaa', desc: 'リード・情報収集段階' },
-  { rank: 2, label: '低',     weight: 20, color: '#c89856', desc: '初期接触・関心あり' },
-  { rank: 3, label: '中',     weight: 50, color: '#6b4a1e', desc: '提案中・商談継続' },
-  { rank: 4, label: '口頭受注', weight: 80, color: '#3a5a7e', desc: '口頭受注' },
-  { rank: 5, label: '受注',   weight: 100, color: '#4a5a32', desc: '注文書受領' },
+  { rank: 1, label: '引合い',   weight: 10,  pct: 10,  stars: '★☆☆☆☆', color: '#8a7e6a', desc: 'リード・情報収集段階' },
+  { rank: 2, label: '検討中',   weight: 30,  pct: 30,  stars: '★★☆☆☆', color: '#c89856', desc: '初期接触・関心あり' },
+  { rank: 3, label: '提案中',   weight: 60,  pct: 60,  stars: '★★★☆☆', color: '#5a7b9e', desc: '提案中・商談継続' },
+  { rank: 4, label: '口頭受注', weight: 80,  pct: 80,  stars: '★★★★☆', color: '#8a5a2e', desc: '口頭での受注確定' },
+  { rank: 5, label: '受注',     weight: 100, pct: 100, stars: '★★★★★', color: '#7a8e5a', desc: '注文書受領' },
 ];
 function getProbDef(rank) {
   return PROB_DEFS.find(function(p){ return p.rank === rank; }) || PROB_DEFS[2];
@@ -5899,284 +5893,17 @@ function _getLatestActivityMemo(d) {
 
 // ── 進捗統合ビュー（プログレスバー型） ──
 function renderProgressView(deals) {
-  // ビューモードに応じて分岐 (案④: テーブル / 既存: カード)
-  if (window._dealViewMode === 'table') {
-    if (typeof renderDealsTableView === 'function') {
-      renderDealsTableView(deals);
-      return;
-    }
-  }
-  const el = document.getElementById('deal-list');
-  if (!el) return;
-  el.innerHTML = '';
-
-  if (!deals.length) {
-    el.innerHTML = '<div class="empty" style="padding:40px 20px">該当案件はありません</div>';
-    return;
-  }
-
-  // 並び替え
-  const sortedDeals = deals.slice();
-  if (dealSortMode === 'priority') {
-    // urgent > attn > progress > won
-    const ORDER = { urgent: 0, attn: 1, progress: 2, won: 3 };
-    sortedDeals.sort((a,b) => {
-      const ao = ORDER[_getDealUrgency(a)] || 4;
-      const bo = ORDER[_getDealUrgency(b)] || 4;
-      if (ao !== bo) return ao - bo;
-      // 同じ重要度なら期限が古い順
-      const ad = a.nextDate || '9999';
-      const bd = b.nextDate || '9999';
-      return ad.localeCompare(bd);
-    });
-  } else if (dealSortMode === 'phase') {
-    // 受注に近い順 (4→0)
-    sortedDeals.sort((a,b) => _getDealPhase(b) - _getDealPhase(a));
-  } else if (dealSortMode === 'deadline') {
-    sortedDeals.sort((a,b) => {
-      const ad = a.nextDate || '9999-99-99';
-      const bd = b.nextDate || '9999-99-99';
-      return ad.localeCompare(bd);
-    });
-  } else if (dealSortMode === 'amount') {
-    sortedDeals.sort((a,b) => (parseFloat(b.sales)||0) - (parseFloat(a.sales)||0));
-  }
-
-  // 各案件のカードを生成
-  sortedDeals.forEach(d => {
-    el.appendChild(_buildProgressRow(d));
-  });
-}
-
-// 1行カード生成
-function _buildProgressRow(d) {
-  const people = ap();
-  const pp = people.find(p => p.id === d.spId);
-  const phaseIdx = _getDealPhase(d);
-  const urgency = _getDealUrgency(d);
-  const memoInfo = _getLatestActivityMemo(d);
-  const sales = parseFloat(d.sales) || 0;
-  const profit = sales - (parseFloat(d.cost) || 0);
-  const profitRate = sales > 0 ? Math.round(profit / sales * 100) : 0;
-
-  // ── ステータスバー色（6番: 3色に削減、受注はバーなし） ──
-  const barColor = urgency === 'urgent' ? '#a85a4a'    // 要対応: 赤茶
-                 : urgency === 'attn'   ? '#c89856'    // 注意: 銅
-                 :                        '#7a8e5a';   // 順調: オリーブ
-  const isWon = urgency === 'won';
-
-  // ── 確度ラベル＋％（2番） ──
-  const PROB_DEFS = {
-    1: { label: '引合い',   pct: 10, stars: '★☆☆☆☆', color: '#8a7e6a' },
-    2: { label: '検討中',   pct: 30, stars: '★★☆☆☆', color: '#8a7e6a' },
-    3: { label: '提案中',   pct: 60, stars: '★★★☆☆', color: '#5a7b9e' },
-    4: { label: '口頭受注', pct: 80, stars: '★★★★☆', color: '#c89856' },
-    5: { label: '受注',     pct: 100, stars: '★★★★★', color: '#7a8e5a' }
-  };
-  const probKey = parseInt(d.probability) || 3;
-  const probDef = PROB_DEFS[probKey] || PROB_DEFS[3];
-
-  // ── プログレスバーHTML（5番: ラベルを営業実態に） ──
-  const phaseLabels = ['訪問','提案','見積','口頭受注','受注'];
-  const progressHtml = `
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;height:7px;align-items:center">
-      ${phaseLabels.map((_, i) => {
-        let bg = '#ebe4d4';
-        if (i < phaseIdx) bg = '#7a8e5a';
-        else if (i === phaseIdx) bg = isWon ? '#8a5a2e' : '#c89856';
-        const borderStyle = (i === phaseIdx && !isWon)
-          ? 'box-shadow:0 0 0 1.5px #8a5a2e'
-          : '';
-        return `<div style="height:7px;border-radius:2px;background:${bg};${borderStyle}"></div>`;
-      }).join('')}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;font-size:12px;margin-top:5px">
-      ${phaseLabels.map((label, i) => {
-        let color = 'var(--tx3)';
-        let weight = '400';
-        if (i < phaseIdx) { color = '#4a5a32'; }
-        else if (i === phaseIdx) {
-          color = isWon ? '#6b4a1e' : '#8a5a2e';
-          weight = '700';
-        }
-        const mark = (isWon && i === 4) ? '✓' : '';
-        return `<div style="text-align:center;color:${color};font-weight:${weight}">${label}${mark}</div>`;
-      }).join('')}
-    </div>
-  `;
-
-  // ── 履歴（最終活動メモ抜粋） ──
-  const memoLine = memoInfo && memoInfo.memo
-    ? `<div style="font-size:13px;background:#f3ede0;border-left:2px solid #b4b2a9;padding:6px 10px;border-radius:0 3px 3px 0;line-height:1.45;margin-top:6px">
-         <span style="color:#5a5e5a;font-weight:500">最終活動:</span>
-         <span style="color:var(--tx)"> ${_esc(memoInfo.date.slice(5).replace('-','/'))}${memoInfo.actType ? ' ' + _esc(memoInfo.actType) : ''}「${_esc(memoInfo.memo.length > 70 ? memoInfo.memo.slice(0,70) + '…' : memoInfo.memo)}」</span>
-       </div>`
-    : (memoInfo && memoInfo.date
-        ? `<div style="font-size:13px;background:#f3ede0;border-left:2px solid #b4b2a9;padding:6px 10px;border-radius:0 3px 3px 0;line-height:1.45;margin-top:6px">
-             <span style="color:#5a5e5a;font-weight:500">最終活動:</span>
-             <span style="color:var(--tx2)"> ${_esc(memoInfo.date.slice(5).replace('-','/'))}${memoInfo.actType ? ' ' + _esc(memoInfo.actType) : ''} (メモなし)</span>
-           </div>`
-        : '');
-
-  // ── 「次の動き」エリア（7番: 主役、期限を中に包含） ──
-  let nextActionHtml = '';
-  if (isWon) {
-    nextActionHtml = `
-      <div style="background:rgba(122,142,90,.1);border:1px solid rgba(122,142,90,.35);border-radius:6px;padding:8px 11px">
-        <div style="font-size:12px;color:#4a5a32;font-weight:700;letter-spacing:.04em;margin-bottom:4px">✓ 受注確定</div>
-        <div style="font-size:15px;color:var(--tx);font-weight:500">納品準備中</div>
-      </div>`;
+  // テーブルビュー固定(カードビューは削除済)
+  // ソートは renderDealsTableView 内で実施
+  if (typeof renderDealsTableView === 'function') {
+    renderDealsTableView(deals);
   } else {
-    // 期限テキストを生成
-    let deadlineLine = '';
-    let deadlineColor = '#6b4a1e';
-    let deadlineWeight = '400';
-    if (d.nextDate) {
-      const days = Math.floor((new Date() - new Date(d.nextDate)) / (1000*60*60*24));
-      const wtDef = d.waitType ? getWaitTypeDef(d.waitType) : null;
-      const wtLabel = wtDef ? (wtDef.icon + ' ' + wtDef.label) : '予定';
-      const dateStr = d.nextDate.slice(5).replace('-','/');
-      if (days > 0) {
-        deadlineLine = `⏰ 期限経過 ${days}日 (${dateStr} ${wtLabel})`;
-        deadlineColor = '#7a3525';
-        deadlineWeight = '600';
-      } else if (days === 0) {
-        deadlineLine = `🎯 本日期限 (${dateStr} ${wtLabel})`;
-        deadlineColor = '#8a5a2e';
-        deadlineWeight = '600';
-      } else {
-        deadlineLine = `📅 予定 ${dateStr} (${wtLabel})`;
-      }
-    } else if (memoInfo && memoInfo.date) {
-      const days = Math.floor((new Date() - new Date(memoInfo.date)) / (1000*60*60*24));
-      if (days >= 14) {
-        deadlineLine = `⚠️ ${days}日 動きなし`;
-        deadlineColor = '#7a3525';
-        deadlineWeight = '600';
-      } else {
-        deadlineLine = `📝 最終活動 ${days}日前`;
-        deadlineColor = '#8a7e6a';
-      }
-    } else {
-      deadlineLine = '⚠️ 次回予定未設定';
-      deadlineColor = '#8a5a2e';
-      deadlineWeight = '600';
-    }
-
-    const nextContent = d.nextAction
-      ? _esc(d.nextAction.length > 50 ? d.nextAction.slice(0, 50) + '…' : d.nextAction)
-      : '<span style="color:var(--tx3);font-weight:400;font-style:italic">次のアクション未設定</span>';
-
-    nextActionHtml = `
-      <div style="background:linear-gradient(135deg,rgba(200,152,86,.12),rgba(200,152,86,.05));border:1px solid rgba(200,152,86,.35);border-radius:6px;padding:8px 11px">
-        <div style="font-size:12px;color:#8a5a2e;font-weight:700;letter-spacing:.04em;margin-bottom:4px">🎯 次の動き</div>
-        <div style="font-size:15px;color:var(--tx);font-weight:500;line-height:1.35">${nextContent}</div>
-        <div style="font-size:13px;color:${deadlineColor};margin-top:5px;font-weight:${deadlineWeight}">${deadlineLine}</div>
-      </div>`;
+    var el = document.getElementById('deal-list');
+    if (el) el.innerHTML = '<div class="empty" style="padding:40px 20px">テーブル描画関数が見つかりません</div>';
   }
-
-  // ── 担当者情報（1番: 拠点と県を区切る） ──
-  const pcols = {'神戸':'#5a7b9e','福岡':'#7a8e5a','高知':'#c89856','東京':'#8a5a2e','新潟':'#a85a4a'};
-  const branchColor = pp ? (pcols[pp.branch||'']||'#8a7e6a') : '#8a7e6a';
-  const personHtml = pp
-    ? `<span style="color:${branchColor};font-weight:600">${_esc(pp.name)}</span>` +
-      `<span style="color:#8a7e6a;margin-left:3px">（${_esc(pp.branch||'—')}）</span>` +
-      (d.pref ? `<span style="color:#8a7e6a;margin-left:6px">📍 ${_esc(d.pref)}</span>` : '')
-    : '<span style="color:var(--amb)">⚠️ 未割当</span>' +
-      (d.pref ? `<span style="color:#8a7e6a;margin-left:6px">📍 ${_esc(d.pref)}</span>` : '');
-
-  // ── 商品ピル + 案件種別・ルート ──
-  const prodPills = [];
-  if (d.productType) prodPills.push(`<span style="background:#f3ede0;padding:2px 8px;border-radius:3px;color:#5a4f44;font-size:12px">${_esc(d.productType)}</span>`);
-  if (d.configType) prodPills.push(`<span style="background:#f3ede0;padding:2px 8px;border-radius:3px;color:#5a4f44;font-size:12px">${_esc(d.configType)}${d.configCount?' '+_esc(d.configCount):''}</span>`);
-  // 案件種別タグ（新規開局・新規他社入替・既存バージョンアップ等）
-  if (d.dealType) prodPills.push(`<span style="background:rgba(122,142,90,.15);color:#4a5a32;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:500">🏷️ ${_esc(d.dealType)}</span>`);
-  // 案件ルートタグ（既存顧客紹介・Web・展示会等）
-  if (d.route) {
-    const routeLabel = d.routeRef ? `${d.route}（${d.routeRef}）` : d.route;
-    prodPills.push(`<span style="background:rgba(168,90,74,.10);color:#7a3525;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:500">🚪 ${_esc(routeLabel)}</span>`);
-  }
-  // 区分（販売店・グループ薬局のみ表示、直販は省略）
-  if (d.category && d.category !== '直販') prodPills.push(`<span style="background:rgba(90,123,158,.12);color:#3a5a7e;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:500">${_esc(d.category)}</span>`);
-
-  // ── 金額エリア（4番: 文字大きく、千・納品を明示） ──
-  const amountHtml = sales > 0
-    ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-         <div style="display:flex;align-items:baseline;gap:5px;justify-content:flex-end">
-           <span style="font-size:13px;color:#8a7e6a;font-weight:500">売上</span>
-           <span style="font-size:20px;font-weight:800;color:var(--tx);font-variant-numeric:tabular-nums;line-height:1">${fmtN(Math.round(sales))}</span>
-           <span style="font-size:13px;color:#8a7e6a">千円</span>
-         </div>
-         <div style="font-size:14px;color:#4a5a32;font-weight:600;font-variant-numeric:tabular-nums">粗利 ${fmtN(Math.round(profit))}千円${sales > 0 ? ' ('+profitRate+'%)' : ''}</div>
-         <div style="font-size:13px;color:#5a4f44;margin-top:6px;padding-top:6px;border-top:0.5px solid #ebe4d4;width:100%;text-align:right">計上月: ${d.deliveryMonth ? d.deliveryMonth.replace('-','年')+'月' : (d.implMonth ? d.implMonth.replace('-','年')+'月' : '未設定')}</div>
-       </div>`
-    : `<div style="text-align:right;font-size:13px;color:var(--tx3)">金額未設定</div>`;
-
-  // ── 行コンテナ（外枠） ──
-  const row = document.createElement('div');
-  row.className = 'di';
-  row.id = 'di-' + d.id;
-  row.setAttribute('data-deal-id', d.id);
-  row.style.cssText = isWon
-    ? 'background:rgba(122,142,90,.04);border:0.5px solid rgba(122,142,90,.3);border-radius:8px;margin-bottom:8px;overflow:hidden;transition:all .15s'
-    : 'background:var(--s1);border:0.5px solid var(--bd);border-radius:8px;margin-bottom:8px;overflow:hidden;transition:all .15s';
-
-  // 上層: 行レイアウト
-  const top = document.createElement('div');
-  const gridCols = isWon ? '1.6fr 1.7fr 1fr 14px' : '6px 1.6fr 1.7fr 1fr 14px';
-  top.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:14px;align-items:center;padding:14px 16px;cursor:pointer;transition:all .15s`;
-  top.onmouseenter = function() { this.style.background = 'var(--s2)'; };
-  top.onmouseleave = function() { this.style.background = ''; };
-  top.onclick = function() { toggleDI(d.id); };
-
-  const barHtml = isWon
-    ? ''
-    : `<div style="width:6px;border-radius:3px;background:${barColor};align-self:stretch;min-height:90px"></div>`;
-
-  top.innerHTML = `
-    ${barHtml}
-    <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
-      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-        <span style="font-size:17px;font-weight:800;color:var(--tx);line-height:1.2">${_esc(d.name||'—')}</span>
-        <span style="display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,${probDef.color},${probDef.color}cc);color:#fff;font-size:13px;font-weight:700;padding:3px 11px;border-radius:11px;white-space:nowrap">
-          <span style="letter-spacing:1px;font-size:11px">${probDef.stars}</span>
-          <span>${probDef.label}</span>
-          <span style="font-weight:800">${probDef.pct}%</span>
-        </span>
-      </div>
-      <div style="font-size:13px;display:flex;align-items:center;gap:2px;flex-wrap:wrap">
-        ${personHtml}
-      </div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">${prodPills.join('')}</div>
-    </div>
-    <div style="display:flex;flex-direction:column;min-width:0">
-      ${progressHtml}
-      ${memoLine}
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-      ${nextActionHtml}
-      ${amountHtml}
-    </div>
-    <div class="dc" style="color:var(--tx3);font-size:18px;text-align:center;transition:transform .2s">›</div>
-  `;
-  row.appendChild(top);
-
-  // 下層: 展開エリア（最初は非表示、クリックで開く）
-  const body = document.createElement('div');
-  body.className = 'db-body';
-  body.style.cssText = 'display:none;border-top:0.5px solid var(--bd);background:var(--s2);padding:14px 16px';
-  try {
-    if (typeof buildDealBody === 'function') {
-      body.innerHTML = buildDealBody(d);
-    }
-  } catch(e) {
-    console.error('buildDealBody エラー:', e);
-    body.innerHTML = '<div style="padding:20px;color:var(--red)">案件詳細の読み込みに失敗しました</div>';
-  }
-  row.appendChild(body);
-
-  return row;
 }
+
+// 旧 _buildProgressRow 関数は削除済(Phase4 dead code除去・card viewはテーブル化により不要)
 let _dealMonthFilter = null; // null = 未初期化、'' = 全月
 
 function setDealView(mode){
@@ -7215,27 +6942,12 @@ function addVisit(dealId){
       try { renderDeals(); } catch(e) { console.error('renderDeals エラー:', e); }
     }
   } else if (statusChanged) {
-    // 口頭受注など、確度だけ変わったケース：カード全体を再描画（確度バーが更新される）
+    // 口頭受注など、確度だけ変わったケース：テーブル全体を再描画 + サイドパネル更新
     refreshDH(d);
-    const diEl = document.getElementById('di-'+dealId);
-    if (diEl && diEl.parentNode) {
-      const wasOpen = (function(){ var b = diEl.querySelector('.db-body'); return b && b.style.display && b.style.display !== 'none'; })();
-      const newEl = _buildProgressRow(d);
-      diEl.parentNode.replaceChild(newEl, diEl);
-      if (wasOpen) toggleDI(dealId);
-    }
+    _refreshDealAfterEdit(dealId);
   } else {
-    // 通常の活動記録：履歴を更新 + カード全体を再描画（メモ抜粋・期限テキストが更新されるため）
-    const vh=document.getElementById('vh-'+dealId);
-    if(vh)vh.innerHTML=buildVisitRows(d);
-    // カード全体の再描画（展開状態を維持）
-    const diEl = document.getElementById('di-'+dealId);
-    if (diEl && diEl.parentNode) {
-      const wasOpen = (function(){ var b = diEl.querySelector('.db-body'); return b && b.style.display && b.style.display !== 'none'; })();
-      const newEl = _buildProgressRow(d);
-      diEl.parentNode.replaceChild(newEl, diEl);
-      if (wasOpen) toggleDI(dealId);
-    }
+    // 通常の活動記録：履歴更新 + テーブル全体を再描画 + サイドパネル更新
+    _refreshDealAfterEdit(dealId);
   }
 }
 
@@ -7243,16 +6955,8 @@ function delVisit(dealId,idx){
   const d=D.deals.find(x=>x.id===dealId);if(!d)return;
   if(!confirm('この訪問記録を削除しますか？'))return;
   d.visits.splice(idx,1);save();
-  const vh=document.getElementById('vh-'+dealId);
-  if(vh)vh.innerHTML=buildVisitRows(d);
-  // カード全体の再描画（メモ抜粋が更新されるため）
-  const diEl = document.getElementById('di-'+dealId);
-  if (diEl && diEl.parentNode) {
-    const wasOpen = (function(){ var b = diEl.querySelector('.db-body'); return b && b.style.display && b.style.display !== 'none'; })();
-    const newEl = _buildProgressRow(d);
-    diEl.parentNode.replaceChild(newEl, diEl);
-    if (wasOpen) toggleDI(dealId);
-  }
+  // テーブル全体を再描画 + サイドパネル更新(履歴件数等が反映される)
+  _refreshDealAfterEdit(dealId);
 }
 
 function delDeal(id){
@@ -9139,30 +8843,34 @@ function _toggleDealSection(dealId, sectionKey) {
   }
 }
 
+// ════════ 案件編集後の再描画ヘルパ(部分更新の旧コードを置換) ════════
+// 旧 _buildProgressRow による行差し替えは、テーブル化により構造非互換になったため
+// 案件編集後は全体再描画 + サイドパネルがあれば再構築する
+function _refreshDealAfterEdit(dealId) {
+  if (typeof renderDeals === 'function') {
+    try { renderDeals(); } catch(e) { console.error('renderDeals エラー:', e); }
+  }
+  if (window._sidepanelDealId === dealId && typeof _openSidepanel === 'function') {
+    try { _openSidepanel(dealId); } catch(e) { console.error('サイドパネル更新エラー:', e); }
+  }
+}
+
 // ════════ 案件 Excelテーブルビュー(案④) ════════
-// ビュー状態 (localStorage に保存)
-window._dealViewMode = (function(){
-  try { return localStorage.getItem('ep_deal_view_mode') || 'table'; } catch(e){ return 'table'; }
-})();
+// ビューモードは 'table' 固定化(カードビューは削除済)
+// localStorage に古い 'card' 値が残ってる場合はクリーンアップ
+window._dealViewMode = 'table';
+try {
+  if (localStorage.getItem('ep_deal_view_mode') === 'card') {
+    localStorage.removeItem('ep_deal_view_mode');
+  }
+} catch(e) {}
 window._dtSortField = 'priority';  // 列ソート
 window._dtSortDesc = false;
-window._dtExpandedIds = new Set();  // 展開中の案件ID
+window._dtExpandedIds = new Set();  // 展開中の案件ID(レガシー)
 
+// 旧 _setDealView は API 互換のため残置(常にテーブル表示・他コードからの呼び出し用)
 function _setDealView(mode) {
-  window._dealViewMode = mode;
-  try { localStorage.setItem('ep_deal_view_mode', mode); } catch(e){}
-  // ボタン状態同期
-  document.querySelectorAll('#deal-view-toggle .dview-btn').forEach(function(b) {
-    var isActive = b.dataset.view === mode;
-    b.style.background = isActive ? 'var(--tx)' : 'transparent';
-    b.style.color = isActive ? '#fff' : 'var(--tx2)';
-    b.classList[isActive ? 'add' : 'remove']('active');
-  });
-  // 案D: カードビューに戻る時はサイドパネルを閉じる
-  if (mode !== 'table' && typeof _closeSidepanel === 'function') {
-    _closeSidepanel();
-  }
-  // 再描画
+  window._dealViewMode = 'table';
   if (typeof renderDeals === 'function') renderDeals();
 }
 
@@ -9195,18 +8903,16 @@ function _openSidepanel(dealId) {
 
   window._sidepanelDealId = dealId;
 
-  // パネルヘッダー
+  // パネルヘッダー(統一マスタ PROB_DEFS を参照)
   var probKey = getProb(d);
-  var PROB_LABELS = ['引合い','検討中','提案中','口頭受注','受注'];
-  var PROB_PCTS = [10, 30, 60, 80, 100];
-  var PROB_STARS = ['★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★'];
+  var probDefSP = PROB_DEFS.find(function(p){ return p.rank === probKey; }) || PROB_DEFS[2];
 
   var headerHtml = '<div class="dsp-header">'
     + '<span class="dsp-title">🏥 '+_esc(d.name||'(無名)')+'</span>'
     + '<span class="dsp-prob p'+probKey+'">'
-    +   '<span>'+(PROB_STARS[probKey-1]||'☆☆☆☆☆')+'</span>'
-    +   '<span>'+_esc(PROB_LABELS[probKey-1]||'')+'</span>'
-    +   '<span>'+(PROB_PCTS[probKey-1]||0)+'%</span>'
+    +   '<span>'+_esc(probDefSP.stars||'☆☆☆☆☆')+'</span>'
+    +   '<span>'+_esc(probDefSP.label||'')+'</span>'
+    +   '<span>'+(probDefSP.weight||0)+'%</span>'
     + '</span>'
     + '<button class="dsp-close" onclick="_closeSidepanel()" title="閉じる(Esc)">×</button>'
     + '</div>';
@@ -9337,10 +9043,8 @@ function _dtBuildRow(d, people) {
   var isVerbal = ls === '口頭受注';
   var isLost = ls === '失注' || ls === '延期';
 
-  // 確度ラベル(image3スタイル) - PROB_DEFSのstarsがundefinedバグ修正のため、ここで定義
-  var PROB_LABELS = ['引合い','検討中','提案中','口頭受注','受注'];
-  var PROB_PCTS = [10, 30, 60, 80, 100];
-  var PROB_STARS = ['★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★'];
+  // 確度マスタ: グローバル PROB_DEFS を参照(統一)
+  var probDefRow = PROB_DEFS.find(function(p){ return p.rank === probKey; }) || PROB_DEFS[2];
 
   // ① 案件情報セル(リッチ表示・image3風)
   var pillsHtml = '';
@@ -9366,9 +9070,9 @@ function _dtBuildRow(d, people) {
     +   '<div class="row1">'
     +     '<span class="nm'+(isLost?' lost':'')+'">'+_esc(d.name||'—')+'</span>'
     +     '<span class="prob-badge p'+probKey+'">'
-    +       '<span class="stars">'+(PROB_STARS[probKey-1]||'☆☆☆☆☆')+'</span>'
-    +       '<span>'+_esc(PROB_LABELS[probKey-1]||ls||'未設定')+'</span>'
-    +       '<span>'+(PROB_PCTS[probKey-1]||0)+'%</span>'
+    +       '<span class="stars">'+_esc(probDefRow.stars||'☆☆☆☆☆')+'</span>'
+    +       '<span>'+_esc(probDefRow.label||ls||'未設定')+'</span>'
+    +       '<span>'+(probDefRow.weight||0)+'%</span>'
     +     '</span>'
     +     '<span class="pp-inline">'+personInline+'</span>'
     +   '</div>'
@@ -12564,14 +12268,8 @@ function updDeal(id, field, val) {
     }
 
     refreshDH(d);
-    // カード全体を再描画（担当者名・色が変わるため）
-    const diEl = document.getElementById('di-'+id);
-    if (diEl && diEl.parentNode) {
-      const wasOpen = (function(){ var b = diEl.querySelector('.db-body'); return b && b.style.display && b.style.display !== 'none'; })();
-      const newEl = _buildProgressRow(d);
-      diEl.parentNode.replaceChild(newEl, diEl);
-      if (wasOpen) toggleDI(id);
-    }
+    // テーブル全体を再描画 + サイドパネル更新(担当者名・色が変わるため)
+    _refreshDealAfterEdit(id);
   } else if (field === 'probability') {
     // ── 確度変更時のステータス自動連動 ──
     var newProb = parseInt(val);
@@ -12613,14 +12311,8 @@ function updDeal(id, field, val) {
       }
       return;
     }
-    // 通常: カード全体を再描画（確度バーとステータスバッジが反映される）
-    var diElP = document.getElementById('di-'+id);
-    if (diElP && diElP.parentNode) {
-      var wasOpenP = (function(){ var b = diElP.querySelector('.db-body'); return b && b.style.display && b.style.display !== 'none'; })();
-      var newElP = _buildProgressRow(d);
-      diElP.parentNode.replaceChild(newElP, diElP);
-      if (wasOpenP) toggleDI(id);
-    }
+    // テーブル全体を再描画 + サイドパネル更新(確度バーとステータスバッジ反映)
+    _refreshDealAfterEdit(id);
     return;
   } else if ((field === 'sales' || field === 'cost' || field === 'deliveryMonth') && d.actualsReflected) {
     // ── 受注確定済み案件の金額・計上月変更時、実績データを自動追従 ──
@@ -17602,27 +17294,14 @@ function setDealPhase(id, phase) {
     return;
   }
 
-  // 確度が変わった場合はカード全体を再描画（確度バー反映のため）
+  // 確度が変わった場合はテーブル全体を再描画 + サイドパネル更新(確度バー反映のため)
   if (probChanged) {
-    var diEl2 = document.getElementById('di-' + id);
-    if (diEl2 && diEl2.parentNode) {
-      var wasOpen = (function(){ var b = diEl2.querySelector('.db-body'); return b && b.style.display && b.style.display !== 'none'; })();
-      var newEl = _buildProgressRow(d);
-      diEl2.parentNode.replaceChild(newEl, diEl2);
-      if (wasOpen) toggleDI(id);
-    }
+    _refreshDealAfterEdit(id);
     return;
   }
 
-  // 通常: カードのステータスバッジだけ更新（全再描画しない）
-  var diEl = document.getElementById('di-' + id);
-  if (diEl) {
-    var badge = diEl.querySelector('.st');
-    if (badge) {
-      badge.textContent = phase;
-      badge.className = 'st ' + (STCLS[phase]||'');
-    }
-  }
+  // 通常: テーブル全体を再描画 + サイドパネル更新(ステージバッジが各セルに反映)
+  _refreshDealAfterEdit(id);
 }
 
 // ── 千円単位自動変換 ─────────────────────────────────────────
