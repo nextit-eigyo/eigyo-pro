@@ -14638,9 +14638,10 @@ function setHomeMode(mode) {
 // ── 実績確認 タブ ──────────────────────────────────────────────
 // ── 実績確認 本体 ─────────────────────────────────────────────
 
-// ── 営業活動量タブ（担当者タブ切り替え方式）─────────────────────
-var _actSpIdx = 0;
-var _actDivision = '西日本'; // '西日本' or '東日本'
+// ── 営業活動量タブ ─────────────────────
+// 売上タブと共通の caSp で担当者選択を共有。
+// caSp が数値(担当者) → その人の営業活動量を表示
+// caSp が拠点/リージョン/全社 → 該当する全担当者の合計表示は未実装のため担当者選択を促す
 
 function renderActivityActuals(tb) {
   if (!tb) return;
@@ -14655,52 +14656,20 @@ function renderActivityActuals(tb) {
   var now = new Date();
   var curMi = now.getMonth() >= 3 ? now.getMonth()-3 : now.getMonth()+9;
 
-  // 営業部定義
-  const divisionMap = {
-    '西日本': ['神戸', '福岡', '高知'],
-    '東日本': ['東京', '新潟']
-  };
-  
-  // 選択された営業部に所属する担当者のみフィルタ
-  const divisionPeople = people.filter(function(pp) {
-    return divisionMap[_actDivision] && divisionMap[_actDivision].includes(pp.branch);
-  });
-  
-  // インデックス調整
-  if (_actSpIdx >= divisionPeople.length) _actSpIdx = 0;
-  var p = divisionPeople[_actSpIdx];
+  // 売上タブと同じく caSp から担当者を取得(上段拠点タブ + 下段担当者タブで選択済み)
+  var p = null;
+  if (typeof caSp === 'number' && caSp >= 0 && caSp < people.length) {
+    p = people[caSp];
+  }
   if (!p) {
-    // 該当する担当者がいない場合は最初の担当者を使用
-    p = people[0];
-    _actSpIdx = 0;
+    tb.innerHTML = '<tr><td colspan="14" style="padding:30px;text-align:center;color:var(--tx3);font-size:13px">' +
+      '👤 上の担当者タブから担当者を選択してください' +
+      '<div style="margin-top:6px;font-size:11px;color:var(--tx3)">営業活動量は担当者ごとに入力します</div>' +
+      '</td></tr>';
+    return;
   }
   if (!D.activityBudgets[p.id]) D.activityBudgets[p.id] = {};
   if (!D.activityActuals[p.id]) D.activityActuals[p.id] = {};
-  
-  // 1段目：営業部タブ
-  var divisionTabs = ['西日本', '東日本'].map(function(div) {
-    var active = div === _actDivision;
-    var color = div === '西日本' ? '#7a8e5a' : '#5a7b9e';
-    return '<button onclick="_actDivision=\'' + div + '\';_actSpIdx=0;renderActuals()" style="' +
-      'padding:8px 20px;border-radius:10px;font-size:13px;font-weight:' + (active ? 900 : 600) + ';cursor:pointer;white-space:nowrap;' +
-      'background:' + (active ? 'var(--s1)' : 'none') + ';' +
-      'border:' + (active ? '3px solid ' + color : '2px solid var(--bd)') + ';' +
-      'color:' + (active ? 'var(--tx)' : 'var(--tx3)') + '">' +
-      div + '営業部</button>';
-  }).join('');
-  
-  // 2段目：担当者タブ（選択された営業部のメンバーのみ）
-  var personTabs = divisionPeople.map(function(pp, i) {
-    var active = i === _actSpIdx;
-    var color = getBranchColor(pp.branch);
-    return '<button onclick="_actSpIdx=' + i + ';renderActuals()" style="' +
-      'padding:5px 12px;border-radius:8px;font-size:11px;font-weight:' + (active ? 800 : 400) + ';cursor:pointer;white-space:nowrap;' +
-      'background:' + (active ? 'var(--s1)' : 'none') + ';' +
-      'border:' + (active ? '2px solid ' + color : '1px solid var(--bd)') + ';' +
-      'border-left:3px solid ' + color + ';' +
-      'color:' + (active ? 'var(--tx)' : 'var(--tx3)') + '">' +
-      pp.name + '</button>';
-  }).join('');
 
   // テーブルヘッダー
   var thead = '<thead><tr style="background:var(--s3)">' +
@@ -14745,16 +14714,10 @@ function renderActivityActuals(tb) {
       '<tr style="border-bottom:2px solid var(--bd)"><td style="font-size:12px;color:var(--tx3);padding:2px 4px">達成率</td>' + rCells + '</tr>';
   }).join('');
 
+  // 担当者選択は売上タブと共通の aptabs/aptabs-people に委譲。
+  // ここでは選択担当者の活動量テーブルのみ描画する
   tb.innerHTML =
     '<tr><td colspan="14" style="padding:0"><div style="padding:8px 0">' +
-      '<!-- 1段目：営業部タブ -->' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:2px solid var(--bds)">' +
-        divisionTabs +
-      '</div>' +
-      '<!-- 2段目：担当者タブ -->' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--bds)">' +
-        personTabs +
-      '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
         '<span style="background:' + getBranchColor(p.branch) + ';color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700">' + (p.branch || '—') + '</span>' +
         '<span style="font-size:15px;font-weight:900">' + p.name + '</span>' +
@@ -15129,17 +15092,28 @@ function _getBreakdownForMi(branch, field, mi) {
 }
 
 // ── 実績確認 大項目タブ切り替え ───────────────────────────────
+// 実績確認の「大項目」: 売上 or 営業活動量
+// caSp は担当者/拠点選択を保持(売上と営業活動量で共通利用)
+var _actMainMode = 'sales';
+
 function setActMainTab(tab) {
+  _actMainMode = tab;
+  // 営業活動量はリージョン/全社合算がないため、担当者か拠点を選んでいない場合は自分を選択
   if (tab === 'activity') {
-    caSp = 'activity';
-  } else {
-    if (caSp === 'activity') caSp = -1;
+    var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
+    if (myId) {
+      var people = ap();
+      var idx = people.findIndex(function(p){ return p.id === myId; });
+      if (idx >= 0 && (caSp === -1 || (typeof caSp === 'string' && caSp.startsWith('region_')))) {
+        caSp = idx;
+      }
+    }
   }
   renderActuals();
 }
 
 function _syncActMainTabUI() {
-  var isActivity = (caSp === 'activity');
+  var isActivity = (_actMainMode === 'activity');
   var salesBtn = document.getElementById('act-main-tab-sales');
   var actBtn   = document.getElementById('act-main-tab-activity');
   var sizeCtrl = document.getElementById('actuals-size-ctrl');
@@ -15161,8 +15135,8 @@ function _syncActMainTabUI() {
 //   -1: 全社
 //   'region_xxx': リージョン全体
 //   'branch_xxx': 営業所
-//   'activity': 営業活動量
 //    0,1,2...: 各担当者のインデックス
+// なお、大項目(売上/営業活動量)の切替は _actMainMode で管理
 
 function renderActualPtabs() {
   const c = document.getElementById('aptabs');
@@ -15174,13 +15148,9 @@ function renderActualPtabs() {
   initBranchMaster();
   const branches = D.branchMaster || [];
 
-  // 営業活動量タブ選択中はサブタブを非表示にして大項目UIだけ更新
-  if (caSp === 'activity') {
-    if (c2) c2.style.display = 'none';
-    _syncActMainTabUI();
-    return;
-  }
+  // 営業活動量タブも売上タブと同じ拠点/担当者UIを表示(共通の caSp で選択)
   if (c2) c2.style.display = '';
+  _syncActMainTabUI();
 
   // === 1段目: 全社・リージョン・営業所タブ ===
   const allBtn = document.createElement('button');
@@ -15302,15 +15272,22 @@ function renderActuals() {
   const regionName = isRegion ? caSp.slice(7) : null;
   const isBranch   = (typeof caSp === 'string' && caSp.startsWith('branch_'));
   const branchName = isBranch ? caSp.slice(7) : null;
-  const isActivity = (caSp === 'activity');
-  const sp = (!isAll && !isRegion && !isBranch && !isActivity && caSp >= 0 && caSp < people.length) ? people[caSp] : null;
+  const isActivity = (_actMainMode === 'activity'); // 大項目モード
+  const sp = (!isAll && !isRegion && !isBranch && caSp >= 0 && caSp < people.length) ? people[caSp] : null;
 
   // 営業活動量タブの場合は専用描画
   if (isActivity) {
+    // 年間サマリーは営業活動量タブでは非表示
+    var actSumEl = document.getElementById('actuals-summary');
+    if (actSumEl) { actSumEl.style.display = 'none'; actSumEl.innerHTML = ''; }
     renderActivityActuals(tb);
     const titleEl = document.getElementById('actuals-title');
     if (titleEl) titleEl.textContent = '📞 営業活動量';
     return;
+  } else {
+    // 売上タブに戻った時は年間サマリーを再表示
+    var actSumEl2 = document.getElementById('actuals-summary');
+    if (actSumEl2) actSumEl2.style.display = '';
   }
 
   // タイトル更新
