@@ -1137,19 +1137,24 @@ tr:hover td{background:rgba(90,123,158,.02)}
   .fab-item { font-size:11.5px; padding:8px 12px; }
 }
 
-/* ════════════════ 案件 Excelテーブルビュー(案④) ════════════════ */
+/* ════════════════ 案件 Excelテーブルビュー(案④ リッチ行) ════════════════ */
 #deal-table-wrap {
   background:#fff; border:1px solid var(--bd); border-radius:10px;
   overflow:auto;
-  max-width:1400px; margin:0 auto;
   box-shadow:0 2px 8px rgba(90,75,55,.06);
 }
 .deal-table {
   width:100%; border-collapse:collapse; font-size:12px;
-  table-layout:auto;
+  table-layout:fixed;
 }
+/* 列幅: 案件情報(40%) / 進捗+最終活動(28%) / 次の動き(20%) / 金額(12%) */
+.deal-table colgroup col.c-info { width:40%; }
+.deal-table colgroup col.c-progress { width:28%; }
+.deal-table colgroup col.c-next { width:20%; }
+.deal-table colgroup col.c-amount { width:12%; min-width:130px; }
+
 .deal-table thead th {
-  background:var(--s3); padding:8px 10px; text-align:left;
+  background:var(--s3); padding:8px 12px; text-align:left;
   font-size:11px; font-weight:700; color:var(--tx2);
   border-bottom:2px solid var(--bd); white-space:nowrap;
   position:sticky; top:0; z-index:5;
@@ -1161,131 +1166,130 @@ tr:hover td{background:rgba(90,123,158,.02)}
 }
 .deal-table thead th.sorted .sort-ic { color:var(--acc); }
 .deal-table tbody td {
-  padding:6px 9px; border-bottom:1px solid var(--bds); vertical-align:middle;
-  white-space:nowrap;
+  padding:11px 14px; border-bottom:1px solid var(--bds); vertical-align:top;
+  word-break:break-word;
 }
-.deal-table tbody tr.deal-row { cursor:pointer; }
+.deal-table tbody tr.deal-row { cursor:pointer; transition:background .15s; }
 .deal-table tbody tr.deal-row:hover td { background:var(--s2); }
-.deal-table tbody tr.deal-row.expanded > td { background:rgba(90,123,158,.06); border-bottom-color:transparent; }
-.deal-table tbody tr.deal-row.expanded > td:first-child { border-left:3px solid var(--acc); padding-left:6px; }
+.deal-table tbody tr.deal-row.expanded > td { background:rgba(90,123,158,.05); border-bottom-color:transparent; }
 
-/* 案件名カラム */
-.deal-table .dt-cell-name {
-  font-weight:700; color:var(--tx); max-width:200px;
-  overflow:hidden; text-overflow:ellipsis;
+/* 案件情報セル(リッチ表示・複数行) */
+.dt-info { display:flex; flex-direction:column; gap:5px; }
+.dt-info .row1 {
+  display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
 }
-.deal-table .dt-cell-name .lost { color:var(--tx3); text-decoration:line-through; }
-.deal-table .dt-cell-name .badge {
-  display:inline-block; font-size:9px; padding:1px 5px;
-  border-radius:4px; margin-left:4px; vertical-align:middle;
+.dt-info .nm {
+  font-size:14px; font-weight:800; color:var(--tx); line-height:1.2;
 }
-.deal-table .dt-cell-name .badge.warn { background:rgba(168,90,74,.14); color:var(--red); font-weight:800; }
-.deal-table .dt-cell-name .badge.lost { background:var(--s4); color:var(--tx3); }
+.dt-info .nm.lost { color:var(--tx3); text-decoration:line-through; }
+.dt-info .prob-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  color:#fff; font-size:11px; font-weight:700;
+  padding:2px 9px; border-radius:10px; white-space:nowrap;
+}
+.dt-info .prob-badge .stars { font-size:9.5px; letter-spacing:1px; }
+.dt-info .prob-badge.p1 { background:linear-gradient(135deg,#8a7e6a,#6a5e4a); }
+.dt-info .prob-badge.p2 { background:linear-gradient(135deg,#c89856,#a87a36); }
+.dt-info .prob-badge.p3 { background:linear-gradient(135deg,#5a7b9e,#3a5b7e); }
+.dt-info .prob-badge.p4 { background:linear-gradient(135deg,#8a5a2e,#6a3a0e); }
+.dt-info .prob-badge.p5 { background:linear-gradient(135deg,#7a8e5a,#5a6e3a); }
+.dt-info .row2 {
+  display:flex; align-items:center; gap:5px; flex-wrap:wrap;
+  font-size:11.5px; color:var(--tx3);
+}
+.dt-info .row2 .pp { color:var(--grn); font-weight:700; }
+.dt-info .pills {
+  display:flex; flex-wrap:wrap; gap:3px;
+}
+.dt-info .pills .pill {
+  background:var(--s3); color:var(--tx2); padding:2px 7px;
+  border-radius:4px; font-size:10.5px; font-weight:600;
+}
+.dt-info .pills .pill.prod { background:rgba(90,123,158,.12); color:var(--acc); }
+.dt-info .pills .pill.cfg { background:rgba(99,102,241,.12); color:#6366f1; }
+.dt-info .pills .pill.deal { background:rgba(122,142,90,.14); color:#4a5a32; }
+.dt-info .pills .pill.route { background:rgba(138,90,46,.10); color:var(--acc2); }
+.dt-info .pills .pill.warn { background:rgba(168,90,74,.14); color:var(--red); font-weight:800; }
 
-/* 確度・ステージバッジ */
-.deal-table .dt-prob {
-  display:inline-block; padding:2px 7px; border-radius:8px;
-  font-size:10.5px; font-weight:700; white-space:nowrap;
+/* 進捗バー+最終活動セル */
+.dt-progress-cell {
+  display:flex; flex-direction:column; gap:6px;
 }
-.deal-table .dt-prob.p5 { background:rgba(122,142,90,.18); color:#4a5a32; }
-.deal-table .dt-prob.p4 { background:rgba(90,123,158,.18); color:var(--acc); }
-.deal-table .dt-prob.p3 { background:rgba(200,152,86,.18); color:#7a5a2a; }
-.deal-table .dt-prob.p2 { background:var(--s3); color:var(--tx2); }
-.deal-table .dt-prob.p1 { background:var(--s3); color:var(--tx3); }
+.dt-progress-bar {
+  display:grid; grid-template-columns:repeat(5,1fr); gap:3px;
+}
+.dt-progress-bar .seg {
+  height:8px; border-radius:2px; background:#ebe4d4;
+}
+.dt-progress-bar .seg.done { background:#7a8e5a; }
+.dt-progress-bar .seg.current { background:#c89856; box-shadow:0 0 0 1.5px #8a5a2e; }
+.dt-progress-labels {
+  display:grid; grid-template-columns:repeat(5,1fr); gap:3px;
+  font-size:10.5px; text-align:center;
+}
+.dt-progress-labels span { color:var(--tx3); }
+.dt-progress-labels span.done { color:#4a5a32; }
+.dt-progress-labels span.current { color:#8a5a2e; font-weight:700; }
+.dt-last-activity {
+  background:var(--s2); border-left:2px solid #b4b2a9;
+  padding:5px 9px; border-radius:0 4px 4px 0;
+  font-size:11px; color:var(--tx2); line-height:1.4;
+}
+.dt-last-activity .lbl { color:var(--tx3); }
+.dt-last-activity .empty { color:var(--tx3); font-style:italic; }
+
+/* 次の動きセル */
+.dt-next-cell .next-card {
+  border-radius:7px; padding:8px 11px; font-size:11.5px;
+}
+.dt-next-cell .next-card .lbl { font-size:10px; font-weight:700; letter-spacing:.04em; margin-bottom:3px; }
+.dt-next-cell .next-card .msg { font-size:12.5px; font-weight:700; line-height:1.3; }
+.dt-next-cell .next-card .deadline { font-size:10.5px; margin-top:4px; }
+.dt-next-cell .next-card.urgent {
+  background:rgba(168,90,74,.06); border:1px solid rgba(168,90,74,.3);
+}
+.dt-next-cell .next-card.urgent .lbl { color:var(--red); }
+.dt-next-cell .next-card.urgent .deadline { color:#7a3525; font-weight:700; }
+.dt-next-cell .next-card.attn {
+  background:rgba(200,152,86,.10); border:1px solid rgba(200,152,86,.3);
+}
+.dt-next-cell .next-card.attn .lbl { color:#8a5a2e; }
+.dt-next-cell .next-card.attn .deadline { color:#7a5a2a; font-weight:700; }
+.dt-next-cell .next-card.normal {
+  background:var(--s1); border:1px solid var(--bd);
+}
+.dt-next-cell .next-card.normal .lbl { color:var(--tx3); }
+.dt-next-cell .next-card.normal .deadline { color:var(--tx3); }
+.dt-next-cell .next-card.won {
+  background:rgba(122,142,90,.10); border:1px solid rgba(122,142,90,.3);
+}
+.dt-next-cell .next-card.won .lbl { color:#4a5a32; }
 
 /* 金額セル */
-.deal-table .dt-amt { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
-.deal-table .dt-amt .yen-small { font-size:10px; color:var(--tx3); font-weight:500; margin-left:1px; }
-.deal-table .dt-profit { color:var(--grn); }
-
-/* 日付セル */
-.deal-table .dt-date { font-size:11.5px; font-variant-numeric:tabular-nums; }
-.deal-table .dt-date.soon { color:var(--red); font-weight:700; }
-.deal-table .dt-date.over { color:var(--red); font-weight:900; background:rgba(168,90,74,.06); }
-
-/* 担当者セル */
-.deal-table .dt-person { font-size:11.5px; }
-.deal-table .dt-person .br { font-size:9.5px; color:var(--tx3); margin-left:3px; }
-
-/* 課題セル */
-.deal-table .dt-issue { font-size:14px; text-align:center; }
-
-/* インラインセル編集 - Excel風 */
-.deal-table .dt-edit input,
-.deal-table .dt-edit select {
-  background:transparent; border:none; padding:0 2px; font:inherit;
-  width:100%; box-sizing:border-box; color:inherit;
-  font-family:inherit;
+.dt-amount-cell {
+  text-align:right;
 }
-.deal-table .dt-edit input:hover,
-.deal-table .dt-edit select:hover {
-  background:#fffbef; outline:1px solid var(--acc); cursor:text;
+.dt-amount-cell .sales {
+  font-size:14px; font-weight:800; color:var(--tx);
+  font-variant-numeric:tabular-nums;
 }
-.deal-table .dt-edit input:focus,
-.deal-table .dt-edit select:focus {
-  background:#fff; outline:2px solid var(--acc); cursor:text;
+.dt-amount-cell .sales .u {
+  font-size:11px; color:var(--tx3); margin-left:1px;
 }
-.deal-table .dt-edit select { cursor:pointer; }
+.dt-amount-cell .profit {
+  font-size:11px; color:#4a5a32; font-weight:700; margin-top:2px;
+}
+.dt-amount-cell .month {
+  font-size:10.5px; color:var(--tx3); margin-top:5px;
+  padding-top:5px; border-top:1px solid var(--bds);
+}
 
-/* 行展開エリア */
+/* 行展開エリア(タブ式) */
 .deal-table tr.dt-detail-row td {
-  background:var(--s1); padding:12px 18px;
+  background:var(--s1); padding:14px 18px;
   border-left:3px solid var(--acc); border-bottom:2px solid var(--bd);
 }
-.dt-detail-grid {
-  display:grid; grid-template-columns:1fr 1fr; gap:14px;
-}
-@media (max-width: 900px) { .dt-detail-grid { grid-template-columns:1fr; } }
-.dt-detail-block {
-  background:#fff; border:1px solid var(--bd); border-radius:6px;
-  padding:9px 11px;
-}
-.dt-detail-block h5 {
-  margin:0 0 6px; font-size:11px; font-weight:900; color:var(--tx2);
-  display:flex; align-items:center; gap:5px;
-  padding-bottom:5px; border-bottom:1px solid var(--bds);
-}
-.dt-detail-block .dt-row {
-  display:flex; gap:6px; align-items:center; margin-bottom:4px; font-size:11.5px;
-}
-.dt-detail-block .dt-row label {
-  font-size:10.5px; color:var(--tx2); font-weight:700; min-width:60px;
-}
-.dt-detail-block .dt-row input,
-.dt-detail-block .dt-row select,
-.dt-detail-block .dt-row textarea {
-  font-size:11.5px; padding:3px 7px; flex:1;
-  border:1px solid var(--bd); border-radius:4px;
-  font-family:inherit;
-}
-.dt-detail-block textarea { width:100%; resize:vertical; }
-
-/* 履歴ミニリスト */
-.dt-history-mini {
-  display:flex; flex-direction:column; gap:4px;
-  max-height:200px; overflow-y:auto;
-}
-.dt-history-mini .item {
-  background:var(--s1); border-left:3px solid var(--cyn);
-  padding:5px 9px; border-radius:0 4px 4px 0; font-size:11px;
-}
-.dt-history-mini .item .date { font-weight:700; }
-.dt-history-mini .item .body { color:var(--tx2); margin-top:2px; }
-.dt-history-mini .empty {
-  color:var(--tx3); font-size:11px; font-style:italic; padding:6px;
-}
-
-/* 詳細展開時のアクションボタン */
-.dt-detail-actions {
-  display:flex; gap:6px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--bds);
-  flex-wrap:wrap;
-}
-.dt-detail-actions button {
-  padding:5px 11px; font-size:11px; font-weight:700; cursor:pointer;
-  border:1px solid var(--bd); border-radius:5px; background:#fff;
-}
-.dt-detail-actions button.pri { background:var(--acc); color:#fff; border-color:var(--acc); }
-.dt-detail-actions button.dr { color:var(--red); }
+.dt-detail-row .dc-body { padding:0; }
 
 /* ローディングと空表示 */
 .deal-table .dt-empty {
@@ -2000,7 +2004,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
   <div id="risk-view"></div>
   <div id="pipeline-view"></div>
   <div id="actions-view"></div>
-  <div id="deal-list" style="max-width:1400px;margin:0 auto"></div>
+  <div id="deal-list"></div>
   <div id="won-list"></div>
   <div id="plan-view"></div>
   </div><!-- /home-deal-mode -->
@@ -9088,7 +9092,7 @@ function _dtToggleRow(dealId) {
   if (typeof renderDeals === 'function') renderDeals();
 }
 
-// Excelテーブルビュー本体
+// Excelテーブルビュー本体 (4列リッチ行 + 水平タブ展開)
 function renderDealsTableView(deals) {
   var el = document.getElementById('deal-list');
   if (!el) return;
@@ -9099,54 +9103,31 @@ function renderDealsTableView(deals) {
     return;
   }
 
-  // ソート処理
+  // ソート(既存の dealSortMode を流用: priority/phase/deadline/amount)
   var sorted = deals.slice();
-  var field = window._dtSortField || 'priority';
-  var desc = window._dtSortDesc;
-  var ORDER_URGENCY = { urgent: 0, attn: 1, progress: 2, won: 3 };
+  var sortMode = (typeof dealSortMode !== 'undefined') ? dealSortMode : 'priority';
+  if (sortMode === 'priority') {
+    var ORDER = { urgent: 0, attn: 1, progress: 2, won: 3 };
+    sorted.sort(function(a, b){ return (ORDER[_getDealUrgency(a)]||99) - (ORDER[_getDealUrgency(b)]||99); });
+  } else if (sortMode === 'phase') {
+    sorted.sort(function(a, b){ return (_getDealPhase(b)||0) - (_getDealPhase(a)||0); });
+  } else if (sortMode === 'deadline') {
+    sorted.sort(function(a, b){ return (a.nextDate||'9999-99').localeCompare(b.nextDate||'9999-99'); });
+  } else if (sortMode === 'amount') {
+    sorted.sort(function(a, b){ return (parseFloat(b.sales)||0) - (parseFloat(a.sales)||0); });
+  }
 
-  sorted.sort(function(a, b) {
-    var av, bv;
-    switch (field) {
-      case 'name':       av = a.name||''; bv = b.name||''; break;
-      case 'prob':       av = getProb(a); bv = getProb(b); break;
-      case 'phase':      av = lstat(a)||''; bv = lstat(b)||''; break;
-      case 'sales':      av = parseFloat(a.sales)||0; bv = parseFloat(b.sales)||0; break;
-      case 'profit':     av = (parseFloat(a.sales)||0)-(parseFloat(a.cost)||0); bv = (parseFloat(b.sales)||0)-(parseFloat(b.cost)||0); break;
-      case 'nextDate':   av = a.nextDate||'9999-99'; bv = b.nextDate||'9999-99'; break;
-      case 'person':     av = (ap().find(function(p){return p.id===a.spId;})||{}).name||''; bv = (ap().find(function(p){return p.id===b.spId;})||{}).name||''; break;
-      case 'deliveryMonth': av = a.deliveryMonth||a.implMonth||'9999-99'; bv = b.deliveryMonth||b.implMonth||'9999-99'; break;
-      case 'priority':
-      default:
-        av = ORDER_URGENCY[_getDealUrgency(a)] || 99;
-        bv = ORDER_URGENCY[_getDealUrgency(b)] || 99;
-    }
-    if (typeof av === 'string') return desc ? bv.localeCompare(av) : av.localeCompare(bv);
-    return desc ? bv - av : av - bv;
-  });
-
-  // テーブル生成
+  // テーブル生成 (4列構成)
   var wrap = document.createElement('div');
   wrap.id = 'deal-table-wrap';
 
-  var sortArrow = function(f) {
-    if (window._dtSortField !== f) return '<span class="sort-ic">⇅</span>';
-    return '<span class="sort-ic">' + (window._dtSortDesc ? '▼' : '▲') + '</span>';
-  };
-  var sortedCls = function(f) {
-    return window._dtSortField === f ? ' class="sorted"' : '';
-  };
-
-  var html = '<table class="deal-table"><thead><tr>';
-  html += '<th'+sortedCls('name')+' onclick="_dtSort(\'name\')" style="min-width:160px">薬局名'+sortArrow('name')+'</th>';
-  html += '<th'+sortedCls('prob')+' onclick="_dtSort(\'prob\')" style="min-width:80px">確度'+sortArrow('prob')+'</th>';
-  html += '<th'+sortedCls('phase')+' onclick="_dtSort(\'phase\')" style="min-width:90px">ステージ'+sortArrow('phase')+'</th>';
-  html += '<th'+sortedCls('sales')+' onclick="_dtSort(\'sales\')" style="min-width:80px;text-align:right">売上(千)'+sortArrow('sales')+'</th>';
-  html += '<th'+sortedCls('profit')+' onclick="_dtSort(\'profit\')" style="min-width:80px;text-align:right">粗利(千)'+sortArrow('profit')+'</th>';
-  html += '<th'+sortedCls('nextDate')+' onclick="_dtSort(\'nextDate\')" style="min-width:75px">次予定'+sortArrow('nextDate')+'</th>';
-  html += '<th'+sortedCls('person')+' onclick="_dtSort(\'person\')" style="min-width:90px">担当'+sortArrow('person')+'</th>';
-  html += '<th'+sortedCls('deliveryMonth')+' onclick="_dtSort(\'deliveryMonth\')" style="min-width:80px">計上'+sortArrow('deliveryMonth')+'</th>';
-  html += '<th style="min-width:50px;text-align:center">課題</th>';
+  var html = '<table class="deal-table">';
+  html += '<colgroup><col class="c-info"><col class="c-progress"><col class="c-next"><col class="c-amount"></colgroup>';
+  html += '<thead><tr>';
+  html += '<th>案件 / 担当・商品</th>';
+  html += '<th>進捗 / 最終活動</th>';
+  html += '<th>次の動き</th>';
+  html += '<th style="text-align:right">金額・計上月</th>';
   html += '</tr></thead><tbody>';
 
   var people = ap();
@@ -9162,131 +9143,190 @@ function renderDealsTableView(deals) {
   el.appendChild(wrap);
 }
 
-// テーブル行(コンパクト一覧)
+// テーブル行(リッチ4列レイアウト - image3スタイル)
 function _dtBuildRow(d, people) {
   var pp = people.find(function(p){ return p.id === d.spId; });
   var ls = lstat(d);
-  var profit = (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0);
   var probKey = getProb(d);
-  var probDef = PROB_DEFS.find(function(p){ return p.rank === probKey; }) || { label:'未設定', stars:'☆☆☆☆☆' };
+  var sales = parseFloat(d.sales) || 0;
+  var cost = parseFloat(d.cost) || 0;
+  var profit = sales - cost;
+  var profitRate = sales > 0 ? Math.round(profit / sales * 100) : 0;
   var dm = d.deliveryMonth || d.implMonth || '';
+  var isWon = ls === '受注';
+  var isVerbal = ls === '口頭受注';
   var isLost = ls === '失注' || ls === '延期';
-  var isWon = ls === '受注' || ls === '口頭受注';
 
-  // 次予定日 (期限超過判定)
-  var nextDateCls = 'dt-date';
-  var nextDateDisp = '';
-  if (d.nextDate) {
-    nextDateDisp = d.nextDate.slice(5).replace('-','/');
-    var diff = Math.floor((new Date() - new Date(d.nextDate)) / (1000*60*60*24));
-    if (diff > 0) nextDateCls += ' over';
-    else if (diff >= -3) nextDateCls += ' soon';
+  // 確度ラベル(image3スタイル) - PROB_DEFSのstarsがundefinedバグ修正のため、ここで定義
+  var PROB_LABELS = ['引合い','検討中','提案中','口頭受注','受注'];
+  var PROB_PCTS = [10, 30, 60, 80, 100];
+  var PROB_STARS = ['★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★'];
+
+  // ① 案件情報セル(リッチ表示・image3風)
+  var pillsHtml = '';
+  if (d.productType) pillsHtml += '<span class="pill prod">'+_esc(d.productType)+'</span>';
+  if (d.configType) pillsHtml += '<span class="pill cfg">'+_esc(d.configType)+(d.configCount?' '+_esc(d.configCount):'')+'</span>';
+  if (d.dealType) pillsHtml += '<span class="pill deal">'+_esc(d.dealType)+'</span>';
+  if (d.route) {
+    var routeLabel = d.routeRef ? d.route+'('+d.routeRef+')' : d.route;
+    pillsHtml += '<span class="pill route">🚪 '+_esc(routeLabel)+'</span>';
+  }
+  if (d.category && d.category !== '直販') pillsHtml += '<span class="pill">'+_esc(d.category)+'</span>';
+  if (sales > 0 && !d.actualsReflected && (isWon || isVerbal)) {
+    pillsHtml += '<span class="pill warn">⚠ 実績未反映</span>';
   }
 
-  // 課題アイコン
-  var issueIcon = '';
-  if (d.issues && d.issues.length) {
-    var iconMap = { price:'💰', feature:'⚙', approval:'🏛', compete:'🆚', tech:'🔧', timing:'📅', trust:'🤝', other:'📝' };
-    issueIcon = (d.issues || []).map(function(k){ return iconMap[k] || '⚠'; }).slice(0,2).join('');
+  var personRow = pp
+    ? '<span class="pp">'+_esc(pp.name)+'</span><span>('+_esc(pp.branch||'—')+')</span>'
+    : '<span style="color:var(--amb)">⚠ 未割当</span>';
+  if (d.pref) personRow += '<span>📍 '+_esc(d.pref)+'</span>';
+
+  var infoCell = ''
+    + '<div class="dt-info">'
+    +   '<div class="row1">'
+    +     '<span class="nm'+(isLost?' lost':'')+'">'+_esc(d.name||'—')+'</span>'
+    +     '<span class="prob-badge p'+probKey+'">'
+    +       '<span class="stars">'+(PROB_STARS[probKey-1]||'☆☆☆☆☆')+'</span>'
+    +       '<span>'+_esc(PROB_LABELS[probKey-1]||ls||'未設定')+'</span>'
+    +       '<span>'+(PROB_PCTS[probKey-1]||0)+'%</span>'
+    +     '</span>'
+    +   '</div>'
+    +   '<div class="row2">'+personRow+'</div>'
+    +   (pillsHtml ? '<div class="pills">'+pillsHtml+'</div>' : '')
+    + '</div>';
+
+  // ② 進捗バー + 最終活動
+  var phaseIdx = (typeof _getDealPhase === 'function') ? _getDealPhase(d) : 0;
+  var phaseLabels = ['訪問','提案','見積','口頭','受注'];
+  var segs = phaseLabels.map(function(_, i) {
+    var cls = '';
+    if (i < phaseIdx) cls = 'done';
+    else if (i === phaseIdx) cls = 'current';
+    return '<div class="seg '+cls+'"></div>';
+  }).join('');
+  var labels = phaseLabels.map(function(label, i) {
+    var cls = '';
+    if (i < phaseIdx) cls = 'done';
+    else if (i === phaseIdx) cls = 'current';
+    return '<span class="'+cls+'">'+label+'</span>';
+  }).join('');
+
+  // 最終活動
+  var memoInfo = (typeof _getLatestActivityMemo === 'function') ? _getLatestActivityMemo(d) : null;
+  var activityHtml;
+  if (memoInfo && memoInfo.date) {
+    var memoText = '';
+    if (memoInfo.memo) {
+      var memoShort = memoInfo.memo.length > 60 ? memoInfo.memo.slice(0, 60) + '…' : memoInfo.memo;
+      memoText = '「'+_esc(memoShort)+'」';
+    }
+    activityHtml = '<div class="dt-last-activity"><span class="lbl">最終:</span> '+_esc(memoInfo.date.slice(5).replace('-','/'))+' '+_esc(memoInfo.actType||'')+' '+memoText+'</div>';
+  } else {
+    activityHtml = '<div class="dt-last-activity"><span class="empty">活動記録なし</span></div>';
   }
 
-  var nameBadges = '';
-  if (isWon) nameBadges += '<span class="badge" style="background:rgba(122,142,90,.18);color:#4a5a32">受注</span>';
-  if (isLost) nameBadges += '<span class="badge lost">'+_esc(ls)+'</span>';
-  var nameCls = isLost ? 'lost' : '';
+  var progressCell = ''
+    + '<div class="dt-progress-cell">'
+    +   '<div class="dt-progress-bar">'+segs+'</div>'
+    +   '<div class="dt-progress-labels">'+labels+'</div>'
+    +   activityHtml
+    + '</div>';
 
-  return ''+
-    '<tr class="deal-row" data-deal-id="'+d.id+'" onclick="_dtToggleRow(\''+d.id+'\')">'+
-      '<td class="dt-cell-name" title="'+_esc(d.name||'')+'"><span class="'+nameCls+'">'+_esc(d.name||'—')+'</span>'+nameBadges+'</td>'+
-      '<td class="dt-edit" onclick="event.stopPropagation()">'+
-        '<select onchange="updDeal(\''+d.id+'\',\'probability\',parseInt(this.value));renderDeals()" class="dt-prob p'+probKey+'">'+
-          PROB_DEFS.map(function(p){return '<option value="'+p.rank+'"'+(p.rank===probKey?' selected':'')+'>'+p.stars+' '+_esc(p.label)+'</option>';}).join('')+
-        '</select>'+
-      '</td>'+
-      '<td class="dt-edit" onclick="event.stopPropagation()">'+
-        '<select onchange="setDealPhase(\''+d.id+'\',this.value);renderDeals()">'+
-          getST().map(function(s){return '<option'+(s===ls?' selected':'')+'>'+_esc(s)+'</option>';}).join('')+
-        '</select>'+
-      '</td>'+
-      '<td class="dt-amt dt-edit" onclick="event.stopPropagation()">'+
-        '<input type="number" value="'+(d.sales||'')+'" oninput="updDeal(\''+d.id+'\',\'sales\',this.value);updateProfit(\''+d.id+'\')" onblur="autoConvertToSen(this,\''+d.id+'\',\'sales\');renderDeals()" style="text-align:right">'+
-      '</td>'+
-      '<td class="dt-amt dt-profit">'+(profit ? fmtN(Math.round(profit)) : '—')+'</td>'+
-      '<td class="'+nextDateCls+' dt-edit" onclick="event.stopPropagation()">'+
-        '<input type="date" value="'+(d.nextDate||'')+'" onchange="updNextSchedule(\''+d.id+'\',\'nextDate\',this.value);renderDeals()" style="font-size:11px">'+
-      '</td>'+
-      '<td class="dt-person dt-edit" onclick="event.stopPropagation()">'+
-        '<select onchange="updDeal(\''+d.id+'\',\'spId\',this.value);renderDeals()">'+
-          people.map(function(p,i){return '<option value="'+i+'"'+(d.spId===p.id?' selected':'')+'>'+_esc(p.name||'担当者'+(i+1))+'</option>';}).join('')+
-          '<option value="office"'+(d.spId==='office'?' selected':'')+'>グループ薬局</option>'+
-        '</select>'+
-        (pp&&pp.branch?'<span class="br">('+_esc(pp.branch)+')</span>':'')+
-      '</td>'+
-      '<td class="dt-edit" onclick="event.stopPropagation()">'+
-        '<input type="month" value="'+dm+'" onchange="updDeal(\''+d.id+'\',\'deliveryMonth\',this.value)" style="font-size:11px">'+
-      '</td>'+
-      '<td class="dt-issue" title="'+(d.issueMemo?_esc(d.issueMemo):'')+'">'+(issueIcon||'')+'</td>'+
-    '</tr>';
+  // ③ 次の動きセル(期限色分け)
+  var nextCardClass = 'normal';
+  var nextLbl = '🎯 次の動き';
+  var deadlineText = '';
+  var nextMsg = d.nextAction
+    ? _esc(d.nextAction.length > 50 ? d.nextAction.slice(0,50)+'…' : d.nextAction)
+    : '<span style="color:var(--tx3);font-weight:400;font-style:italic">未設定</span>';
+
+  if (isWon) {
+    nextCardClass = 'won';
+    nextLbl = '✓ 受注確定';
+    nextMsg = '納品準備中';
+  } else if (d.nextDate) {
+    var days = Math.floor((new Date() - new Date(d.nextDate)) / (1000*60*60*24));
+    var wtDef = (d.waitType && typeof getWaitTypeDef === 'function') ? getWaitTypeDef(d.waitType) : null;
+    var wtLabel = wtDef ? (wtDef.icon + ' ' + wtDef.label) : '予定';
+    var dateStr = d.nextDate.slice(5).replace('-','/');
+    if (days > 0) {
+      nextCardClass = 'urgent';
+      deadlineText = '⏰ 期限経過 '+days+'日 ('+dateStr+' '+wtLabel+')';
+    } else if (days === 0) {
+      nextCardClass = 'attn';
+      deadlineText = '🎯 本日期限 ('+dateStr+' '+wtLabel+')';
+    } else if (days >= -7) {
+      nextCardClass = 'attn';
+      deadlineText = '📅 '+dateStr+' ('+wtLabel+') あと'+(-days)+'日';
+    } else {
+      nextCardClass = 'normal';
+      deadlineText = '📅 '+dateStr+' ('+wtLabel+')';
+    }
+  } else if (memoInfo && memoInfo.date) {
+    var dys = Math.floor((new Date() - new Date(memoInfo.date)) / (1000*60*60*24));
+    if (dys >= 14) {
+      nextCardClass = 'urgent';
+      deadlineText = '⚠ '+dys+'日 動きなし';
+    } else {
+      deadlineText = '📝 最終活動 '+dys+'日前';
+    }
+  } else {
+    nextCardClass = 'attn';
+    deadlineText = '⚠ 次回予定未設定';
+  }
+
+  var nextCell = ''
+    + '<div class="dt-next-cell">'
+    +   '<div class="next-card '+nextCardClass+'">'
+    +     '<div class="lbl">'+nextLbl+'</div>'
+    +     '<div class="msg">'+nextMsg+'</div>'
+    +     (deadlineText ? '<div class="deadline">'+deadlineText+'</div>' : '')
+    +   '</div>'
+    + '</div>';
+
+  // ④ 金額セル
+  var dmText = dm ? (dm.replace('-','年')+'月') : '未設定';
+  var amountCell = sales > 0
+    ? ''
+      + '<div class="dt-amount-cell">'
+      +   '<div class="sales">'+fmtN(Math.round(sales))+'<span class="u">千</span></div>'
+      +   '<div class="profit">粗利 '+fmtN(Math.round(profit))+'千 ('+profitRate+'%)</div>'
+      +   '<div class="month">📅 '+dmText+'</div>'
+      + '</div>'
+    : '<div class="dt-amount-cell" style="color:var(--tx3);font-size:11px">金額未設定</div>';
+
+  var rowCls = 'deal-row';
+  if (isWon) rowCls += ' won';
+  if (isLost) rowCls += ' lost';
+  if (window._dtExpandedIds.has(d.id)) rowCls += ' expanded';
+
+  return ''
+    + '<tr class="'+rowCls+'" data-deal-id="'+d.id+'" id="di-'+d.id+'" onclick="_dtToggleRow(\''+d.id+'\')">'
+    +   '<td>'+infoCell+'</td>'
+    +   '<td>'+progressCell+'</td>'
+    +   '<td>'+nextCell+'</td>'
+    +   '<td>'+amountCell+'</td>'
+    + '</tr>';
 }
 
-// 詳細行(展開時に表示)
+// 詳細行(展開時): buildDealBody を再利用 (KPI + 水平タブ + タブパネル)
+// 案①の水平タブ式と同じ操作感
 function _dtBuildDetailRow(d, people) {
-  var pp = people.find(function(p){ return p.id === d.spId; });
-  var prefOpts = PREFS.map(function(p){return '<option'+(p===d.pref?' selected':'')+'>'+_esc(p)+'</option>';}).join('');
-  var visits = d.visits || [];
-  var visRecent = visits.slice().reverse().slice(0, 5);
-
-  var visitsHtml = visRecent.length ? visRecent.map(function(v) {
-    var ic = v.actType === '電話' ? '📞' : v.actType === 'メール' ? '✉' : '📍';
-    return '<div class="item">'+
-      '<div class="date">'+ic+' '+_esc(v.date||'')+' '+_esc(v.actType||'訪問')+(v.status?' / '+_esc(v.status):'')+'</div>'+
-      (v.memo ? '<div class="body">'+_esc(v.memo)+'</div>' : '')+
-    '</div>';
-  }).join('') : '<div class="empty">活動記録はまだありません</div>';
-
-  return ''+
-    '<tr class="dt-detail-row">'+
-      '<td colspan="9">'+
-        '<div class="dt-detail-grid">'+
-          // 左カラム: 詳細情報
-          '<div class="dt-detail-block">'+
-            '<h5>📋 詳細情報</h5>'+
-            '<div class="dt-row"><label>都道府県</label><select onchange="updDeal(\''+d.id+'\',\'pref\',this.value)"><option value="">選択</option>'+prefOpts+'</select></div>'+
-            '<div class="dt-row"><label>区分</label><select onchange="updDeal(\''+d.id+'\',\'category\',this.value)">'+
-              '<option'+((d.category||'直販')==='直販'?' selected':'')+'>直販</option>'+
-              '<option'+(d.category==='グループ薬局'?' selected':'')+'>グループ薬局</option>'+
-              '<option'+(d.category==='販売店'?' selected':'')+'>販売店</option>'+
-            '</select></div>'+
-            '<div class="dt-row"><label>原価(千)</label><input type="number" value="'+(d.cost||'')+'" oninput="updDeal(\''+d.id+'\',\'cost\',this.value);updateProfit(\''+d.id+'\')" onblur="autoConvertToSen(this,\''+d.id+'\',\'cost\')"></div>'+
-            '<div class="dt-row"><label>稼働月</label><input type="month" value="'+(d.activationMonth||'')+'" onchange="updDeal(\''+d.id+'\',\'activationMonth\',this.value)"></div>'+
-            '<div class="dt-row"><label>商品種別</label><select onchange="updDeal(\''+d.id+'\',\'productType\',this.value)"><option value="">未選択</option>'+
-              '<option'+((d.productType||'')==='調剤くんV8'?' selected':'')+'>調剤くんV8</option>'+
-              '<option'+((d.productType||'')==='その他ソフト'?' selected':'')+'>その他ソフト</option>'+
-              '<option'+((d.productType||'')==='ハードウェア'?' selected':'')+'>ハードウェア</option>'+
-            '</select></div>'+
-            '<div class="dt-row"><label>構成</label><input type="text" value="'+_esc(d.configType||'').replace(/"/g,'&quot;')+'/'+_esc(d.configCount||'').replace(/"/g,'&quot;')+'" readonly style="background:var(--s2);color:var(--tx3)" title="構成種別と台数の編集はカードビューで"></div>'+
-            '<div class="dt-row"><label>案件種別</label><select onchange="updDeal(\''+d.id+'\',\'dealType\',this.value)"><option value="">未選択</option>'+
-              ((D.dealTypeMaster||['新規(他社入替)','既存(バージョンアップ)','新規開局'])).map(function(t){return '<option'+(d.dealType===t?' selected':'')+'>'+_esc(t)+'</option>';}).join('')+
-            '</select></div>'+
-            '<div class="dt-row"><label>状況・次回</label><input type="text" value="'+_esc(d.nextAction||'').replace(/"/g,'&quot;')+'" oninput="updDeal(\''+d.id+'\',\'nextAction\',this.value)" placeholder="例:見積提出待ち"></div>'+
-            '<label style="font-size:10.5px;color:var(--tx2);font-weight:700;margin-top:6px;display:block">💬 自由メモ</label>'+
-            '<textarea rows="2" oninput="updDeal(\''+d.id+'\',\'freeMemo\',this.value)" placeholder="例:キーマンは社長の山田氏">'+_esc(d.freeMemo||'')+'</textarea>'+
-          '</div>'+
-          // 右カラム: 訪問履歴
-          '<div class="dt-detail-block">'+
-            '<h5>📜 訪問履歴(最新5件 / 全'+(visits.length)+'件)</h5>'+
-            '<div class="dt-history-mini">'+visitsHtml+'</div>'+
-          '</div>'+
-        '</div>'+
-        // アクションボタン
-        '<div class="dt-detail-actions">'+
-          '<button class="pri" onclick="event.stopPropagation();openDealCard(\''+d.id+'\')">✏ カードビューで詳細編集</button>'+
-          '<button onclick="event.stopPropagation();openConfigDiagram(\''+d.id+'\')">🛠 構成図</button>'+
-          '<button onclick="event.stopPropagation();cloneDeal(\''+d.id+'\')">📋 クローン</button>'+
-          '<button class="dr" onclick="event.stopPropagation();delDeal(\''+d.id+'\')">🗑 削除</button>'+
-        '</div>'+
-      '</td>'+
-    '</tr>';
+  var bodyHtml = '';
+  try {
+    if (typeof buildDealBody === 'function') {
+      bodyHtml = buildDealBody(d);
+    } else {
+      bodyHtml = '<div style="padding:20px;color:var(--tx3)">案件詳細を読み込めません</div>';
+    }
+  } catch(e) {
+    console.error('buildDealBody エラー:', e);
+    bodyHtml = '<div style="padding:20px;color:var(--red)">案件詳細の読み込みに失敗しました: '+_esc(e.message)+'</div>';
+  }
+  return ''
+    + '<tr class="dt-detail-row" data-detail-for="'+d.id+'" onclick="event.stopPropagation()">'
+    +   '<td colspan="4">'+bodyHtml+'</td>'
+    + '</tr>';
 }
 
 // 確度フィルタ ボタン版: ワンクリック切替 + 旧selectとも同期
