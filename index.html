@@ -4986,6 +4986,83 @@ function _getOfficeDealsTotalForBranch(branchName, field, mi) {
 //   - 担当者単体の場合:
 //     D.actuals[id] + その担当者宛のグループ薬局案件（actualsReflected済み）
 // ═══════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════
+// 統一予算集計関数 getBudgetValue
+// 全画面で使う唯一の予算集計関数(コード重複と不整合を防ぐ)。
+// シグネチャは getActualValue と統一:
+//   target:
+//     'all'                              → 全社(D.branchBudgets全合計)
+//     '__region__西日本'                 → 該当リージョンの拠点合計
+//     '福岡営業所'                       → 拠点単体(D.branchBudgets[名]のみ)
+//     { type:'person', id:'p_xxx' }      → 担当者単体(D.budgets[id]のみ)
+//   field: 's'(売上) or 'p'(粗利)
+//   mi: 0〜11 (4月〜3月)
+//
+// 重要なビジネスルール:
+//   - 拠点/リージョン/全社 → branchBudgets のみ(個人予算は加算しない=二重計上回避)
+//   - 担当者単体 → D.budgets[spId] のみ
+//
+// 過去のバグ事例(2026-05-27 修正):
+//   renderActuals.getBudVal が拠点モード時に「個人予算+branchBudget」を二重加算し
+//   ダッシュボード(branchBudgetのみ)と数字がズレた。
+//   福岡5月: 実績確認 17,852千 vs ダッシュボード 12,600千 (差5,252千 = 個人予算合計)
+// ═══════════════════════════════════════════════════════════════════════
+function getBudgetValue(target, field, mi) {
+  // 入力検証
+  if (field !== 's' && field !== 'p') return 0;
+  if (typeof mi !== 'number' || mi < 0 || mi > 11) return 0;
+
+  // 担当者単体
+  if (target && typeof target === 'object' && target.type === 'person') {
+    var personId = target.id;
+    if (!personId) return 0;
+    var o = D.budgets && D.budgets[personId];
+    if (!o || !o[field]) return 0;
+    var v = parseFloat(o[field][mi]);
+    return isNaN(v) ? 0 : v;
+  }
+
+  // 全社
+  if (target === 'all' || target === -1) {
+    var totalAll = 0;
+    Object.keys(D.branchBudgets || {}).forEach(function(bn) {
+      var bo = D.branchBudgets[bn];
+      if (bo && bo[field]) {
+        var bv = parseFloat(bo[field][mi]);
+        if (!isNaN(bv)) totalAll += bv;
+      }
+    });
+    return totalAll;
+  }
+
+  // リージョン (例: '__region__西日本')
+  if (typeof target === 'string' && target.indexOf('__region__') === 0) {
+    var region = target.slice('__region__'.length);
+    var totalReg = 0;
+    var branches = (typeof getBranchMaster === 'function' ? getBranchMaster() : (D.branchMaster || []))
+      .filter(function(b){ return (b.region || '西日本') === region; });
+    branches.forEach(function(b) {
+      var bo = D.branchBudgets && D.branchBudgets[b.name];
+      if (bo && bo[field]) {
+        var bv = parseFloat(bo[field][mi]);
+        if (!isNaN(bv)) totalReg += bv;
+      }
+    });
+    return totalReg;
+  }
+
+  // 拠点単体
+  if (typeof target === 'string') {
+    var bo2 = D.branchBudgets && D.branchBudgets[target];
+    if (!bo2 || !bo2[field]) return 0;
+    var bv2 = parseFloat(bo2[field][mi]);
+    return isNaN(bv2) ? 0 : bv2;
+  }
+
+  return 0;
+}
+
 function getActualValue(target, field, mi) {
   // ── 入力検証 ──
   if (field !== 's' && field !== 'p') return 0;
@@ -8414,53 +8491,21 @@ function renderStoryPanel() {
   var thisMi = thisMo >= 4 ? thisMo - 4 : thisMo + 8;
   var moLabels = ['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
 
-  // スコープに応じた予算/実績集計
+  // スコープに応じた予算/実績集計 - 統一関数 getBudgetValue / getActualValue 経由
   function getBud(field, mi) {
-    if (scope === 'person') {
-      var o = D.budgets && D.budgets[myId];
-      return (o && o[field] && parseFloat(o[field][mi])) || 0;
-    } else if (scope === 'region') {
-      var total = 0;
-      var branches = (typeof getBranchMaster === 'function' ? getBranchMaster() : (D.branchMaster||[]))
-        .filter(function(b){ return (b.region||'西日本') === roleRegion; });
-      branches.forEach(function(b) {
-        (D.people||[]).filter(function(p){ return p.branch === b.name; }).forEach(function(p) {
-          var po = D.budgets && D.budgets[p.id];
-          if (po && po[field] && po[field][mi] !== '' && po[field][mi] != null) total += parseFloat(po[field][mi]) || 0;
-        });
-        var bo = D.branchBudgets && D.branchBudgets[b.name];
-        if (bo && bo[field] && bo[field][mi] !== '' && bo[field][mi] != null) total += parseFloat(bo[field][mi]) || 0;
-      });
-      return total;
-    } else { // all
-      var total2 = 0;
-      (D.people||[]).forEach(function(p) {
-        var po2 = D.budgets && D.budgets[p.id];
-        if (po2 && po2[field] && po2[field][mi] !== '' && po2[field][mi] != null) total2 += parseFloat(po2[field][mi]) || 0;
-      });
-      Object.keys(D.branchBudgets||{}).forEach(function(bn) {
-        var bo2 = D.branchBudgets[bn];
-        if (bo2 && bo2[field] && bo2[field][mi] !== '' && bo2[field][mi] != null) total2 += parseFloat(bo2[field][mi]) || 0;
-      });
-      return total2;
-    }
+    if (scope === 'person')      return getBudgetValue({type:'person', id:myId}, field, mi);
+    else if (scope === 'region') return getBudgetValue('__region__' + roleRegion, field, mi);
+    else                         return getBudgetValue('all', field, mi);
   }
   function getAct(field, mi) {
     if (scope === 'person') {
-      // 個人実績: グループ薬局除外のため D.actuals 直接参照
+      // 個人実績はグループ薬局を除外するため D.actuals 直接参照
+      // (getActualValueはグループ薬局案件を加算する)
       var o = D.actuals && D.actuals[myId];
       return (o && o[field] && parseFloat(o[field][mi])) || 0;
-    } else if (scope === 'region') {
-      if (typeof getActualValue === 'function') {
-        return getActualValue('__region__' + roleRegion, field, mi) || 0;
-      }
-      return 0;
-    } else { // all
-      if (typeof getActualValue === 'function') {
-        return getActualValue('all', field, mi) || 0;
-      }
-      return 0;
     }
+    else if (scope === 'region') return getActualValue('__region__' + roleRegion, field, mi) || 0;
+    else                         return getActualValue('all', field, mi) || 0;
   }
 
   // スコープに該当する案件をフィルタ (グループ薬局除外)
@@ -12889,17 +12934,13 @@ function renderDashboard() {
 
   // 売上・粗利の予算/実績集計（拠点単位）
   function aggBranch(branchName) {
-    // ── 統一関数 getActualValue を使用 ──
+    // ── 統一関数 getActualValue / getBudgetValue を使用 ──
     var s_act = 0, p_act = 0, s_bud = 0, p_bud = 0;
     miRange.forEach(function(mi) {
-      // 実績: 統一関数に委譲
       s_act += getActualValue(branchName, 's', mi);
       p_act += getActualValue(branchName, 'p', mi);
-      // 予算: branchBudgetsから
-      if (D.branchBudgets && D.branchBudgets[branchName]) {
-        s_bud += safeGetArr(D.branchBudgets[branchName], 's', mi);
-        p_bud += safeGetArr(D.branchBudgets[branchName], 'p', mi);
-      }
+      s_bud += getBudgetValue(branchName, 's', mi);
+      p_bud += getBudgetValue(branchName, 'p', mi);
     });
     return { s_act:s_act, p_act:p_act, s_bud:s_bud, p_bud:p_bud };
   }
@@ -13122,10 +13163,9 @@ function renderDashboard() {
     for (var mi=0; mi<12; mi++) {
       var ms = 0, mb = 0;
       targetBranches.forEach(function(bn) {
-        // 実績: 統一関数に委譲
+        // 実績/予算ともに統一関数経由
         ms += getActualValue(bn, field, mi);
-        // 予算
-        if (D.branchBudgets && D.branchBudgets[bn]) mb += safeGetArr(D.branchBudgets[bn], field, mi);
+        mb += getBudgetValue(bn, field, mi);
       });
       sales.push(ms);
       buds.push(mb);
@@ -14060,41 +14100,18 @@ function renderActuals() {
     else if (sp)        titleEl.textContent = '👤 ' + sp.name;
   }
 
-  // ── 予算データ取得（設定 → 予算 を参照）─────────────────
+  // ── 予算データ取得: 統一関数 getBudgetValue へ委譲 ──
+  // ※ 過去は「個人予算+branchBudget」を二重加算するバグがあり、ダッシュボードと
+  //   実績確認で値がズレていた (福岡5月: 17,852千 vs 12,600千)。
+  //   getBudgetValue は拠点/リージョン/全社では branchBudgets のみを使う設計。
   function getBudVal(field, mi) {
-    if (isAll) {
-      // 全体: 全担当者 + 全営業所別予算 の合計
-      let total = 0;
-      people.forEach(function(p) {
-        total += safeGet(D.budgets[p.id], field, mi);
-      });
-      Object.keys(D.branchBudgets).forEach(function(b) {
-        total += safeGet(D.branchBudgets[b], field, mi);
-      });
-      return total;
-    }
-    if (isBranch) {
-      // 営業所: その営業所所属担当者の予算合計 + その営業所の branchBudget
-      let total = 0;
-      people.filter(function(p){return p.branch===branchName;}).forEach(function(p) {
-        total += safeGet(D.budgets[p.id], field, mi);
-      });
-      total += safeGet(D.branchBudgets[branchName], field, mi);
-      return total;
-    }
-    if (isRegion) {
-      // リージョン: 所属営業所の合計
-      let total = 0;
-      getBranchMaster().filter(function(b){ return (b.region||'西日本') === regionName; }).forEach(function(b) {
-        people.filter(function(p){return p.branch===b.name;}).forEach(function(p) {
-          total += safeGet(D.budgets[p.id], field, mi);
-        });
-        total += safeGet(D.branchBudgets[b.name], field, mi);
-      });
-      return total;
-    }
-    if (sp) return safeGet(D.budgets[sp.id], field, mi);
-    return 0;
+    var target;
+    if (isAll)           target = 'all';
+    else if (isBranch)   target = branchName;
+    else if (isRegion)   target = '__region__' + regionName;
+    else if (sp)         target = { type: 'person', id: sp.id };
+    else                 return 0;
+    return getBudgetValue(target, field, mi);
   }
 
   // ── 実績データ取得: 統一関数 getActualValue へ委譲 ──
