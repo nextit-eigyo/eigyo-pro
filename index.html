@@ -7904,27 +7904,40 @@ function parseSheet(rows,sheetName,result){
         }
       }
     }else if(num===8){
-      // グループ薬局判定:
-      //   神戸: 8_その他 + midCat「9_調剤くんV8Core版」 + notes「支援」
-      //   福岡: 8_その他 + midCat「東邦薬品」または「支援費」など
-      //   今後追加の拠点も midCat/notesキーワードで対応
-      var isGroupDeal = cust && salesV > 0 && (
-        /9_調剤くんV8Core版/.test(midCat) ||
-        /東邦薬品/.test(midCat) ||
-        /V8Core/.test(midCat) ||
-        (/支援/.test(notes) && /調剤/.test(cust))
-      );
-      if (isGroupDeal) {
-        // グループ薬局案件としてresult.groupDealsに追加（後でD.dealsへ登録）
-        if (!result.groupDeals) result.groupDeals = [];
-        result.groupDeals.push({
+      // ⭐ 優先度1: 担当者(rep)があれば個人実績として案件化(馬場さん要望)
+      //   H列に担当者名がある行は、その担当者の D.actuals に反映する
+      //   例: 岩下「はままち薬局」(1_東邦薬品支援費) → 岩下の売上に計上
+      if (cust && salesV > 0 && rep) {
+        result.software.deals.push({
           name: cust, sales: salesV, cost: costV, profit: profitV,
-          rep: rep, midCat: midCat, notes: notes, sheet: sheetName
+          rep: rep, midCat: midCat,
+          productType: 'その他システム', // V8新規/Vupではない別カテゴリ
+          notes: notes, sheet: sheetName, noRep: false,
+          dealType: '既存（バージョンアップ）' // 8_その他はシステム本体ではないので既存扱い
         });
-        // softwareの合計にも加算（branchSoftActualsに含まれるようにするため）
+        // softwareの合計にも加算(branchSoftActualsに含まれるようにするため)
         result.software.s += salesV; result.software.p += profitV;
       } else {
-        result.other.s += salesV; result.other.p += profitV;
+        // 優先度2: 担当者なしの場合のみグループ薬局判定
+        //   神戸: 8_その他 + midCat「9_調剤くんV8Core版」 + notes「支援」
+        //   福岡: 8_その他 + midCat「東邦薬品」または「支援費」など
+        var isGroupDeal = cust && salesV > 0 && (
+          /9_調剤くんV8Core版/.test(midCat) ||
+          /東邦薬品/.test(midCat) ||
+          /V8Core/.test(midCat) ||
+          (/支援/.test(notes) && /調剤/.test(cust))
+        );
+        if (isGroupDeal) {
+          // グループ薬局案件として登録(後でD.dealsへ)
+          if (!result.groupDeals) result.groupDeals = [];
+          result.groupDeals.push({
+            name: cust, sales: salesV, cost: costV, profit: profitV,
+            rep: rep, midCat: midCat, notes: notes, sheet: sheetName
+          });
+          result.software.s += salesV; result.software.p += profitV;
+        } else {
+          result.other.s += salesV; result.other.p += profitV;
+        }
       }
     }
   }
@@ -8061,7 +8074,7 @@ function _showFuzzyMatchDialog(pendingList, onComplete) {
         deliveryMonth: item.moStr, activationMonth: '',
         sales: String(item.impSales), cost: String(item.impCost),
         category: item.impDeal.sheet === '販売店' ? '販売店' : '直販',
-        dealType: '新規（他社入替）',
+        dealType: item.impDeal.dealType || '新規（他社入替）',
         productType: item.impDeal.productType || '調剤くんV8',
         productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
         nextAction: '',
@@ -8401,7 +8414,7 @@ function _doConfirmImport(addedMasters){
               deliveryMonth: moStr, activationMonth: '',
               sales: String(impSales), cost: String(impCost),
               category: impDeal.sheet === '販売店' ? '販売店' : '直販',
-              dealType: '新規（他社入替）',
+              dealType: impDeal.dealType || '新規（他社入替）', // 8_その他など既存扱いの場合に対応
               productType: impDeal.productType || '調剤くんV8',
               productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
               nextAction: isNoRep ? '⚠️ 担当者を設定してください' : '',
@@ -9141,18 +9154,20 @@ function _dtBuildRow(d, people) {
     ? '<span class="pp">'+_esc(pp.name)+'</span>('+_esc(pp.branch||'—')+')'+(d.pref?' / 📍'+_esc(d.pref):'')
     : '<span style="color:var(--amb)">⚠ 未割当</span>'+(d.pref?' / 📍'+_esc(d.pref):'');
 
+  // 確度バッジ(タグ行に固定配置・薬局名の隣だと目移りするため)
+  var probBadgeHtml = '<span class="prob-badge p'+probKey+'">'
+    +   '<span class="stars">'+_esc(probDefRow.stars||'☆☆☆☆☆')+'</span>'
+    +   '<span>'+_esc(probDefRow.label||ls||'未設定')+'</span>'
+    +   '<span>'+(probDefRow.weight||0)+'%</span>'
+    + '</span>';
+
   var infoCell = ''
     + '<div class="dt-info">'
     +   '<div class="row1">'
     +     '<span class="nm'+(isLost?' lost':'')+'">'+_esc(d.name||'—')+'</span>'
-    +     '<span class="prob-badge p'+probKey+'">'
-    +       '<span class="stars">'+_esc(probDefRow.stars||'☆☆☆☆☆')+'</span>'
-    +       '<span>'+_esc(probDefRow.label||ls||'未設定')+'</span>'
-    +       '<span>'+(probDefRow.weight||0)+'%</span>'
-    +     '</span>'
     +     '<span class="pp-inline">'+personInline+'</span>'
     +   '</div>'
-    +   (pillsHtml ? '<div class="pills">'+pillsHtml+'</div>' : '')
+    +   '<div class="pills">'+probBadgeHtml+pillsHtml+'</div>'
     + '</div>';
 
   // ② 進捗バー + 最終活動
