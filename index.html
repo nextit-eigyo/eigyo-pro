@@ -1776,6 +1776,14 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-sum .good { color:#4a5a32; font-weight:900; }
 #tab-meeting .mt-sum .mid  { color:#7a5a2a; font-weight:900; }
 #tab-meeting .mt-sum .bad  { color:var(--red); font-weight:900; }
+/* 目標との差異バッジ(▲超過 / ▼未達) */
+#tab-meeting .mt-diff {
+  display:block; font-size:11px; font-weight:800; margin-top:2px;
+  letter-spacing:.02em;
+}
+#tab-meeting .mt-diff.over  { color:#4a5a32; }
+#tab-meeting .mt-diff.under { color:var(--red); }
+#tab-meeting .mt-diff.zero  { color:var(--tx3); }
 #tab-meeting .mt-month-grid {
   display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:14px;
 }
@@ -4252,6 +4260,15 @@ function _mtFmtNum(v) {
   if (!v || isNaN(v)) return '<span class="dim">0</span>';
   return Math.round(v).toLocaleString();
 }
+// 目標との差異を「▲超過 / ▼未達」付きで表示するヘルパー
+// budが0(未設定)なら空文字を返す
+function _mtFmtDiff(act, bud) {
+  if (!bud || bud === 0) return '';
+  var diff = Math.round((act || 0) - bud);
+  if (diff === 0) return '<span class="mt-diff zero">±0</span>';
+  if (diff > 0)   return '<span class="mt-diff over">▲+'+diff.toLocaleString()+'</span>';
+  return '<span class="mt-diff under">▼'+Math.abs(diff).toLocaleString()+'</span>';
+}
 function _mtAchCls(pct) {
   if (pct >= 100) return 'good';
   if (pct >= 80)  return 'mid';
@@ -4531,10 +4548,10 @@ function renderMeeting() {
   sumTableHtml += '<td class="lbl">'+halfLbl+'計</td>';
   sumTableHtml += '<td>'+_mtFmtNum(totActS)+'</td>';
   sumTableHtml += '<td>'+_mtFmtNum(totBudS)+'</td>';
-  sumTableHtml += '<td class="'+_mtAchCls(totSAch)+'">'+totSAch.toFixed(1)+'%</td>';
+  sumTableHtml += '<td class="'+_mtAchCls(totSAch)+'"><div>'+totSAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActS, totBudS)+'</td>';
   sumTableHtml += '<td>'+_mtFmtNum(totActP)+'</td>';
   sumTableHtml += '<td>'+_mtFmtNum(totBudP)+'</td>';
-  sumTableHtml += '<td class="'+_mtAchCls(totPAch)+'">'+totPAch.toFixed(1)+'%</td>';
+  sumTableHtml += '<td class="'+_mtAchCls(totPAch)+'"><div>'+totPAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActP, totBudP)+'</td>';
   sumTableHtml += '<td>'+totNewV8+'軒</td>';
   sumTableHtml += '<td>'+totExist+'軒</td>';
   sumTableHtml += '</tr>';
@@ -4555,10 +4572,10 @@ function renderMeeting() {
     sumTableHtml += '<td class="lbl">'+rangeLbl+'</td>';
     sumTableHtml += '<td>'+_mtFmtNum(cActS)+'</td>';
     sumTableHtml += '<td>'+_mtFmtNum(cBudS)+'</td>';
-    sumTableHtml += '<td class="'+_mtAchCls(sA)+'">'+sA.toFixed(1)+'%</td>';
+    sumTableHtml += '<td class="'+_mtAchCls(sA)+'"><div>'+sA.toFixed(1)+'%</div>'+_mtFmtDiff(cActS, cBudS)+'</td>';
     sumTableHtml += '<td>'+_mtFmtNum(cActP)+'</td>';
     sumTableHtml += '<td>'+_mtFmtNum(cBudP)+'</td>';
-    sumTableHtml += '<td class="'+_mtAchCls(pA)+'">'+pA.toFixed(1)+'%</td>';
+    sumTableHtml += '<td class="'+_mtAchCls(pA)+'"><div>'+pA.toFixed(1)+'%</div>'+_mtFmtDiff(cActP, cBudP)+'</td>';
     sumTableHtml += '<td>'+nCnt+'軒</td>';
     sumTableHtml += '<td>'+eCnt+'軒</td>';
     sumTableHtml += '</tr>';
@@ -4576,10 +4593,19 @@ function renderMeeting() {
     var pA = budP > 0 ? (actP / budP * 100) : 0;
     var sCls = _mtAchCls(sA), pCls = _mtAchCls(pA);
 
+    // ヘッダー上部の達成率表示にも差異を併記
+    var sDiffHead = budS > 0 ? Math.round(actS - budS) : 0;
+    var pDiffHead = budP > 0 ? Math.round(actP - budP) : 0;
+    function _fmtHeadDiff(diff) {
+      if (!diff) return '';
+      return diff > 0
+        ? ' <span style="color:#4a5a32;font-size:12px">(▲+'+diff.toLocaleString()+')</span>'
+        : ' <span style="color:var(--red);font-size:12px">(▼'+Math.abs(diff).toLocaleString()+')</span>';
+    }
     html += '<div class="mt-month-card">';
     html += '<div class="mt-mc-head">';
     html += '<span class="m">'+moLabels[mi]+'</span>';
-    html += '<span class="ach" style="color:'+ (sCls==='good'?'#4a5a32':sCls==='mid'?'#7a5a2a':'var(--red)') +'">売上 '+sA.toFixed(1)+'% / 粗利 '+pA.toFixed(1)+'%</span>';
+    html += '<span class="ach" style="color:'+ (sCls==='good'?'#4a5a32':sCls==='mid'?'#7a5a2a':'var(--red)') +'">売上 '+sA.toFixed(1)+'%'+_fmtHeadDiff(sDiffHead)+' / 粗利 '+pA.toFixed(1)+'%'+_fmtHeadDiff(pDiffHead)+'</span>';
     html += '</div>';
 
     // 月次目標/実績テーブル
@@ -4588,10 +4614,10 @@ function renderMeeting() {
     html += '<tr class="hl-y">';
     html += '<td>'+_mtFmtNum(actS)+'</td>';
     html += '<td>'+_mtFmtNum(budS)+'</td>';
-    html += '<td class="'+sCls+'">'+sA.toFixed(1)+'%</td>';
+    html += '<td class="'+sCls+'"><div>'+sA.toFixed(1)+'%</div>'+_mtFmtDiff(actS, budS)+'</td>';
     html += '<td>'+_mtFmtNum(actP)+'</td>';
     html += '<td>'+_mtFmtNum(budP)+'</td>';
-    html += '<td class="'+pCls+'">'+pA.toFixed(1)+'%</td>';
+    html += '<td class="'+pCls+'"><div>'+pA.toFixed(1)+'%</div>'+_mtFmtDiff(actP, budP)+'</td>';
     html += '</tr>';
     html += '</table>';
 
