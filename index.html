@@ -1137,7 +1137,39 @@ tr:hover td{background:rgba(90,123,158,.02)}
   .fab-item { font-size:11.5px; padding:8px 12px; }
 }
 
-/* ════════════════ 案件カード Hub&Spoke レイアウト (コンパクト版) ════════════════ */
+/* ════════════════ 案件カード 水平タブナビ(案①) ════════════════ */
+.dt-tabbar {
+  display:flex; gap:2px; padding:6px 12px 0;
+  background:var(--s2); border-bottom:1px solid var(--bds);
+  overflow-x:auto; flex-wrap:nowrap;
+}
+.dt-tabbar::-webkit-scrollbar { height:3px; }
+.dt-tab {
+  background:transparent; border:none; padding:7px 12px;
+  font-size:12px; font-weight:700; color:var(--tx3); cursor:pointer;
+  border-radius:6px 6px 0 0;
+  border-bottom:2px solid transparent;
+  white-space:nowrap; flex-shrink:0;
+  display:inline-flex; align-items:center; gap:4px;
+  font-family:inherit;
+}
+.dt-tab:hover { background:rgba(0,0,0,.04); }
+.dt-tab.active {
+  background:#fff; color:var(--acc); border-bottom-color:var(--acc);
+}
+.dt-tab .tab-badge {
+  background:var(--tx3); color:#fff; font-size:9px;
+  padding:1px 5px; border-radius:8px; font-weight:700;
+}
+.dt-tab.active .tab-badge { background:var(--acc); }
+
+/* タブパネル: 非表示と表示の切替 */
+.dt-pane { display:none; padding:10px 12px; background:#fff; }
+.dt-pane.active { display:block; }
+.dt-pane > .dc-section:first-child { margin-top:0; }
+.dt-pane > .dc-section:last-child { margin-bottom:0; }
+
+/* ━━━ 案件カード Hub&Spoke レイアウト (コンパクト版) ━━━ */
 /* 案①: 幅制限 + 中央寄せ / 案④: 常時編集 (編集ボタン廃止) */
 .dc-body { padding:10px 12px; max-width:1080px; margin:0 auto; }
 .dc-kpi-row {
@@ -8794,6 +8826,24 @@ function showTab(name,btn){
   if(name==='import')initImportCtrl();
 }
 
+// 案件カード水平タブ切替(案①)
+// カード毎にどのタブが開いてるかを記憶 → 再描画時も同じタブを開く
+window._dealTabState = window._dealTabState || {};
+function _switchDealTab(dealId, tabKey) {
+  window._dealTabState[dealId] = tabKey;
+  var el = document.getElementById('di-' + dealId);
+  if (!el) return;
+  el.querySelectorAll('.dt-tab').forEach(function(t) {
+    t.classList[t.dataset.tab === tabKey ? 'add' : 'remove']('active');
+  });
+  el.querySelectorAll('.dt-pane').forEach(function(p) {
+    p.classList[p.dataset.pane === tabKey ? 'add' : 'remove']('active');
+  });
+}
+function _getDealTab(dealId) {
+  return (window._dealTabState && window._dealTabState[dealId]) || 'next';
+}
+
 // ストーリーパネル非表示(数字モード以外で呼ぶ)
 function _hideStoryPanel() {
   var sp = document.getElementById('story-panel');
@@ -11152,6 +11202,11 @@ function buildDealBody(d) {
   // ── オプション配列 ──
   var optsArr = (typeof getOptionArray === 'function') ? getOptionArray(d.productOption||'') : [];
 
+  // ── 現在開いてるタブ(デフォルト: 🎯 次の動き) ──
+  var curTab = (window._dealTabState && window._dealTabState[d.id]) || 'next';
+  function pCls(key) { return 'dt-pane' + (curTab === key ? ' active' : ''); }
+  function tCls(key) { return 'dt-tab' + (curTab === key ? ' active' : ''); }
+
   // ── ヘルパ: セクションヘッダー (案④: 編集ボタンを廃止 - フィールド直接編集) ──
   function secHeader(sectionKey, icon, title, dealId) {
     return '<div class="dc-sec-header">' +
@@ -11185,7 +11240,18 @@ function buildDealBody(d) {
       </div>
     </div>
 
-    <!-- ━━━ 🏥 基本情報 (案④: 常時編集) ━━━ -->
+    <!-- ━━━ 水平タブバー(案①) ━━━ -->
+    <div class="dt-tabbar">
+      <button class="${tCls('next')}" data-tab="next" onclick="_switchDealTab('${d.id}','next')">🎯 次の動き</button>
+      <button class="${tCls('basic')}" data-tab="basic" onclick="_switchDealTab('${d.id}','basic')">🏥 基本情報</button>
+      <button class="${tCls('price')}" data-tab="price" onclick="_switchDealTab('${d.id}','price')">💰 金額・日程</button>
+      <button class="${tCls('product')}" data-tab="product" onclick="_switchDealTab('${d.id}','product')">📦 商品・案件</button>
+      <button class="${tCls('memo')}" data-tab="memo" onclick="_switchDealTab('${d.id}','memo')">💬 メモ</button>
+      <button class="${tCls('history')}" data-tab="history" onclick="_switchDealTab('${d.id}','history')">📜 履歴 <span class="tab-badge">${(d.visits||[]).length}</span></button>
+    </div>
+
+    <!-- ━━━ 🏥 基本情報 (タブ: basic) ━━━ -->
+    <div class="${pCls('basic')}" data-pane="basic">
     <div class="dc-section">
       ${secHeader('basic','🏥','基本情報',d.id)}
       <div class="dc-sec-content">
@@ -11213,7 +11279,9 @@ function buildDealBody(d) {
       </div>
     </div>
 
-    <!-- ━━━ 💰 金額・日程 (案④: 常時編集) ━━━ -->
+    </div>
+    <!-- ━━━ 💰 金額・日程 (タブ: price) ━━━ -->
+    <div class="${pCls('price')}" data-pane="price">
     <div class="dc-section">
       ${secHeader('price','💰','金額・日程',d.id)}
       <div class="dc-sec-content">
@@ -11236,7 +11304,9 @@ function buildDealBody(d) {
       </div>
     </div>
 
-    <!-- ━━━ 📦 商品・案件情報 (案④: 常時編集) ━━━ -->
+    </div>
+    <!-- ━━━ 📦 商品・案件情報 (タブ: product) ━━━ -->
+    <div class="${pCls('product')}" data-pane="product">
     <div class="dc-section">
       ${secHeader('product','📦','商品・案件情報',d.id)}
       <div class="dc-sec-content">
@@ -11321,7 +11391,9 @@ function buildDealBody(d) {
       </div>
     </div>
 
-    <!-- ━━━ 🎯 次のアクション・課題 (案④: 常時編集 + 期限色プレビュー) ━━━ -->
+    </div>
+    <!-- ━━━ 🎯 次のアクション・課題 (タブ: next - デフォルトactive) ━━━ -->
+    <div class="${pCls('next')}" data-pane="next">
     <div class="dc-section">
       ${secHeader('next','🎯','次のアクション・課題',d.id)}
       <div class="dc-sec-content">
@@ -11391,7 +11463,9 @@ function buildDealBody(d) {
       </div>
     </div>
 
-    <!-- ━━━ 💬 自由メモ (案④: 常時編集) ━━━ -->
+    </div>
+    <!-- ━━━ 💬 自由メモ (タブ: memo) ━━━ -->
+    <div class="${pCls('memo')}" data-pane="memo">
     <div class="dc-section">
       ${secHeader('memo','💬','自由メモ',d.id)}
       <div class="dc-sec-content">
@@ -11406,7 +11480,10 @@ function buildDealBody(d) {
       </div>
     </div>
 
-    <!-- ━━━ 📜 訪問履歴 (Phase 1: 読み取りのみ) ━━━ -->
+    </div>
+    <!-- ━━━ 📜 履歴タブ(履歴 + 活動記録を内包) ━━━ -->
+    <div class="${pCls('history')}" data-pane="history">
+    <!-- 📜 訪問履歴 (Phase 1: 読み取りのみ) -->
     <div class="dc-section">
       <div class="dc-sec-header">
         <span class="dc-sec-title"><span class="ic">📜</span>訪問履歴 <span style="font-weight:500;color:var(--tx3);font-size:11px;margin-left:4px">${(d.visits||[]).length}件</span></span>
@@ -11452,7 +11529,8 @@ function buildDealBody(d) {
       </div>
     </div>
 
-    <!-- ━━━ ④ アクションボタン ━━━ -->
+    </div>
+    <!-- ━━━ ④ アクションボタン(タブ外・常時表示) ━━━ -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;flex-wrap:wrap">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn sm" onclick="cloneDeal('${d.id}')">📋 クローン</button>
