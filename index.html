@@ -4302,11 +4302,12 @@ function _mtConfInfo(d) {
 }
 function _mtCountNewDeals(spId, misArr) {
   // 新規開局 / 新規(他社入替) で受注済・対象月計上 の案件数をカウント
-  // グループ薬局は拠点扱いのため個人実績から除外
+  // グループ薬局・販売店は個人実績から除外(新規軒数は直販案件のみ)
   var cnt = 0;
   (D.deals || []).forEach(function(d) {
     if (d.spId !== spId) return;
     if (d.category === 'グループ薬局') return;
+    if (d.category === '販売店') return;
     var dt = String(d.dealType || '');
     if (!/新規/.test(dt)) return;
     var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
@@ -8786,6 +8787,10 @@ function quickAddDeal(){
 
 // ===== TAB SWITCH =====
 function showTab(name,btn){
+  // 案件タブ以外に移動する時は、開いているサイドパネルを自動的に閉じる
+  if (name !== 'deals' && window._sidepanelDealId && typeof _closeSidepanel === 'function') {
+    _closeSidepanel();
+  }
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.htab').forEach(t=>t.classList.remove('active'));
