@@ -1147,11 +1147,16 @@ tr:hover td{background:rgba(90,123,158,.02)}
   width:100%; border-collapse:collapse; font-size:12px;
   table-layout:fixed;
 }
-/* 列幅: 案件情報(40%) / 進捗+最終活動(28%) / 次の動き(20%) / 金額(12%) */
-.deal-table colgroup col.c-info { width:40%; }
-.deal-table colgroup col.c-progress { width:28%; }
-.deal-table colgroup col.c-next { width:20%; }
-.deal-table colgroup col.c-amount { width:12%; min-width:130px; }
+/* 列幅: 案件情報(38%) / 進捗+最終活動(30%) / 次の動き(18%) / 金額(14%) */
+/* colgroup より nth-child が確実に効くため両方指定 */
+.deal-table colgroup col.c-info     { width:38%; }
+.deal-table colgroup col.c-progress { width:30%; }
+.deal-table colgroup col.c-next     { width:18%; }
+.deal-table colgroup col.c-amount   { width:14%; }
+.deal-table th:nth-child(1), .deal-table td:nth-child(1) { width:38%; }
+.deal-table th:nth-child(2), .deal-table td:nth-child(2) { width:30%; }
+.deal-table th:nth-child(3), .deal-table td:nth-child(3) { width:18%; }
+.deal-table th:nth-child(4), .deal-table td:nth-child(4) { width:14%; text-align:right; }
 
 .deal-table thead th {
   background:var(--s3); padding:6px 10px; text-align:left;
