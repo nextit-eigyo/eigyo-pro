@@ -6612,28 +6612,34 @@ function parseSheet(rows,sheetName,result){
   const cm={big:-1,mid:-1,cust:-1,sales:-1,cost:-1,profit:-1,rep:-1,notes:-1};
 
   // ── 営業所名を先頭数行から検出 ──────────────────────────────
+  // 注: 販売店シートでは代理店名(例「西東京ユースウェア」「東町薬局」)が
+  //     「東京」を含むため誤検知を引き起こす。販売店シートでは行から
+  //     拠点判定はスキップし、直販シート由来の result.detectedBranch に依存する
   var detectedBranch = '';
   var branches = getBranchMaster ? getBranchMaster() : [];
-  for(var ri=0;ri<Math.min(rows.length,5);ri++){
-    var row0=rows[ri]||[];
-    for(var ci=0;ci<Math.min(row0.length,5);ci++){
-      var cell=String(row0[ci]||'').trim();
-      if(!cell)continue;
-      // ブランチマスタと部分一致（神戸, 福岡, 高知 etc.）
-      var found=branches.find(function(b){return b.name&&cell&&(b.name.includes(cell)||cell.includes(b.name.replace(/本社|営業所|事業所|支店/g,'')));});
-      if(found){detectedBranch=found.name;break;}
-      // フォールバック: 直接キーワードマッチ
-      if(cell.includes('神戸'))detectedBranch='神戸本社';
-      else if(cell.includes('福岡'))detectedBranch='福岡営業所';
-      else if(cell.includes('高知'))detectedBranch='高知営業所';
-      else if(cell.includes('東京'))detectedBranch='東京事業所';
-      else if(cell.includes('新潟'))detectedBranch='新潟営業所';
+  var isHanbaiSheet = sheetName && /販売店/.test(sheetName);
+  if (!isHanbaiSheet) {
+    for(var ri=0;ri<Math.min(rows.length,5);ri++){
+      var row0=rows[ri]||[];
+      for(var ci=0;ci<Math.min(row0.length,5);ci++){
+        var cell=String(row0[ci]||'').trim();
+        if(!cell)continue;
+        // ブランチマスタと部分一致（神戸, 福岡, 高知 etc.）
+        var found=branches.find(function(b){return b.name&&cell&&(b.name.includes(cell)||cell.includes(b.name.replace(/本社|営業所|事業所|支店/g,'')));});
+        if(found){detectedBranch=found.name;break;}
+        // フォールバック: 直接キーワードマッチ
+        if(cell.includes('神戸'))detectedBranch='神戸本社';
+        else if(cell.includes('福岡'))detectedBranch='福岡営業所';
+        else if(cell.includes('高知'))detectedBranch='高知営業所';
+        else if(cell.includes('東京'))detectedBranch='東京事業所';
+        else if(cell.includes('新潟'))detectedBranch='新潟営業所';
+        if(detectedBranch)break;
+      }
       if(detectedBranch)break;
     }
-    if(detectedBranch)break;
   }
-  // シート名からも検出を試みる
-  if(!detectedBranch){
+  // シート名からも検出を試みる(販売店/直販 単独のシート名では拠点判定できないのでスキップ可)
+  if(!detectedBranch && !isHanbaiSheet){
     if(/神戸/.test(sheetName))detectedBranch='神戸本社';
     else if(/福岡/.test(sheetName))detectedBranch='福岡営業所';
     else if(/高知/.test(sheetName))detectedBranch='高知営業所';
@@ -6791,7 +6797,8 @@ function parseSheet(rows,sheetName,result){
   }
   
   // 拠点名をresultに保存（既に検出済みの場合は空文字で上書きしない）
-  if (detectedBranch) result.detectedBranch = detectedBranch;
+  // 既に他シートで判定済みなら上書きしない(直販シートの判定を信頼)
+  if (detectedBranch && !result.detectedBranch) result.detectedBranch = detectedBranch;
 }
 
 function renderImportPreview(r){
@@ -6966,24 +6973,29 @@ function _doConfirmImport(addedMasters){
   let log = [];
 
   // ── ヘルパー: Excelインポート対象の拠点を判定 ──
-  // 既存の検出結果(detected)があればそれを優先、なければファイル名から判定
+  // ファイル名を最優先(最も信頼できる)、なければ detected(parseSheet結果) を使う
   // 3箇所(HW/消耗品/その他)で重複していた拠点判定ロジックを統一
+  // 注: 旧版は detected を優先したが、販売店シートの誤検出で 神戸→東京 になる
+  //     バグが発生したため、ファイル名優先に変更
   const _detectImportBranch = function(detected, fname) {
-    if (detected) return detected;
-    if (!fname) return '';
-    var bm = (D.branchMaster || []);
-    for (var i = 0; i < bm.length; i++) {
-      var bn = bm[i].name || '';
-      var sn = bn.replace(/本社|営業所|事業所|支店/g, '');
-      if (bn && (fname.indexOf(bn) >= 0 || (sn && fname.indexOf(sn) >= 0))) {
-        return bn;
+    // ファイル名から判定(最も信頼できる)
+    if (fname) {
+      var bm = (D.branchMaster || []);
+      for (var i = 0; i < bm.length; i++) {
+        var bn = bm[i].name || '';
+        var sn = bn.replace(/本社|営業所|事業所|支店/g, '');
+        if (bn && (fname.indexOf(bn) >= 0 || (sn && fname.indexOf(sn) >= 0))) {
+          return bn;
+        }
       }
+      if (/神戸/.test(fname)) return '神戸本社';
+      if (/福岡/.test(fname)) return '福岡営業所';
+      if (/高知/.test(fname)) return '高知営業所';
+      if (/東京/.test(fname)) return '東京事業所';
+      if (/新潟/.test(fname)) return '新潟営業所';
     }
-    if (/神戸/.test(fname)) return '神戸本社';
-    if (/福岡/.test(fname)) return '福岡営業所';
-    if (/高知/.test(fname)) return '高知営業所';
-    if (/東京/.test(fname)) return '東京事業所';
-    if (/新潟/.test(fname)) return '新潟営業所';
+    // ファイル名で判定できない場合のみ detected を使う
+    if (detected) return detected;
     return '';
   };
 
