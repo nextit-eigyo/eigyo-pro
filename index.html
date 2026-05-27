@@ -1032,6 +1032,117 @@ tr:hover td{background:rgba(90,123,158,.02)}
   .pc-network-diagram { padding: 8px; }
   .pc-network-diagram svg { max-height: 90vh; }
 }
+
+/* ════════════════ MEETING TAB (営業会議レポート) ════════════════ */
+#tab-meeting .meeting-toolbar {
+  display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:14px;
+}
+#tab-meeting .mt-person-tabs { display:flex; gap:4px; flex-wrap:wrap; flex:1; }
+#tab-meeting .mt-pt {
+  background:#fff; border:1px solid var(--bd); padding:6px 14px;
+  border-radius:18px; font-size:12px; font-weight:700; cursor:pointer;
+  color:var(--tx2); display:inline-flex; align-items:center; gap:6px;
+}
+#tab-meeting .mt-pt:hover { background:var(--s2); }
+#tab-meeting .mt-pt.active { background:var(--acc); color:#fff; border-color:var(--acc); }
+#tab-meeting .mt-pt .br { font-size:10px; opacity:.75; }
+#tab-meeting .mt-half-tabs { display:flex; gap:3px; background:var(--s3); padding:3px; border-radius:9px; flex-shrink:0; }
+#tab-meeting .mt-ht {
+  background:transparent; border:none; padding:5px 14px;
+  border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; color:var(--tx2);
+}
+#tab-meeting .mt-ht.active { background:var(--tx); color:#fff; }
+#tab-meeting .meeting-person-head {
+  display:flex; align-items:center; gap:14px; margin-bottom:14px;
+  padding-bottom:10px; border-bottom:1.5px solid var(--bd); flex-wrap:wrap;
+}
+#tab-meeting .meeting-person-head .nm { font-size:18px; font-weight:900; }
+#tab-meeting .meeting-person-head .br {
+  background:var(--s3); color:var(--tx2); font-size:11px;
+  padding:3px 10px; border-radius:10px; font-weight:700;
+}
+#tab-meeting .meeting-person-head .yr { margin-left:auto; font-size:12px; color:var(--tx3); }
+#tab-meeting .mt-sum {
+  width:100%; border-collapse:collapse; font-size:12px; margin-bottom:14px;
+  background:#fff;
+}
+#tab-meeting .mt-sum th, #tab-meeting .mt-sum td {
+  border:1px solid var(--bd); padding:6px 10px; text-align:right;
+}
+#tab-meeting .mt-sum th {
+  background:var(--s3); font-weight:700; color:var(--tx2); text-align:center; font-size:11px;
+}
+#tab-meeting .mt-sum td.lbl {
+  text-align:center; background:var(--s2); font-weight:700; color:var(--tx2);
+}
+#tab-meeting .mt-sum tr.hl-y td { background:#fff8d0; font-weight:900; }
+#tab-meeting .mt-sum tr.hl-y td.lbl { background:var(--s4); color:var(--tx); }
+#tab-meeting .mt-sum .good { color:#4a5a32; font-weight:700; }
+#tab-meeting .mt-sum .mid  { color:#7a5a2a; font-weight:700; }
+#tab-meeting .mt-sum .bad  { color:var(--red); font-weight:700; }
+#tab-meeting .mt-month-grid {
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:14px;
+}
+@media (max-width: 1100px) {
+  #tab-meeting .mt-month-grid { grid-template-columns:repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  #tab-meeting .mt-month-grid { grid-template-columns:1fr; }
+}
+#tab-meeting .mt-month-card {
+  background:#fff; border:1px solid var(--bd); border-radius:10px; padding:12px 14px;
+}
+#tab-meeting .mt-mc-head {
+  display:flex; align-items:baseline; gap:10px; margin-bottom:8px;
+  padding-bottom:8px; border-bottom:1px solid var(--bd);
+}
+#tab-meeting .mt-mc-head .m { font-size:18px; font-weight:900; color:var(--acc); }
+#tab-meeting .mt-mc-head .ach { font-size:11.5px; font-weight:700; color:var(--tx3); margin-left:auto; }
+#tab-meeting .mt-mc-tbl {
+  width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:8px;
+}
+#tab-meeting .mt-mc-tbl th, #tab-meeting .mt-mc-tbl td {
+  border:1px solid var(--bd); padding:4px 6px; text-align:right;
+}
+#tab-meeting .mt-mc-tbl th { background:var(--s3); font-weight:700; text-align:center; }
+#tab-meeting .mt-mc-tbl tr.hl-y td { background:#fff8d0; font-weight:700; }
+#tab-meeting .mt-mc-tbl .good { color:#4a5a32; }
+#tab-meeting .mt-mc-tbl .mid  { color:#7a5a2a; }
+#tab-meeting .mt-mc-tbl .bad  { color:var(--red); }
+#tab-meeting .mt-deal-tbl {
+  width:100%; border-collapse:collapse; font-size:11px;
+}
+#tab-meeting .mt-deal-tbl th, #tab-meeting .mt-deal-tbl td {
+  border:1px solid var(--bd); padding:3px 6px;
+}
+#tab-meeting .mt-deal-tbl th { background:var(--s3); font-weight:700; font-size:10.5px; text-align:center; }
+#tab-meeting .mt-deal-tbl td.num { text-align:right; }
+#tab-meeting .mt-deal-tbl td.ctr { text-align:center; }
+#tab-meeting .mt-deal-tbl .dim { font-size:10px; color:var(--tx3); margin-left:3px; }
+#tab-meeting .mt-empty {
+  text-align:center; color:var(--tx3); font-size:11px; padding:8px;
+  background:var(--s2); border:1px dashed var(--bd); border-radius:6px; margin:0;
+}
+#tab-meeting .mt-conf {
+  display:inline-block; padding:1px 7px; border-radius:9px;
+  font-size:10px; font-weight:700; white-space:nowrap;
+}
+#tab-meeting .mt-conf.kakutei { background:#f5d5cc; color:#7a3a2a; }
+#tab-meeting .mt-conf.a { background:#fde6c5; color:#7a5a2a; }
+#tab-meeting .mt-conf.b { background:#e0e9d3; color:#4a5a32; }
+#tab-meeting .mt-conf.c { background:var(--s3); color:var(--tx2); }
+#tab-meeting .mt-ru-wrap {
+  background:#fff; border:1px solid var(--bd); border-radius:8px; padding:12px 16px;
+}
+#tab-meeting .mt-ru-title { font-size:12px; font-weight:700; color:var(--tx2); margin-bottom:10px; }
+#tab-meeting .mt-ru-grid {
+  display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;
+}
+#tab-meeting .mt-ru-cell { text-align:center; }
+#tab-meeting .mt-ru-cell .lbl { font-size:10.5px; color:var(--tx3); margin-bottom:3px; }
+#tab-meeting .mt-ru-cell .val { font-size:20px; font-weight:900; color:var(--acc); }
+#tab-meeting .mt-ru-cell .val .u { font-size:11px; color:var(--tx3); margin-left:2px; font-weight:700; }
+#tab-meeting .dim { color:var(--tx3); }
 </style>
 </head>
 <body>
@@ -1136,6 +1247,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
   <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
   <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal')">🎯 案件</button>
   <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
+  <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
   <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
   <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
   <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
@@ -1429,6 +1541,15 @@ tr:hover td{background:rgba(90,123,158,.02)}
   <div class="ptabs" id="kpt-ptabs" style="margin-bottom:12px"></div>
   <!-- 内容エリア -->
   <div id="kpt-body"></div>
+</div>
+
+<!-- ════════════════ MEETING (営業会議レポート) ════════════════ -->
+<div id="tab-meeting" class="sec">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <div class="ptitle" style="margin:0">📅 西日本営業会議 レポート</div>
+    <div style="font-size:11px;color:var(--tx3)">案件管理から自動集計。手入力不要。</div>
+  </div>
+  <div id="meeting-body"></div>
 </div>
 
 <!-- ════════════════ REPORT ════════════════ -->
@@ -3402,6 +3523,306 @@ function _kptBuildTermOptions() {
     sel.value = curH + '_' + fy;
   }
 }
+// ════════════════ MEETING (営業会議レポート) ════════════════
+// 案A: Excel 1:1再現 + ライブデータ
+// 各担当者の月別目標/実績/達成率と案件明細を、案件管理から自動集計して表示
+var _meetingState = { spId: null, half: 'h1' };
+
+function _mtGetCurrentSpId() {
+  if (_meetingState.spId) {
+    var found = (D.people||[]).find(function(p){ return p.id === _meetingState.spId; });
+    if (found) return _meetingState.spId;
+  }
+  var my = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
+  if (my && (D.people||[]).find(function(p){ return p.id === my && p.name; })) return my;
+  var ppl = ap();
+  return ppl[0] ? ppl[0].id : null;
+}
+function _mtSelectPerson(spId) { _meetingState.spId = spId; renderMeeting(); }
+function _mtSelectHalf(half)  { _meetingState.half  = half;  renderMeeting(); }
+function _mtFmtNum(v) {
+  if (!v || isNaN(v)) return '<span class="dim">0</span>';
+  return Math.round(v).toLocaleString();
+}
+function _mtAchCls(pct) {
+  if (pct >= 100) return 'good';
+  if (pct >= 80)  return 'mid';
+  return 'bad';
+}
+function _mtDeliveryMi(d) {
+  if (!d || !d.deliveryMonth) return -1;
+  var parts = String(d.deliveryMonth).split('-');
+  if (parts.length < 2) return -1;
+  var m = parseInt(parts[1]);
+  if (isNaN(m) || m < 1 || m > 12) return -1;
+  return m >= 4 ? m - 4 : m + 8; // 4月=0, 3月=11
+}
+function _mtLastVisitDate(d) {
+  if (!d.visits || !d.visits.length) return '<span class="dim">-</span>';
+  var last = d.visits[d.visits.length-1];
+  if (!last || !last.date) return '<span class="dim">-</span>';
+  // 'YYYY-MM-DD' → 'M/D'
+  var parts = String(last.date).split('-');
+  if (parts.length === 3) return parts[1].replace(/^0/,'') + '/' + parts[2].replace(/^0/,'');
+  return _esc(last.date);
+}
+function _mtConfInfo(d) {
+  var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
+  if (ph === '受注')      return { cls:'kakutei', lbl:'確定' };
+  if (ph === '口頭受注')   return { cls:'kakutei', lbl:'口頭' };
+  var pr = parseInt(d.probability) || 0;
+  if (pr === 5) return { cls:'kakutei', lbl:'確定' };
+  if (pr === 4) return { cls:'a',       lbl:'A' };
+  if (pr === 3) return { cls:'a',       lbl:'A' };
+  if (pr === 2) return { cls:'b',       lbl:'B' };
+  return { cls:'c', lbl:'C' };
+}
+function _mtCountNewDeals(spId, misArr) {
+  // 新規開局 / 新規(他社入替) で受注済・対象月計上 の案件数をカウント
+  var cnt = 0;
+  (D.deals || []).forEach(function(d) {
+    if (d.spId !== spId) return;
+    var dt = String(d.dealType || '');
+    if (!/新規/.test(dt)) return;
+    var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
+    if (ph !== '受注' && ph !== '口頭受注') return;
+    var mi = _mtDeliveryMi(d);
+    if (mi >= 0 && misArr.indexOf(mi) >= 0) cnt++;
+  });
+  return cnt;
+}
+function _mtGetMonthDeals(spId, mi) {
+  var arr = (D.deals || []).filter(function(d) {
+    if (d.spId !== spId) return false;
+    return _mtDeliveryMi(d) === mi;
+  });
+  // 確度高い順 → 売上大きい順
+  arr.sort(function(a, b) {
+    var pa = parseInt(a.probability) || 0;
+    var pb = parseInt(b.probability) || 0;
+    if (pa !== pb) return pb - pa;
+    return (parseFloat(b.sales)||0) - (parseFloat(a.sales)||0);
+  });
+  return arr;
+}
+function _mtPharmacyCounts() {
+  // 全社の保有薬局を software 区分でカウント
+  var c = { withCnt:0, v7:0, v8:0, total:0, newY:0 };
+  if (D.pharmacies) {
+    Object.keys(D.pharmacies).forEach(function(nm) {
+      var p = D.pharmacies[nm];
+      if (!p) return;
+      c.total++;
+      var sw = String(p.software || '');
+      if (/V8/i.test(sw))      c.v8++;
+      else if (/V7/i.test(sw)) c.v7++;
+      else if (/with/i.test(sw)) c.withCnt++;
+    });
+  }
+  // 今年度の新規軒数: 全担当者の新規開局・受注済み案件
+  var fyMis = [0,1,2,3,4,5,6,7,8,9,10,11];
+  (D.people||[]).forEach(function(p) {
+    if (!p || !p.name) return;
+    c.newY += _mtCountNewDeals(p.id, fyMis);
+  });
+  return c;
+}
+
+function renderMeeting() {
+  var body = document.getElementById('meeting-body');
+  if (!body) return;
+  var people = ap();
+  if (!people.length) {
+    body.innerHTML = '<p style="padding:24px;text-align:center;color:var(--tx3)">担当者が未設定です。設定タブで担当者を登録してください。</p>';
+    return;
+  }
+  var selSpId = _mtGetCurrentSpId();
+  var sp = people.find(function(p){ return p.id === selSpId; });
+  if (!sp) {
+    selSpId = people[0].id;
+    sp = people[0];
+  }
+  var half = _meetingState.half || 'h1';
+  var halfMis = (half==='h1') ? [0,1,2,3,4,5]
+              : (half==='h2') ? [6,7,8,9,10,11]
+              : [0,1,2,3,4,5,6,7,8,9,10,11];
+  var halfLbl = (half==='h1') ? '上期' : (half==='h2') ? '下期' : '通期';
+  var moLabels = ['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+
+  function getBud(field, mi) {
+    var o = D.budgets && D.budgets[selSpId];
+    if (!o || !o[field]) return 0;
+    return parseFloat(o[field][mi]) || 0;
+  }
+  function getAct(field, mi) {
+    return getActualValue({type:'person', id:selSpId}, field, mi) || 0;
+  }
+
+  var html = '';
+  // ── ツールバー(担当者切替 + 期間切替) ─────────
+  html += '<div class="meeting-toolbar">';
+  html += '<div class="mt-person-tabs">';
+  people.forEach(function(p) {
+    var act = (p.id === selSpId) ? ' active' : '';
+    html += '<button class="mt-pt'+act+'" onclick="_mtSelectPerson(\''+p.id+'\')">';
+    html += _esc(p.name||'(無名)');
+    if (p.branch) html += ' <span class="br">'+_esc(p.branch)+'</span>';
+    html += '</button>';
+  });
+  html += '</div>';
+  html += '<div class="mt-half-tabs">';
+  [['h1','上期'],['h2','下期'],['full','通期']].forEach(function(o) {
+    var act = (o[0] === half) ? ' active' : '';
+    html += '<button class="mt-ht'+act+'" onclick="_mtSelectHalf(\''+o[0]+'\')">'+o[1]+'</button>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // ── 担当者ヘッダー ─────────
+  html += '<div class="meeting-person-head">';
+  html += '<span class="nm">'+_esc(sp.name||'')+'</span>';
+  if (sp.branch) html += '<span class="br">'+_esc(sp.branch)+'</span>';
+  html += '<span class="yr">'+fy+'年度 '+halfLbl+'</span>';
+  html += '</div>';
+
+  // ── 上期/下期/通期 サマリ + 累計行 ─────────
+  var totBudS = 0, totActS = 0, totBudP = 0, totActP = 0;
+  halfMis.forEach(function(mi) {
+    totBudS += getBud('s', mi);
+    totActS += getAct('s', mi);
+    totBudP += getBud('p', mi);
+    totActP += getAct('p', mi);
+  });
+  var totSAch = totBudS > 0 ? (totActS / totBudS * 100) : 0;
+  var totPAch = totBudP > 0 ? (totActP / totBudP * 100) : 0;
+  var totNew  = _mtCountNewDeals(selSpId, halfMis);
+
+  html += '<table class="mt-sum">';
+  html += '<tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th>';
+  html += '<th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th></tr>';
+  // 通期計行(ハイライト)
+  html += '<tr class="hl-y">';
+  html += '<td class="lbl">'+halfLbl+'計</td>';
+  html += '<td>'+_mtFmtNum(totActS)+'</td>';
+  html += '<td>'+_mtFmtNum(totBudS)+'</td>';
+  html += '<td class="'+_mtAchCls(totSAch)+'">'+totSAch.toFixed(1)+'%</td>';
+  html += '<td>'+_mtFmtNum(totActP)+'</td>';
+  html += '<td>'+_mtFmtNum(totBudP)+'</td>';
+  html += '<td class="'+_mtAchCls(totPAch)+'">'+totPAch.toFixed(1)+'%</td>';
+  html += '<td>'+totNew+'軒</td>';
+  html += '</tr>';
+  // 累計行
+  var cBudS=0,cActS=0,cBudP=0,cActP=0;
+  halfMis.forEach(function(mi, idx) {
+    cBudS += getBud('s', mi);
+    cActS += getAct('s', mi);
+    cBudP += getBud('p', mi);
+    cActP += getAct('p', mi);
+    var sA = cBudS > 0 ? (cActS / cBudS * 100) : 0;
+    var pA = cBudP > 0 ? (cActP / cBudP * 100) : 0;
+    var rangeLbl = (idx === 0) ? moLabels[mi] : moLabels[halfMis[0]] + '〜' + moLabels[mi];
+    var nCnt = _mtCountNewDeals(selSpId, halfMis.slice(0, idx+1));
+    html += '<tr>';
+    html += '<td class="lbl">'+rangeLbl+'</td>';
+    html += '<td>'+_mtFmtNum(cActS)+'</td>';
+    html += '<td>'+_mtFmtNum(cBudS)+'</td>';
+    html += '<td class="'+_mtAchCls(sA)+'">'+sA.toFixed(1)+'%</td>';
+    html += '<td>'+_mtFmtNum(cActP)+'</td>';
+    html += '<td>'+_mtFmtNum(cBudP)+'</td>';
+    html += '<td class="'+_mtAchCls(pA)+'">'+pA.toFixed(1)+'%</td>';
+    html += '<td>'+nCnt+'軒</td>';
+    html += '</tr>';
+  });
+  html += '</table>';
+
+  // ── 月別カード ─────────
+  html += '<div class="mt-month-grid">';
+  halfMis.forEach(function(mi) {
+    var budS = getBud('s', mi);
+    var actS = getAct('s', mi);
+    var budP = getBud('p', mi);
+    var actP = getAct('p', mi);
+    var sA = budS > 0 ? (actS / budS * 100) : 0;
+    var pA = budP > 0 ? (actP / budP * 100) : 0;
+    var sCls = _mtAchCls(sA), pCls = _mtAchCls(pA);
+
+    html += '<div class="mt-month-card">';
+    html += '<div class="mt-mc-head">';
+    html += '<span class="m">'+moLabels[mi]+'</span>';
+    html += '<span class="ach" style="color:'+ (sCls==='good'?'#4a5a32':sCls==='mid'?'#7a5a2a':'var(--red)') +'">売上 '+sA.toFixed(1)+'% / 粗利 '+pA.toFixed(1)+'%</span>';
+    html += '</div>';
+
+    // 月次目標/実績テーブル
+    html += '<table class="mt-mc-tbl">';
+    html += '<tr><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th></tr>';
+    html += '<tr class="hl-y">';
+    html += '<td>'+_mtFmtNum(actS)+'</td>';
+    html += '<td>'+_mtFmtNum(budS)+'</td>';
+    html += '<td class="'+sCls+'">'+sA.toFixed(1)+'%</td>';
+    html += '<td>'+_mtFmtNum(actP)+'</td>';
+    html += '<td>'+_mtFmtNum(budP)+'</td>';
+    html += '<td class="'+pCls+'">'+pA.toFixed(1)+'%</td>';
+    html += '</tr>';
+    html += '</table>';
+
+    // 案件明細
+    var deals = _mtGetMonthDeals(selSpId, mi);
+    if (deals.length) {
+      html += '<table class="mt-deal-tbl">';
+      html += '<tr>';
+      html += '<th style="text-align:left;">ユーザー名</th>';
+      html += '<th style="width:38px">訪問</th>';
+      html += '<th style="width:34px">販</th>';
+      html += '<th style="width:42px">確度</th>';
+      html += '<th style="width:34px">台数</th>';
+      html += '<th style="width:60px">売上</th>';
+      html += '<th style="width:60px">粗利</th>';
+      html += '</tr>';
+      deals.forEach(function(d) {
+        var conf = _mtConfInfo(d);
+        var cat  = (d.category || '直販');
+        var catS = (cat.length > 2) ? cat.slice(0,2) : cat;
+        var nm   = _esc(d.name || '(無名)');
+        var cfg  = '';
+        if (d.configType) cfg = '<span class="dim">('+_esc(d.configType)+')</span>';
+        var salesV  = parseFloat(d.sales) || 0;
+        var costV   = parseFloat(d.cost)  || 0;
+        var profitV = salesV - costV;
+        // sales/cost は千円単位 → 円換算
+        html += '<tr>';
+        html += '<td>'+nm+cfg+'</td>';
+        html += '<td class="ctr">'+_mtLastVisitDate(d)+'</td>';
+        html += '<td class="ctr">'+_esc(catS)+'</td>';
+        html += '<td class="ctr"><span class="mt-conf '+conf.cls+'">'+conf.lbl+'</span></td>';
+        html += '<td class="ctr">'+(d.configCount ? _esc(d.configCount) : '<span class="dim">-</span>')+'</td>';
+        html += '<td class="num">'+_mtFmtNum(salesV*1000)+'</td>';
+        html += '<td class="num">'+_mtFmtNum(profitV*1000)+'</td>';
+        html += '</tr>';
+      });
+      html += '</table>';
+    } else {
+      html += '<p class="mt-empty">(まだ案件なし)</p>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // ── 保有ユーザー軒数 ─────────
+  var ru = _mtPharmacyCounts();
+  html += '<div class="mt-ru-wrap">';
+  html += '<div class="mt-ru-title">📊 保有ユーザー軒数 (全社・薬局マスタ集計)</div>';
+  html += '<div class="mt-ru-grid">';
+  html += '<div class="mt-ru-cell"><div class="lbl">with</div><div class="val">'+ru.withCnt+'<span class="u">軒</span></div></div>';
+  html += '<div class="mt-ru-cell"><div class="lbl">V7</div><div class="val">'+ru.v7+'<span class="u">軒</span></div></div>';
+  html += '<div class="mt-ru-cell"><div class="lbl">V8</div><div class="val">'+ru.v8+'<span class="u">軒</span></div></div>';
+  html += '<div class="mt-ru-cell"><div class="lbl">合計</div><div class="val">'+ru.total+'<span class="u">軒</span></div></div>';
+  html += '<div class="mt-ru-cell"><div class="lbl">'+fy+'年度 新規</div><div class="val">'+ru.newY+'<span class="u">軒</span></div></div>';
+  html += '</div>';
+  html += '</div>';
+
+  body.innerHTML = html;
+}
+
 function renderKPT() {
   _kptBuildTermOptions();
   var term = _kptCurrentTerm();
@@ -7728,6 +8149,7 @@ function showTab(name,btn){
   if(name==='actuals'){renderActualPtabs();renderActuals();setTimeout(restoreActualsSize,50);}
   if(name==='report'){initRptCtrl();renderReport();}
   if(name==='referral'){ensureReferrals();renderRefPtabs();renderReferrals();}
+  if(name==='meeting'){renderMeeting();}
   if(name==='import')initImportCtrl();
 }
 
@@ -7752,6 +8174,7 @@ function _syncTopGroupUI(name) {
   // deals/dashboard は内部モード(案件/数字)で分岐するので別関数で判定
   var subBtnMap = {
     actuals: 'subtab-actuals',
+    meeting: 'subtab-meeting',
     tasks: 'subtab-tasks',
     referral: 'subtab-referral',
     kpt: 'subtab-kpt'
