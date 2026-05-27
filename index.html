@@ -1137,6 +1137,87 @@ tr:hover td{background:rgba(90,123,158,.02)}
   .fab-item { font-size:11.5px; padding:8px 12px; }
 }
 
+/* ════════════════ 案件サイドパネル(案D) ════════════════ */
+#deal-sidepanel {
+  position:fixed; top:50px; right:0; bottom:0;
+  width:540px; background:#fff;
+  border-left:1.5px solid var(--bd);
+  box-shadow:-4px 0 24px rgba(0,0,0,.12);
+  transform:translateX(100%);
+  transition:transform .25s ease-out;
+  z-index:500;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+#deal-sidepanel.open { transform:translateX(0); }
+.dsp-header {
+  padding:10px 16px; background:var(--s1);
+  border-bottom:1px solid var(--bd);
+  display:flex; align-items:center; gap:10px;
+  flex-shrink:0;
+}
+.dsp-header .dsp-title {
+  font-size:15px; font-weight:900; flex:1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.dsp-header .dsp-prob {
+  display:inline-flex; align-items:center; gap:3px;
+  color:#fff; font-size:10px; font-weight:700;
+  padding:2px 8px; border-radius:10px; white-space:nowrap;
+  flex-shrink:0;
+}
+.dsp-header .dsp-prob.p1 { background:linear-gradient(135deg,#8a7e6a,#6a5e4a); }
+.dsp-header .dsp-prob.p2 { background:linear-gradient(135deg,#c89856,#a87a36); }
+.dsp-header .dsp-prob.p3 { background:linear-gradient(135deg,#5a7b9e,#3a5b7e); }
+.dsp-header .dsp-prob.p4 { background:linear-gradient(135deg,#8a5a2e,#6a3a0e); }
+.dsp-header .dsp-prob.p5 { background:linear-gradient(135deg,#7a8e5a,#5a6e3a); }
+.dsp-header .dsp-close {
+  background:none; border:none; font-size:22px;
+  cursor:pointer; color:var(--tx3); padding:0 6px;
+  line-height:1; flex-shrink:0;
+}
+.dsp-header .dsp-close:hover { color:var(--red); }
+.dsp-body {
+  flex:1; overflow-y:auto; padding:0;
+}
+/* サイドパネル内では buildDealBody の余白を縮小 */
+.dsp-body .dc-body { padding:10px 12px; max-width:none; margin:0; }
+
+/* パネル開いてる時: 案件エリアを左に圧縮 */
+body.has-sidepanel #home-deal-mode {
+  margin-right: 560px;
+}
+#home-deal-mode {
+  transition:margin-right .25s ease-out;
+}
+
+/* 選択中の行をハイライト */
+.deal-table tr.deal-row.selected-sp > td {
+  background:rgba(90,123,158,.08) !important;
+  border-left:3px solid var(--acc);
+  padding-left:7px;
+}
+.deal-table tr.deal-row.selected-sp > td:first-child {
+  border-left:3px solid var(--acc);
+}
+
+/* 狭画面: フル幅オーバーレイにフォールバック */
+@media (max-width: 1199px) {
+  #deal-sidepanel {
+    width:min(540px, 90vw);
+  }
+  body.has-sidepanel #home-deal-mode {
+    margin-right:0;
+  }
+  /* 背景を暗くしてモーダル風に */
+  body.has-sidepanel::after {
+    content:''; position:fixed; inset:0;
+    background:rgba(44,39,36,.35);
+    z-index:499;
+    pointer-events:none;
+  }
+}
+
 /* ════════════════ 案件 Excelテーブルビュー(案④ リッチ行) ════════════════ */
 #deal-table-wrap {
   background:#fff; border:1px solid var(--bd); border-radius:10px;
@@ -9074,6 +9155,10 @@ function _setDealView(mode) {
     b.style.color = isActive ? '#fff' : 'var(--tx2)';
     b.classList[isActive ? 'add' : 'remove']('active');
   });
+  // 案D: カードビューに戻る時はサイドパネルを閉じる
+  if (mode !== 'table' && typeof _closeSidepanel === 'function') {
+    _closeSidepanel();
+  }
   // 再描画
   if (typeof renderDeals === 'function') renderDeals();
 }
@@ -9089,15 +9174,96 @@ function _dtSort(field) {
   if (typeof renderDeals === 'function') renderDeals();
 }
 
-// 行展開トグル
+// 行クリック → サイドパネル開閉 (案D)
+window._sidepanelDealId = null;
+
 function _dtToggleRow(dealId) {
-  if (window._dtExpandedIds.has(dealId)) {
-    window._dtExpandedIds.delete(dealId);
+  if (window._sidepanelDealId === dealId) {
+    _closeSidepanel();
   } else {
-    window._dtExpandedIds.add(dealId);
+    _openSidepanel(dealId);
   }
-  if (typeof renderDeals === 'function') renderDeals();
 }
+
+function _openSidepanel(dealId) {
+  var d = (D.deals || []).find(function(x){ return x.id === dealId; });
+  var panel = document.getElementById('deal-sidepanel');
+  if (!d || !panel) return;
+
+  window._sidepanelDealId = dealId;
+
+  // パネルヘッダー
+  var probKey = getProb(d);
+  var PROB_LABELS = ['引合い','検討中','提案中','口頭受注','受注'];
+  var PROB_PCTS = [10, 30, 60, 80, 100];
+  var PROB_STARS = ['★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★'];
+
+  var headerHtml = '<div class="dsp-header">'
+    + '<span class="dsp-title">🏥 '+_esc(d.name||'(無名)')+'</span>'
+    + '<span class="dsp-prob p'+probKey+'">'
+    +   '<span>'+(PROB_STARS[probKey-1]||'☆☆☆☆☆')+'</span>'
+    +   '<span>'+_esc(PROB_LABELS[probKey-1]||'')+'</span>'
+    +   '<span>'+(PROB_PCTS[probKey-1]||0)+'%</span>'
+    + '</span>'
+    + '<button class="dsp-close" onclick="_closeSidepanel()" title="閉じる(Esc)">×</button>'
+    + '</div>';
+
+  // パネル本体は buildDealBody (KPI + 水平タブ + パネル)
+  var bodyHtml = '';
+  try {
+    if (typeof buildDealBody === 'function') {
+      bodyHtml = buildDealBody(d);
+    }
+  } catch(e) {
+    console.error('buildDealBody エラー:', e);
+    bodyHtml = '<div style="padding:20px;color:var(--red)">読み込みに失敗しました: '+_esc(e.message)+'</div>';
+  }
+  panel.innerHTML = headerHtml + '<div class="dsp-body">' + bodyHtml + '</div>';
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('has-sidepanel');
+
+  // 選択中の行をハイライト
+  document.querySelectorAll('.deal-table tr.deal-row').forEach(function(row) {
+    if (row.dataset.dealId === dealId) row.classList.add('selected-sp');
+    else row.classList.remove('selected-sp');
+  });
+}
+
+function _closeSidepanel() {
+  window._sidepanelDealId = null;
+  var panel = document.getElementById('deal-sidepanel');
+  if (panel) {
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+  }
+  document.body.classList.remove('has-sidepanel');
+  document.querySelectorAll('.deal-table tr.deal-row').forEach(function(row) {
+    row.classList.remove('selected-sp');
+  });
+}
+
+// Escキーでパネル閉じる
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && window._sidepanelDealId) {
+    // Ctrl+K パレットが開いてる時はそちらを優先
+    if (window._cmdkState && window._cmdkState.open) return;
+    _closeSidepanel();
+  }
+});
+
+// 狭画面でパネル外側クリックで閉じる(背景の擬似要素を使うので JS でも対応)
+document.addEventListener('click', function(e) {
+  if (!window._sidepanelDealId) return;
+  // 1199px 以下の時のみ、外側クリックで閉じる
+  if (window.innerWidth > 1199) return;
+  var panel = document.getElementById('deal-sidepanel');
+  if (!panel) return;
+  if (panel.contains(e.target)) return;
+  // テーブル行クリックは _dtToggleRow が処理するのでスルー
+  if (e.target.closest && e.target.closest('.deal-row')) return;
+  _closeSidepanel();
+});
 
 // Excelテーブルビュー本体 (4列リッチ行 + 水平タブ展開)
 function renderDealsTableView(deals) {
@@ -9140,14 +9306,18 @@ function renderDealsTableView(deals) {
   var people = ap();
   sorted.forEach(function(d) {
     html += _dtBuildRow(d, people);
-    if (window._dtExpandedIds.has(d.id)) {
-      html += _dtBuildDetailRow(d, people);
-    }
+    // 案D: 行内展開は廃止 → サイドパネルで表示
   });
 
   html += '</tbody></table>';
   wrap.innerHTML = html;
   el.appendChild(wrap);
+
+  // サイドパネルが開いていれば、選択中の行を再ハイライト
+  if (window._sidepanelDealId) {
+    var sel = el.querySelector('.deal-table tr.deal-row[data-deal-id="'+window._sidepanelDealId+'"]');
+    if (sel) sel.classList.add('selected-sp');
+  }
 }
 
 // テーブル行(リッチ4列レイアウト - image3スタイル)
@@ -20189,6 +20359,11 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
     </div>
     <div id="memo-full-tpl-list"></div>
   </div>
+</div>
+
+<!-- ════════════════ 案件サイドパネル(案D) ════════════════ -->
+<div id="deal-sidepanel" aria-hidden="true">
+  <!-- ヘッダーと本体は JS で動的生成 -->
 </div>
 
 <!-- ════════════════ Ctrl+K コマンドパレット ════════════════ -->
