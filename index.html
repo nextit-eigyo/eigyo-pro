@@ -1140,7 +1140,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
 /* ════════════════ 案件サイドパネル(案D) ════════════════ */
 #deal-sidepanel {
   position:fixed; top:50px; right:0; bottom:0;
-  width:540px; background:#fff;
+  width:460px; background:#fff;
   border-left:1.5px solid var(--bd);
   box-shadow:-4px 0 24px rgba(0,0,0,.12);
   transform:translateX(100%);
@@ -1185,7 +1185,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
 
 /* パネル開いてる時: 案件エリアを左に圧縮 */
 body.has-sidepanel #home-deal-mode {
-  margin-right: 560px;
+  margin-right: 480px;
 }
 #home-deal-mode {
   transition:margin-right .25s ease-out;
@@ -1227,6 +1227,7 @@ body.has-sidepanel #home-deal-mode {
 .deal-table {
   width:100%; border-collapse:collapse; font-size:12px;
   table-layout:fixed;
+  min-width:900px; /* 狭画面ではラッパー側で横スクロール */
 }
 /* 列幅: 案件情報(38%) / 進捗+最終活動(30%) / 次の動き(18%) / 金額(14%) */
 /* colgroup より nth-child が確実に効くため両方指定 */
