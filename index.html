@@ -14743,8 +14743,9 @@ function setHomeMode(mode) {
 
 // ── 営業活動量タブ ─────────────────────
 // 売上タブと共通の caSp で担当者選択を共有。
-// caSp が数値(担当者) → その人の営業活動量を表示
-// caSp が拠点/リージョン/全社 → 該当する全担当者の合計表示は未実装のため担当者選択を促す
+// caSp が数値(担当者) → その人の営業活動量を表示(編集可)
+// caSp が -1/'region_xxx'/'branch_xxx' → 該当する全担当者の合計を表示(読み取り専用)
+//   → 合計モードは _renderActivityActualsAggregate() に委譲
 
 function renderActivityActuals(tb) {
   if (!tb) return;
@@ -14759,11 +14760,25 @@ function renderActivityActuals(tb) {
   var now = new Date();
   var curMi = now.getMonth() >= 3 ? now.getMonth()-3 : now.getMonth()+9;
 
+  // caSp の値判定(売上タブと共通のパターン)
+  const isAll = (caSp === -1);
+  const isRegion = (typeof caSp === 'string' && caSp.startsWith('region_'));
+  const regionName = isRegion ? caSp.slice(7) : null;
+  const isBranch = (typeof caSp === 'string' && caSp.startsWith('branch_'));
+  const branchName = isBranch ? caSp.slice(7) : null;
+
   // 売上タブと同じく caSp から担当者を取得(上段拠点タブ + 下段担当者タブで選択済み)
   var p = null;
   if (typeof caSp === 'number' && caSp >= 0 && caSp < people.length) {
     p = people[caSp];
   }
+
+  // 合計モード分岐(拠点/リージョン/全社) ── 読み取り専用で合計表示
+  if (isAll || isRegion || isBranch) {
+    _renderActivityActualsAggregate(tb, people, actTypes, curMi, { isAll, isRegion, regionName, isBranch, branchName });
+    return;
+  }
+
   if (!p) {
     tb.innerHTML = '<tr><td colspan="14" style="padding:30px;text-align:center;color:var(--tx3);font-size:13px">' +
       '👤 上の担当者タブから担当者を選択してください' +
@@ -14825,6 +14840,100 @@ function renderActivityActuals(tb) {
         '<span style="background:' + getBranchColor(p.branch) + ';color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700">' + (p.branch || '—') + '</span>' +
         '<span style="font-size:15px;font-weight:900">' + p.name + '</span>' +
         '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 実績は各セルに直接入力 → 自動保存　目標は 設定→予算→営業活動量</span>' +
+      '</div>' +
+      '<div style="overflow-x:auto">' +
+        '<table style="width:100%;min-width:750px;border-collapse:collapse;font-size:11px">' +
+          thead + '<tbody>' + tbody + '</tbody>' +
+        '</table>' +
+      '</div>' +
+    '</div></td></tr>';
+}
+
+
+// 営業活動量タブ:合計モード描画(拠点/リージョン/全社 - 読み取り専用)
+// 該当スコープの全担当者の D.activityBudgets / D.activityActuals を合算して表示
+function _renderActivityActualsAggregate(tb, people, actTypes, curMi, mode) {
+  const { isAll, isRegion, regionName, isBranch, branchName } = mode;
+
+  // 対象担当者リストとスコープラベル
+  let targetPeople, scopeLabel, scopeIcon;
+  if (isAll) {
+    targetPeople = people;
+    scopeLabel = '全社';
+    scopeIcon = '🌐';
+  } else if (isRegion) {
+    const bm = (typeof getBranchMaster === 'function') ? getBranchMaster() : (D.branchMaster || []);
+    const targetBranches = bm.filter(function(b){ return (b.region || '西日本') === regionName; }).map(function(b){ return b.name; });
+    targetPeople = people.filter(function(pp){ return targetBranches.indexOf(pp.branch) >= 0; });
+    scopeLabel = regionName + 'リージョン';
+    scopeIcon = '🗾';
+  } else if (isBranch) {
+    targetPeople = people.filter(function(pp){ return pp.branch === branchName; });
+    scopeLabel = branchName;
+    scopeIcon = '🏢';
+  } else {
+    targetPeople = [];
+    scopeLabel = '不明';
+    scopeIcon = '⚠️';
+  }
+
+  if (!targetPeople.length) {
+    tb.innerHTML = '<tr><td colspan="14" style="padding:30px;text-align:center;color:var(--tx3);font-size:13px">' +
+      '該当する担当者がいません(' + scopeLabel + ')' +
+      '</td></tr>';
+    return;
+  }
+
+  // テーブルヘッダー(個別モードと同じ)
+  var thead = '<thead><tr style="background:var(--s3)">' +
+    '<th style="text-align:left;padding:5px 8px;min-width:160px">活動種別</th>' +
+    '<th style="width:30px;font-size:12px;color:var(--tx3)"></th>' +
+    ML.map(function(m, i) {
+      return '<th style="text-align:center;padding:4px 2px;min-width:46px;font-weight:' +
+        (i === curMi ? 900 : 400) + ';color:' + (i === curMi ? 'var(--acc)' : 'var(--tx3)') + '">' + m + '</th>';
+    }).join('') +
+    '</tr></thead>';
+
+  // テーブル本体(活動種別ごとに、選ばれた担当者全員の月別合計を計算)
+  var tbody = actTypes.map(function(at) {
+    var bSum = Array(12).fill(0);
+    var aSum = Array(12).fill(0);
+    targetPeople.forEach(function(tp) {
+      var bArr = (D.activityBudgets[tp.id] && D.activityBudgets[tp.id][at]) || [];
+      var aArr = (D.activityActuals[tp.id] && D.activityActuals[tp.id][at]) || [];
+      for (var i = 0; i < 12; i++) {
+        bSum[i] += parseFloat(bArr[i]) || 0;
+        aSum[i] += parseFloat(aArr[i]) || 0;
+      }
+    });
+    var bCells = bSum.map(function(v) {
+      return '<td style="text-align:center;padding:2px;background:rgba(90,123,158,.04);font-size:12px;color:var(--tx3)">' + (v > 0 ? v : '—') + '</td>';
+    }).join('');
+    var aCells = aSum.map(function(v, i) {
+      var bv = bSum[i];
+      var bg = bv > 0 ? (v >= bv ? 'rgba(122,142,90,.08)' : 'rgba(168,90,74,.05)') : '';
+      return '<td style="text-align:center;padding:2px;background:' + bg + ';font-size:12px;font-weight:700;color:var(--tx)">' + (v > 0 ? v : '—') + '</td>';
+    }).join('');
+    var rCells = bSum.map(function(bv, i) {
+      var av = aSum[i];
+      var r = bv > 0 ? Math.round(av / bv * 100) : null;
+      var col = r === null ? 'var(--tx3)' : r >= 100 ? 'var(--grn)' : r >= 80 ? 'var(--amb)' : 'var(--red)';
+      return '<td style="text-align:center;padding:2px;font-size:12px;font-weight:700;color:' + col + '">' + (r !== null ? r + '%' : '—') + '</td>';
+    }).join('');
+    return '<tr>' +
+      '<td rowspan="3" style="padding:6px 8px;font-weight:600;border-bottom:2px solid var(--bd);vertical-align:middle">' + at + '</td>' +
+      '<td style="font-size:12px;color:var(--tx3);padding:2px 4px;background:rgba(90,123,158,.04)">目標</td>' + bCells + '</tr>' +
+      '<tr><td style="font-size:12px;color:var(--acc);padding:2px 4px;font-weight:700">実績</td>' + aCells + '</tr>' +
+      '<tr style="border-bottom:2px solid var(--bd)"><td style="font-size:12px;color:var(--tx3);padding:2px 4px">達成率</td>' + rCells + '</tr>';
+  }).join('');
+
+  tb.innerHTML =
+    '<tr><td colspan="14" style="padding:0"><div style="padding:8px 0">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
+        '<span style="background:var(--acc);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700">' + scopeIcon + ' ' + scopeLabel + '</span>' +
+        '<span style="font-size:15px;font-weight:900">合計</span>' +
+        '<span style="font-size:11px;color:var(--tx3)">(' + targetPeople.length + '名分の合算)</span>' +
+        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 合計表示は読み取り専用。個別編集は担当者タブを選択してください</span>' +
       '</div>' +
       '<div style="overflow-x:auto">' +
         '<table style="width:100%;min-width:750px;border-collapse:collapse;font-size:11px">' +
