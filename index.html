@@ -2768,6 +2768,23 @@ body.has-sidepanel #home-deal-mode {
       </div>
       <div id="integrity-aggregation-result"></div>
     </div>
+
+    <!-- 🔒 設定画面パスワード管理 (㉒) -->
+    <div class="card" style="max-width:1100px;margin-top:14px">
+      <div class="card-title" style="margin-bottom:6px">🔒 設定画面パスワードの管理</div>
+      <div style="font-size:12px;color:var(--tx3);line-height:1.6;margin-bottom:14px">
+        設定画面を開くときに入力するパスワードを変更したり、現在のセッション認証をクリアできます。<br>
+        現在のパスワードで認証後、新しいパスワードを設定します。
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+        <button class="btn pr" onclick="_promptSetupPasswordChange()" style="padding:9px 16px;font-size:12px;font-weight:700">🔒 パスワードを変更</button>
+        <button class="btn" onclick="if(confirm('セッション認証をクリアします。次回 設定を開く時にパスワード入力が必要になります。よろしいですか？')){_lockSetup();if(typeof _showToast==='function')_showToast('🔓 セッション認証をクリアしました','ok',3000)}" style="padding:9px 16px;font-size:12px;font-weight:700">🔓 セッション認証をクリア</button>
+      </div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:10px;line-height:1.5">
+        ⚠️ パスワード忘れ時: F12 → Application → Local Storage で <code>eigyo_setup_pw_hash</code> を削除してください<br>
+        💡 同じブラウザセッション中は再認証なしで設定画面を開けます（ブラウザを閉じるか上記「セッション認証をクリア」で解除）
+      </div>
+    </div>
   </div>
 </div>
 
