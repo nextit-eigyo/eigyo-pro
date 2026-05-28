@@ -1934,9 +1934,9 @@ body.has-sidepanel #home-deal-mode {
 <div id="hdr">
   <div id="logo" onclick="showTab('deals',document.getElementById('tab-deals-btn'));if(typeof setHomeMode==='function')setHomeMode('num')" title="営業ホーム(数字モード)に戻る">EIGYO<em>PRO</em></div>
   <div class="htabs" id="main-tabs">
-    <!-- トップグループ: 設定 / ☰メニュー のみ(営業ホーム/KPTはロゴクリックで遷移) -->
+    <!-- トップグループ: ☰メニューのみ(営業ホーム/KPTはロゴクリック、設定は☰メニュー内+パスワード保護) -->
     <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)" style="display:none">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
-    <button class="htab" id="tab-setup-btn" onclick="showTab('setup',this)">⚙ 設定</button>
+    <button class="htab" id="tab-setup-btn" onclick="showTab('setup',this)" style="display:none">⚙ 設定</button>
     <!-- 隠しタブ(他コードからのプログラム参照用に保持) -->
     <button class="htab" id="tab-db-btn" onclick="showTab('dashboard',this)" style="display:none">📊 ダッシュボード</button>
     <button class="htab" id="tab-actions-btn" onclick="showTab('actions',this)" style="display:none">✅ アクション</button>
@@ -8941,6 +8941,17 @@ function quickAddDeal(){
 
 // ===== TAB SWITCH =====
 function showTab(name,btn){
+  // ㉒ 設定タブはパスワード保護(セッション中は再入力不要)
+  // 認証通過後にこの関数を再帰呼び出しする
+  if (name === 'setup' && typeof _isSetupUnlocked === 'function' && !_isSetupUnlocked()) {
+    _promptSetupPassword(function(success) {
+      if (success) {
+        _unlockSetup();
+        showTab(name, btn);
+      }
+    });
+    return;
+  }
   // 案件タブ以外に移動する時は、開いているサイドパネルを自動的に閉じる
   if (name !== 'deals' && window._sidepanelDealId && typeof _closeSidepanel === 'function') {
     _closeSidepanel();
@@ -8963,6 +8974,135 @@ function showTab(name,btn){
   if(name==='referral'){ensureReferrals();renderRefPtabs();renderReferrals();}
   if(name==='meeting'){renderMeeting();}
   if(name==='import')initImportCtrl();
+}
+
+// ════════════════════════════════════════════════════════
+// ㉒ 設定タブのパスワード保護
+// ════════════════════════════════════════════════════════
+// 設計:
+// - 設定画面は数字データに影響する操作を含むため、誤操作・覗き見を防止
+// - SHA-256 ハッシュを localStorage(eigyo_setup_pw_hash) に保存
+// - セッション中(sessionStorage.eigyo_setup_unlocked='true')は再入力不要
+// - 初回は設定モーダル、2回目以降は入力モーダル
+// - パスワード忘れ: F12 → Application → Local Storage で eigyo_setup_pw_hash を削除
+
+async function _hashPw(plainText) {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(plainText));
+  return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+function _isSetupUnlocked() {
+  return sessionStorage.getItem('eigyo_setup_unlocked') === 'true';
+}
+
+function _unlockSetup() {
+  sessionStorage.setItem('eigyo_setup_unlocked', 'true');
+}
+
+function _lockSetup() {
+  sessionStorage.removeItem('eigyo_setup_unlocked');
+}
+
+// パスワード入力モーダル(認証時)。初回未設定なら設定モーダルにフォールバック
+function _promptSetupPassword(callback) {
+  const savedHash = localStorage.getItem('eigyo_setup_pw_hash');
+  if (!savedHash) {
+    _promptSetupPasswordSetup(callback);
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML =
+    '<div style="background:var(--s1);border-radius:12px;padding:24px;min-width:320px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.25)">' +
+      '<div style="font-size:17px;font-weight:900;margin-bottom:6px">🔒 設定画面パスワード</div>' +
+      '<div style="font-size:12px;color:var(--tx3);margin-bottom:16px">設定画面を開くにはパスワードを入力してください</div>' +
+      '<input type="password" id="_setup-pw-input" class="fi" placeholder="パスワード" style="width:100%;margin-bottom:10px;padding:10px;font-size:14px" autofocus>' +
+      '<div id="_setup-pw-err" style="color:var(--red);font-size:11px;margin-bottom:12px;display:none">パスワードが違います</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button id="_setup-pw-cancel" style="padding:8px 18px;border:1px solid var(--bd);background:var(--s2);border-radius:6px;cursor:pointer;font-size:13px">キャンセル</button>' +
+        '<button id="_setup-pw-ok" style="padding:8px 18px;background:var(--tx);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">OK</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  const inp = overlay.querySelector('#_setup-pw-input');
+  const err = overlay.querySelector('#_setup-pw-err');
+  function close(success) { overlay.remove(); if (callback) callback(success); }
+  async function tryAuth() {
+    const pw = inp.value;
+    if (!pw) return;
+    const hash = await _hashPw(pw);
+    if (hash === savedHash) { close(true); }
+    else { err.style.display = ''; inp.value = ''; inp.focus(); }
+  }
+  overlay.querySelector('#_setup-pw-ok').onclick = tryAuth;
+  overlay.querySelector('#_setup-pw-cancel').onclick = function(){ close(false); };
+  inp.onkeydown = function(e){ if (e.key === 'Enter') tryAuth(); else if (e.key === 'Escape') close(false); };
+  setTimeout(function(){ inp.focus(); }, 50);
+}
+
+// 初回パスワード設定モーダル
+function _promptSetupPasswordSetup(callback) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML =
+    '<div style="background:var(--s1);border-radius:12px;padding:24px;min-width:340px;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.25)">' +
+      '<div style="font-size:17px;font-weight:900;margin-bottom:6px">🔐 設定画面パスワードの初回設定</div>' +
+      '<div style="font-size:12px;color:var(--tx3);margin-bottom:16px;line-height:1.6">設定画面は数字データに影響する操作を含むため、パスワードで保護します。<br>4文字以上で設定してください。</div>' +
+      '<div style="margin-bottom:10px"><label style="font-size:11px;color:var(--tx3);font-weight:700;display:block;margin-bottom:4px">新しいパスワード</label>' +
+        '<input type="password" id="_setup-pw-new" class="fi" placeholder="4文字以上" style="width:100%;padding:10px;font-size:14px"></div>' +
+      '<div style="margin-bottom:12px"><label style="font-size:11px;color:var(--tx3);font-weight:700;display:block;margin-bottom:4px">確認(もう一度)</label>' +
+        '<input type="password" id="_setup-pw-new2" class="fi" placeholder="もう一度入力" style="width:100%;padding:10px;font-size:14px"></div>' +
+      '<div id="_setup-pw-set-err" style="color:var(--red);font-size:11px;margin-bottom:12px;display:none"></div>' +
+      '<div style="background:rgba(168,90,74,.06);border:1px solid rgba(168,90,74,.2);border-radius:6px;padding:8px 10px;margin-bottom:14px;font-size:11px;color:var(--tx3);line-height:1.5">⚠️ パスワード忘れ時: F12 → Application → Local Storage で <code>eigyo_setup_pw_hash</code> を削除すれば再設定できます</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button id="_setup-pw-set-cancel" style="padding:8px 18px;border:1px solid var(--bd);background:var(--s2);border-radius:6px;cursor:pointer;font-size:13px">キャンセル</button>' +
+        '<button id="_setup-pw-set-ok" style="padding:8px 18px;background:var(--tx);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px">設定</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  const inp1 = overlay.querySelector('#_setup-pw-new');
+  const inp2 = overlay.querySelector('#_setup-pw-new2');
+  const err  = overlay.querySelector('#_setup-pw-set-err');
+  function close(success) { overlay.remove(); if (callback) callback(success); }
+  async function setPw() {
+    const pw1 = inp1.value, pw2 = inp2.value;
+    if (pw1.length < 4) { err.textContent='パスワードは4文字以上にしてください'; err.style.display=''; return; }
+    if (pw1 !== pw2)     { err.textContent='パスワードが一致しません'; err.style.display=''; return; }
+    const hash = await _hashPw(pw1);
+    localStorage.setItem('eigyo_setup_pw_hash', hash);
+    if (typeof _showToast === 'function') _showToast('✅ 設定画面のパスワードを保存しました', 'ok', 3000);
+    close(true);
+  }
+  overlay.querySelector('#_setup-pw-set-ok').onclick = setPw;
+  overlay.querySelector('#_setup-pw-set-cancel').onclick = function(){ close(false); };
+  inp1.onkeydown = function(e){ if (e.key === 'Enter') inp2.focus(); else if (e.key === 'Escape') close(false); };
+  inp2.onkeydown = function(e){ if (e.key === 'Enter') setPw(); else if (e.key === 'Escape') close(false); };
+  setTimeout(function(){ inp1.focus(); }, 50);
+}
+
+// 設定画面内から呼ぶ: パスワード変更(旧PW認証 → 新規設定の2段階)
+function _promptSetupPasswordChange() {
+  const savedHash = localStorage.getItem('eigyo_setup_pw_hash');
+  if (!savedHash) {
+    if (typeof _showToast === 'function') _showToast('まだパスワードが設定されていません', 'warn', 3000);
+    return;
+  }
+  _promptSetupPassword(function(ok) {
+    if (!ok) return;
+    localStorage.removeItem('eigyo_setup_pw_hash');
+    _promptSetupPasswordSetup(function(success) {
+      if (!success) {
+        // キャンセル時は旧パスワードを復元
+        localStorage.setItem('eigyo_setup_pw_hash', savedHash);
+        if (typeof _showToast === 'function') _showToast('パスワード変更をキャンセルしました', 'info', 3000);
+      } else {
+        if (typeof _showToast === 'function') _showToast('🔐 パスワードを変更しました', 'ok', 3000);
+      }
+    });
+  });
 }
 
 // 案件カード水平タブ切替(案①)
@@ -20207,6 +20347,8 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-report-btn" onclick="showTab('report',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📝 振り返り</button>
   <button class="htab" id="tab-kyogou-btn" onclick="showTab('kyogou',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">⚔ 競合分析</button>
   <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
+  <hr style="margin:6px 8px;border:none;border-top:1px solid var(--bd)">
+  <button class="htab" id="tab-setup-menu-btn" onclick="showTab('setup',document.getElementById('tab-setup-btn'));closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🔒 設定（パスワード保護）</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
 <div id="memo-full-modal">
