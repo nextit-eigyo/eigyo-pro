@@ -56,7 +56,9 @@ input,select,textarea,button{font-family:inherit;font-size:14px}
 #logo{
   font-size:16px;font-weight:900;letter-spacing:-.5px;
   color:var(--tx);white-space:nowrap;flex-shrink:0;
+  cursor:pointer; transition:opacity .15s;
 }
+#logo:hover{opacity:.65}
 #logo em{color:var(--acc);font-style:normal}
 .htabs{display:flex;gap:1px;flex:1;overflow-x:auto;min-width:0;padding:4px 0}
 .htabs::-webkit-scrollbar{display:none}
@@ -1930,10 +1932,10 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- HEADER -->
 <div id="hdr">
-  <div id="logo">EIGYO<em>PRO</em></div>
+  <div id="logo" onclick="showTab('deals',document.getElementById('tab-deals-btn'));if(typeof setHomeMode==='function')setHomeMode('num')" title="営業ホーム(数字モード)に戻る">EIGYO<em>PRO</em></div>
   <div class="htabs" id="main-tabs">
-    <!-- トップグループ: 営業ホーム / 設定 の2つだけ -->
-    <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
+    <!-- トップグループ: 設定 / ☰メニュー のみ(営業ホーム/KPTはロゴクリックで遷移) -->
+    <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)" style="display:none">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
     <button class="htab" id="tab-setup-btn" onclick="showTab('setup',this)">⚙ 設定</button>
     <!-- 隠しタブ(他コードからのプログラム参照用に保持) -->
     <button class="htab" id="tab-db-btn" onclick="showTab('dashboard',this)" style="display:none">📊 ダッシュボード</button>
@@ -3068,13 +3070,9 @@ function _syncMyPersonIdFromRole() {
 function _updateKptTabVisibility() {
   var btn = document.getElementById('tab-kpt-btn');
   if (!btn) return;
-  if (!currentUserRole) {
-    // 未ログイン or role未取得 → KPTタブを非表示
-    btn.style.display = 'none';
-    return;
-  }
-  // KPTタブを表示（system_admin含む全ロールで自分のKPTを閲覧可能）
-  btn.style.display = '';
+  // ㉓ 上段「営業ホーム」「KPT」グループタブを削除済み
+  // KPTはサブタブ(#subtab-kpt)からのみアクセス。上段の tab-kpt-btn は常に非表示
+  btn.style.display = 'none';
 }
 
 // 閲覧可能な担当者リストを返す（role別フィルタ）
