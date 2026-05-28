@@ -14066,7 +14066,7 @@ function _formatVisits(visits) {
   }).join('\n');
 }
 
-// メインレンダリング
+// メインレンダリング (カードベースのダッシュボード型)
 function renderFurikaeri() {
   initFurikaeriCtrl();
   var branch = (document.getElementById('furikaeri-branch')||{}).value;
@@ -14081,104 +14081,297 @@ function renderFurikaeri() {
   var mAchvP = _achv(d.month.actP, d.month.budP);
   var h1AchvS = _achv(d.half.h1ActS, d.half.h1BudS);
   var h1AchvP = _achv(d.half.h1ActP, d.half.h1BudP);
+  var h2AchvS = _achv(d.half.h2ActS, d.half.h2BudS);
+  var h2AchvP = _achv(d.half.h2ActP, d.half.h2BudP);
 
-  // Excel そっくり風スタイル
-  var tdStyle = 'border:1px solid #888;padding:6px 8px;vertical-align:top;font-size:11px;line-height:1.6;white-space:pre-wrap;color:#000';
-  var thStyle = tdStyle + ';background:#e8e8e8;font-weight:700;text-align:center';
-  var inputBg = 'background:#fffbe6'; // 手入力部分は薄黄色
+  // V8販売目標(全社共通の固定値)
+  // コンバート = 既存バージョンアップ、新規 = 新規(他社入替) + 新規開局
+  var TARGET_CONVERT = 8;
+  var TARGET_NEW = 34;
+  var convAchv = _achv(d.v8.convertCum, TARGET_CONVERT);
+  var newAchv  = _achv(d.v8.newCum, TARGET_NEW);
 
-  var html = '<table id="furikaeri-table" style="border-collapse:collapse;width:100%;min-width:1100px;background:#fff;font-family:\'MS PGothic\',\'Yu Gothic\',sans-serif">';
-  // タイトル行
-  html += '<tr><td colspan="7" style="' + thStyle + ';font-size:14px;padding:10px">中計進捗レビューシート（' + d.branch + '）</td></tr>';
-  html += '<tr><td colspan="5" style="' + tdStyle + ';background:#fafafa"></td>';
-  html += '<td style="' + tdStyle + ';background:#fafafa">作成日：' + d.createdAt + '</td>';
-  html += '<td style="' + tdStyle + ';background:#fafafa">作成者：' + (d.creator || '') + '</td></tr>';
-  // ヘッダ行
-  html += '<tr><td colspan="3" style="' + thStyle + '">課題テーマ</td>';
-  html += '<td style="' + thStyle + '">ゴール(指標・達成水準)<br>（収益・CSの視点）</td>';
-  html += '<td style="' + thStyle + '">現状・事実</td>';
-  html += '<td style="' + thStyle + '">分析　評価・感じたこと</td>';
-  html += '<td style="' + thStyle + '">対策</td></tr>';
-  html += '<tr><td colspan="3" style="' + thStyle + ';background:#f0f0f0"></td>';
-  html += '<td style="' + thStyle + ';background:#f0f0f0">目標</td>';
-  html += '<td style="' + thStyle + ';background:#f0f0f0">実施したこと<br>反応・変化</td>';
-  html += '<td style="' + thStyle + ';background:#f0f0f0">成功のポイント<br>阻害要因</td>';
-  html += '<td style="' + thStyle + ';background:#f0f0f0">行動（予定）</td></tr>';
+  var achvCol = function(r) {
+    if (r >= 100) return 'var(--grn)';
+    if (r >= 80)  return 'var(--amb)';
+    if (r > 0)    return 'var(--red)';
+    return 'var(--tx3)';
+  };
 
-  // ●年度販売計画
-  html += '<tr>';
-  html += '<td rowspan="3" colspan="3" style="' + thStyle + ';background:#e8f1f9">●年度販売計画\n\n売上・粗利益目標達成</td>';
-  html += '<td rowspan="3" style="' + tdStyle + '">' + d.branch + '：\n売上目標：' + _fn(d.yearly.budS) + '千円\n粗利益目標：' + _fn(d.yearly.budP) + '千円\n\n売上実績　：' + _fn(d.yearly.actS) + '千円　達成率：' + yAchvS + '％\n粗利実績　：' + _fn(d.yearly.actP) + '千円　達成率：' + yAchvP + '％</td>';
-  html += '<td style="' + tdStyle + '">●' + d.monthLabel + '</td>';
-  html += '<td rowspan="2" style="' + tdStyle + '">上半期　経過月売上(予算/実績) 4〜9月\n' + _fn(d.half.h1ActS) + '千円/' + _fn(d.half.h1BudS) + '千円　達成率：' + h1AchvS + '％\n\n下半期　経過月売上(予算/実績) 10月〜3月\n' + _fn(d.half.h2ActS) + '千円/' + _fn(d.half.h2BudS) + '千円</td>';
-  html += '<td rowspan="3" style="' + tdStyle + '">●' + d.nextMonthLabel + '受注予定：\n売上目標：' + _fn(d.next.budS) + '千円\n売上見込：' + _fn(d.next.forecastS) + '千円\n\n粗利益目標：' + _fn(d.next.budP) + '千円\n粗利益見込：' + _fn(d.next.forecastP) + '千円</td>';
-  html += '</tr>';
-  html += '<tr><td style="' + tdStyle + '">売上目標：' + _fn(d.month.budS) + '千円\n売上実績：' + _fn(d.month.actS) + '千円\n達成率：' + mAchvS + '％</td></tr>';
-  html += '<tr><td style="' + tdStyle + '">粗利益目標：' + _fn(d.month.budP) + '千円\n粗利益実績：' + _fn(d.month.actP) + '千円\n達成率：' + mAchvP + '％</td>';
-  html += '<td style="' + tdStyle + '">上半期　経過月粗利益(予算/実績)　4〜9月\n' + _fn(d.half.h1ActP) + '千円/' + _fn(d.half.h1BudP) + '千円　達成率：' + h1AchvP + '％\n\n下半期　経過月粗利益(予算/実績)　10月〜3月\n' + _fn(d.half.h2ActP) + '千円/' + _fn(d.half.h2BudP) + '千円</td></tr>';
+  // 共通スタイル (左詰め徹底)
+  var card = 'background:#fff;border:1px solid var(--bd);border-radius:12px;padding:18px 22px;margin-bottom:14px;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,.03)';
+  var secT = 'font-size:14px;font-weight:900;margin:0 0 14px;display:flex;align-items:center;gap:8px;color:var(--tx);text-align:left;letter-spacing:.02em';
+  var lbl  = 'font-size:11px;color:var(--tx3);font-weight:700;letter-spacing:.06em;text-align:left;text-transform:uppercase';
+  var num  = 'font-feature-settings:\"tnum\";font-variant-numeric:tabular-nums';
 
-  // ●調剤くん直販活動
-  var personRows = d.dealsByPerson.length;
-  html += '<tr>';
-  html += '<td rowspan="' + (personRows + 2) + '" colspan="3" style="' + thStyle + ';background:#e8f1f9">●調剤くん直販活動</td>';
-  html += '<td rowspan="' + (personRows + 2) + '" style="' + tdStyle + '">■V8販売目標\n\n直販ｺﾝﾊﾞｰﾄ：●件　　実績：' + d.v8.convertCum + '件\n直販新規　：●件　　実績：' + d.v8.newCum + '件</td>';
-  html += '<td rowspan="' + (personRows + 2) + '" style="' + tdStyle + '">・直販新規　：' + d.v8.monthNew + '件\n・直販コンバート：' + d.v8.monthConvert + '件</td>';
-  // 1人目
-  if (personRows > 0) {
-    var p0 = d.dealsByPerson[0];
-    html += '<td style="' + tdStyle + '">' + _formatPersonBlock(p0) + '</td>';
-  } else {
-    html += '<td style="' + tdStyle + '">(担当者なし)</td>';
-  }
-  html += '<td rowspan="' + (personRows + 2) + '" style="' + tdStyle + '">受注予定\n' + d.next.deals.map(function(dl){
-    var pp = (D.people||[]).find(function(p){ return p.id === dl.spId; });
-    return '・' + (dl.name||'') + '様　担当:' + (pp?pp.name:'—') + '　売上:' + _fn(dl.sales) + '千';
-  }).join('\n') + '</td></tr>';
-  // 残り担当者
-  for (var i = 1; i < personRows; i++) {
-    html += '<tr><td style="' + tdStyle + '">' + _formatPersonBlock(d.dealsByPerson[i]) + '</td></tr>';
-  }
-  html += '<tr><td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td></tr>';
+  var html = '<div id="furikaeri-content" style="text-align:left;max-width:1100px;font-family:inherit">';
 
-  // ●新規獲得活動
-  html += '<tr>';
-  html += '<td colspan="3" style="' + thStyle + ';background:#e8f1f9">●新規獲得活動</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 紹介拠点開拓方針)</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 案件紹介促進)</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 紹介拠点活動報告)</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 対策)</td></tr>';
-
-  // 販売店
-  html += '<tr>';
-  html += '<td colspan="3" style="' + thStyle + ';background:#e8f1f9">販売店</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '"></td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '"></td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td></tr>';
-
-  // グループ薬局
-  var gpThis = d.groupPharma.thisMonth.map(function(dl){ return dl.name + '様　' + d.monthLabel + '導入'; }).join('\n');
-  var gpNext = d.groupPharma.nextMonth.map(function(dl){ return dl.name + '様　' + d.nextMonthLabel + '予定'; }).join('\n');
-  var gpAll = gpThis + (gpThis && gpNext ? '\n\n' : '') + gpNext;
-  html += '<tr>';
-  html += '<td colspan="3" style="' + thStyle + ';background:#e8f1f9">グループ薬局</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: グループ薬局チェーン)</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td>';
-  html += '<td style="' + tdStyle + '">' + (gpAll || '(該当なし)') + '</td>';
-  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td></tr>';
-
-  html += '</table>';
-
-  // 凡例
-  html += '<div style="margin-top:14px;display:flex;gap:14px;font-size:11px;color:var(--tx3);flex-wrap:wrap">';
-  html += '<div><span style="display:inline-block;width:14px;height:14px;background:#fff;border:1px solid #888;vertical-align:middle"></span> 自動入力(EIGYO PROのデータから)</div>';
-  html += '<div><span style="display:inline-block;width:14px;height:14px;background:#fffbe6;border:1px solid #888;vertical-align:middle"></span> 手入力(Excelに貼付後に追記)</div>';
+  // ── ヘッダ(グラデ) ──
+  html += '<div style="background:linear-gradient(135deg,var(--tx) 0%,var(--acc) 100%);color:#fff;padding:22px 26px;border-radius:12px;margin-bottom:18px;text-align:left">';
+  html += '<div style="font-size:11px;opacity:.85;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">' + fy + '年度 月末振り返りシート</div>';
+  html += '<div style="font-size:22px;font-weight:900;letter-spacing:.02em">📋 ' + d.branch + ' / ' + d.monthLabel + '</div>';
+  html += '<div style="font-size:11px;opacity:.85;margin-top:4px">作成日: ' + d.createdAt + ' / 作成者: ' + (d.creator || '—') + '</div>';
   html += '</div>';
 
+  // ── KPI カード (3列) ──
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">';
+  html += '<div style="' + card + ';margin-bottom:0;border-left:4px solid ' + achvCol(mAchvS) + '">';
+  html +=   '<div style="' + lbl + '">' + d.monthLabel + ' 売上達成率</div>';
+  html +=   '<div style="font-size:38px;font-weight:900;color:' + achvCol(mAchvS) + ';margin:6px 0;line-height:1;' + num + '">' + mAchvS + '<span style="font-size:18px;font-weight:700;margin-left:2px">%</span></div>';
+  html +=   '<div style="font-size:12px;color:var(--tx2);' + num + '"><strong>' + _fn(d.month.actS) + '</strong> / ' + _fn(d.month.budS) + ' 千円</div>';
+  html += '</div>';
+  html += '<div style="' + card + ';margin-bottom:0;border-left:4px solid ' + achvCol(mAchvP) + '">';
+  html +=   '<div style="' + lbl + '">' + d.monthLabel + ' 粗利達成率</div>';
+  html +=   '<div style="font-size:38px;font-weight:900;color:' + achvCol(mAchvP) + ';margin:6px 0;line-height:1;' + num + '">' + mAchvP + '<span style="font-size:18px;font-weight:700;margin-left:2px">%</span></div>';
+  html +=   '<div style="font-size:12px;color:var(--tx2);' + num + '"><strong>' + _fn(d.month.actP) + '</strong> / ' + _fn(d.month.budP) + ' 千円</div>';
+  html += '</div>';
+  html += '<div style="' + card + ';margin-bottom:0;border-left:4px solid var(--acc)">';
+  html +=   '<div style="' + lbl + '">V8販売 当月件数</div>';
+  html +=   '<div style="font-size:22px;font-weight:900;color:var(--tx);margin:8px 0;line-height:1.2;' + num + '">';
+  html +=     '<span style="color:#c89856">新規 ' + d.v8.monthNew + '</span> <span style="color:var(--tx3);font-weight:400;font-size:14px;margin:0 6px">+</span> <span style="color:#7a8e5a">コンバート ' + d.v8.monthConvert + '</span>';
+  html +=   '</div>';
+  html +=   '<div style="font-size:11px;color:var(--tx3);' + num + '">累積: 新規 ' + d.v8.newCum + '件 / コンバート ' + d.v8.convertCum + '件</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // ── 売上・粗利 詳細 ──
+  html += '<div style="' + card + ';border-left:4px solid #5a7b9e">';
+  html +=   '<div style="' + secT + '">💰 売上・粗利益 詳細</div>';
+  html +=   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">';
+  // 売上
+  html +=     '<div>';
+  html +=       '<div style="' + lbl + ';margin-bottom:8px;color:#5a7b9e">📈 売上(千円)</div>';
+  html +=       _renderKPITable([
+                  ['年度通期 (経過月累積)', d.yearly.actS, d.yearly.budS, yAchvS],
+                  [d.monthLabel + ' 当月',  d.month.actS,  d.month.budS,  mAchvS],
+                  ['上半期 4〜9月 累計',     d.half.h1ActS, d.half.h1BudS, h1AchvS],
+                  ['下半期 10〜3月 累計',    d.half.h2ActS, d.half.h2BudS, h2AchvS],
+                  [d.nextMonthLabel + ' 翌月(見込/目標)', d.next.forecastS, d.next.budS, _achv(d.next.forecastS, d.next.budS)],
+                ]);
+  html +=     '</div>';
+  // 粗利
+  html +=     '<div>';
+  html +=       '<div style="' + lbl + ';margin-bottom:8px;color:#7a8e5a">📈 粗利益(千円)</div>';
+  html +=       _renderKPITable([
+                  ['年度通期 (経過月累積)', d.yearly.actP, d.yearly.budP, yAchvP],
+                  [d.monthLabel + ' 当月',  d.month.actP,  d.month.budP,  mAchvP],
+                  ['上半期 4〜9月 累計',     d.half.h1ActP, d.half.h1BudP, h1AchvP],
+                  ['下半期 10〜3月 累計',    d.half.h2ActP, d.half.h2BudP, h2AchvP],
+                  [d.nextMonthLabel + ' 翌月(見込/目標)', d.next.forecastP, d.next.budP, _achv(d.next.forecastP, d.next.budP)],
+                ]);
+  html +=     '</div>';
+  html +=   '</div>';
+  html +=   '<div style="margin-top:12px;font-size:10.5px;color:var(--tx3);line-height:1.6;text-align:left">※ 通期/上下半期は「経過月までの累積実績」。翌月の見込は「受注予定案件の合計」</div>';
+  html += '</div>';
+
+  // ── V8販売進捗 (目標 8/34 固定) ──
+  html += '<div style="' + card + ';border-left:4px solid #7a8e5a">';
+  html +=   '<div style="' + secT + '">🎯 V8販売進捗</div>';
+  html +=   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
+  // コンバート
+  html +=     '<div style="padding:16px;background:rgba(122,142,90,.05);border-radius:10px;text-align:left">';
+  html +=       '<div style="' + lbl + ';color:#7a8e5a;margin-bottom:4px">直販コンバート</div>';
+  html +=       '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px;text-align:left">対象: 既存バージョンアップ</div>';
+  html +=       '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;' + num + '">';
+  html +=         '<span style="font-size:30px;font-weight:900;color:' + achvCol(convAchv) + '">' + d.v8.convertCum + '</span>';
+  html +=         '<span style="font-size:13px;color:var(--tx3);font-weight:700">/ ' + TARGET_CONVERT + ' 件 目標</span>';
+  html +=         '<span style="margin-left:auto;font-size:13px;font-weight:900;color:' + achvCol(convAchv) + '">' + convAchv + '%</span>';
+  html +=       '</div>';
+  html +=       '<div style="height:8px;background:rgba(0,0,0,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, convAchv) + '%;background:' + achvCol(convAchv) + ';transition:width .3s"></div></div>';
+  html +=       '<div style="margin-top:10px;font-size:11px;color:var(--tx3);text-align:left">当月: <strong style="color:var(--tx);font-size:14px">' + d.v8.monthConvert + ' 件</strong></div>';
+  html +=     '</div>';
+  // 新規
+  html +=     '<div style="padding:16px;background:rgba(200,152,86,.07);border-radius:10px;text-align:left">';
+  html +=       '<div style="' + lbl + ';color:#c89856;margin-bottom:4px">直販新規</div>';
+  html +=       '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px;text-align:left">対象: 新規(他社入替) + 新規開局</div>';
+  html +=       '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;' + num + '">';
+  html +=         '<span style="font-size:30px;font-weight:900;color:' + achvCol(newAchv) + '">' + d.v8.newCum + '</span>';
+  html +=         '<span style="font-size:13px;color:var(--tx3);font-weight:700">/ ' + TARGET_NEW + ' 件 目標</span>';
+  html +=         '<span style="margin-left:auto;font-size:13px;font-weight:900;color:' + achvCol(newAchv) + '">' + newAchv + '%</span>';
+  html +=       '</div>';
+  html +=       '<div style="height:8px;background:rgba(0,0,0,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, newAchv) + '%;background:' + achvCol(newAchv) + ';transition:width .3s"></div></div>';
+  html +=       '<div style="margin-top:10px;font-size:11px;color:var(--tx3);text-align:left">当月: <strong style="color:var(--tx);font-size:14px">' + d.v8.monthNew + ' 件</strong></div>';
+  html +=     '</div>';
+  html +=   '</div>';
+  html +=   '<div style="margin-top:12px;font-size:10.5px;color:var(--tx3);line-height:1.6;text-align:left">※ 目標件数は全社共通(コンバート 8件 / 新規 34件)。累積は年度開始(4月)から経過月までの受注実績</div>';
+  html += '</div>';
+
+  // ── 翌月受注予定 ──
+  if (d.next.deals.length) {
+    html += '<div style="' + card + ';border-left:4px solid var(--acc)">';
+    html +=   '<div style="' + secT + '">📅 ' + d.nextMonthLabel + ' 受注予定 <span style="color:var(--acc);margin-left:6px;font-weight:900">(' + d.next.deals.length + '件)</span></div>';
+    html +=   '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">';
+    html +=     '<thead><tr style="background:var(--s3);border-bottom:2px solid var(--bd)">';
+    html +=       '<th style="padding:9px 10px;text-align:left;font-weight:700">薬局名</th>';
+    html +=       '<th style="padding:9px 10px;text-align:left;font-weight:700">担当者</th>';
+    html +=       '<th style="padding:9px 10px;text-align:left;font-weight:700">種別</th>';
+    html +=       '<th style="padding:9px 10px;text-align:left;font-weight:700">確度</th>';
+    html +=       '<th style="padding:9px 10px;text-align:right;font-weight:700">売上(千)</th>';
+    html +=       '<th style="padding:9px 10px;text-align:right;font-weight:700">粗利(千)</th>';
+    html +=     '</tr></thead><tbody>';
+    d.next.deals.forEach(function(dl){
+      var pp = (D.people||[]).find(function(p){ return p.id === dl.spId; });
+      var profit = (parseFloat(dl.sales)||0) - (parseFloat(dl.cost)||0);
+      html += '<tr style="border-bottom:1px solid var(--bd)">';
+      html +=   '<td style="padding:9px 10px;text-align:left;font-weight:700">' + (dl.name||'—') + '</td>';
+      html +=   '<td style="padding:9px 10px;text-align:left">' + (pp?pp.name:'—') + '</td>';
+      html +=   '<td style="padding:9px 10px;text-align:left;font-size:11px;color:var(--tx2)">' + (dl.dealType||'—') + '</td>';
+      html +=   '<td style="padding:9px 10px;text-align:left"><span style="display:inline-block;padding:2px 9px;background:var(--s3);border-radius:4px;font-size:11px;font-weight:700">' + (dl.phase||'—') + '</span></td>';
+      html +=   '<td style="padding:9px 10px;text-align:right;font-weight:700;' + num + '">' + _fn(dl.sales) + '</td>';
+      html +=   '<td style="padding:9px 10px;text-align:right;font-weight:700;color:var(--grn);' + num + '">' + _fn(profit) + '</td>';
+      html += '</tr>';
+    });
+    html +=     '<tr style="background:var(--s3);font-weight:900;border-top:2px solid var(--bd)">';
+    html +=       '<td colspan="4" style="padding:9px 10px;text-align:right">合計</td>';
+    html +=       '<td style="padding:9px 10px;text-align:right;' + num + '">' + _fn(d.next.forecastS) + '</td>';
+    html +=       '<td style="padding:9px 10px;text-align:right;color:var(--grn);' + num + '">' + _fn(d.next.forecastP) + '</td>';
+    html +=     '</tr>';
+    html +=   '</tbody></table></div>';
+    html += '</div>';
+  }
+
+  // ── 担当者別 進行中案件 ──
+  html += '<div style="' + card + ';border-left:4px solid var(--tx)">';
+  html +=   '<div style="' + secT + '">👥 担当者別 進行中案件</div>';
+  if (d.dealsByPerson.length === 0) {
+    html += '<div style="font-size:12px;color:var(--tx3);padding:14px 0;text-align:left">この拠点には担当者が登録されていません</div>';
+  } else {
+    d.dealsByPerson.forEach(function(pb){
+      html += _renderPersonCard(pb, d.monthLabel);
+    });
+  }
+  html += '</div>';
+
+  // ── グループ薬局 ──
+  html += '<div style="' + card + ';border-left:4px solid #a85a4a">';
+  html +=   '<div style="' + secT + '">🏥 グループ薬局</div>';
+  html +=   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">';
+  // 今月導入
+  html +=     '<div>';
+  html +=       '<div style="' + lbl + ';margin-bottom:10px;color:#a85a4a">📦 ' + d.monthLabel + ' 導入 <span style="color:var(--tx3);font-weight:400;margin-left:4px">' + d.groupPharma.thisMonth.length + '件</span></div>';
+  if (d.groupPharma.thisMonth.length) {
+    d.groupPharma.thisMonth.forEach(function(dl){
+      html += '<div style="padding:10px 12px;background:var(--s3);border-radius:8px;margin-bottom:6px;font-size:12px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:10px">';
+      html +=   '<strong>' + (dl.name||'—') + '</strong>';
+      html +=   '<span style="color:var(--tx3);font-size:11px;' + num + '">売上 ' + _fn(dl.sales) + ' 千</span>';
+      html += '</div>';
+    });
+  } else {
+    html += '<div style="font-size:11px;color:var(--tx3);padding:8px 0;text-align:left">(該当なし)</div>';
+  }
+  html +=     '</div>';
+  // 翌月予定
+  html +=     '<div>';
+  html +=       '<div style="' + lbl + ';margin-bottom:10px;color:#a85a4a">📅 ' + d.nextMonthLabel + ' 予定 <span style="color:var(--tx3);font-weight:400;margin-left:4px">' + d.groupPharma.nextMonth.length + '件</span></div>';
+  if (d.groupPharma.nextMonth.length) {
+    d.groupPharma.nextMonth.forEach(function(dl){
+      html += '<div style="padding:10px 12px;background:var(--s3);border-radius:8px;margin-bottom:6px;font-size:12px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:10px">';
+      html +=   '<strong>' + (dl.name||'—') + '</strong>';
+      html +=   '<span style="color:var(--tx3);font-size:11px;' + num + '">売上 ' + _fn(dl.sales) + ' 千</span>';
+      html += '</div>';
+    });
+  } else {
+    html += '<div style="font-size:11px;color:var(--tx3);padding:8px 0;text-align:left">(該当なし)</div>';
+  }
+  html +=     '</div>';
+  html +=   '</div>';
+  html += '</div>';
+
+  // ── 手入力欄(コメント枠 - 薄黄色で目立たせる) ──
+  html += '<div style="' + card + ';border-left:4px solid var(--amb);background:#fffbe6">';
+  html +=   '<div style="' + secT + ';color:#9a7610">✏️ 手入力で追記してください</div>';
+  html +=   '<div style="font-size:12px;color:var(--tx2);line-height:1.9;text-align:left">';
+  html +=     '振り返りシートの「分析・評価・対策」欄として、以下の所感を追記してください:<br><br>';
+  html +=     '<strong>1. 成功のポイント・阻害要因</strong> ── 今月の売上/粗利の達成・未達の要因分析<br>';
+  html +=     '<strong>2. 来月以降の対策</strong> ── 進行中案件をどう前に進めるか<br>';
+  html +=     '<strong>3. 新規獲得活動の方針</strong> ── 紹介拠点開拓・展示会など<br>';
+  html +=     '<strong>4. 販売店活動の報告</strong> ── 創心など販売店の動き<br>';
+  html +=     '<strong>5. グループ薬局チェーンの所感</strong> ── ファーマダイワ・スカイメディカル等';
+  html +=   '</div>';
+  html += '</div>';
+
+  html += '</div>';
   prevEl.innerHTML = html;
 }
 
-// 担当者ブロックのテキスト整形
+// KPI テーブル(売上/粗利の年度・当月・上半期・下半期・翌月)
+function _renderKPITable(rows) {
+  var num = 'font-feature-settings:\"tnum\";font-variant-numeric:tabular-nums';
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:left">';
+  rows.forEach(function(r){
+    var label = r[0], act = r[1], bud = r[2], achv = r[3];
+    var col = achv >= 100 ? 'var(--grn)' : achv >= 80 ? 'var(--amb)' : achv > 0 ? 'var(--red)' : 'var(--tx3)';
+    html += '<tr style="border-bottom:1px solid var(--bd)">';
+    html +=   '<td style="padding:7px 6px 7px 0;text-align:left;font-weight:700">' + label + '</td>';
+    html +=   '<td style="padding:7px 6px;text-align:right;' + num + ';font-weight:700">' + _fn(act) + '</td>';
+    html +=   '<td style="padding:7px 6px;text-align:right;color:var(--tx3);' + num + '">/ ' + _fn(bud) + '</td>';
+    html +=   '<td style="padding:7px 0 7px 6px;text-align:right;font-weight:900;color:' + col + ';' + num + ';min-width:50px">' + achv + '%</td>';
+    html += '</tr>';
+  });
+  html += '</table>';
+  return html;
+}
+
+// 担当者カード
+function _renderPersonCard(pb, monthLabel) {
+  var num = 'font-feature-settings:\"tnum\";font-variant-numeric:tabular-nums';
+  var html = '<div style="margin-bottom:14px;padding:14px;background:#fafafa;border-radius:10px;border:1px solid var(--bd);text-align:left">';
+  // ヘッダ
+  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;text-align:left">';
+  html +=   '<span style="font-size:15px;font-weight:900">👤 ' + pb.person.name + '</span>';
+  if (pb.monthWonDeals && pb.monthWonDeals.length) {
+    html += '<span style="padding:3px 10px;background:var(--grn);color:#fff;border-radius:6px;font-size:11px;font-weight:700">✅ ' + monthLabel + '受注 ' + pb.monthWonDeals.length + '件</span>';
+  }
+  html +=   '<span style="color:var(--tx3);font-size:11px;margin-left:auto">進行中 ' + (pb.activeDeals||[]).length + '件</span>';
+  html += '</div>';
+  // 受注済み案件
+  if (pb.monthWonDeals && pb.monthWonDeals.length) {
+    html += '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(122,142,90,.08);border-left:3px solid var(--grn);border-radius:6px;font-size:12px;text-align:left">';
+    html +=   '<strong style="color:var(--grn)">受注:</strong> ';
+    html +=   pb.monthWonDeals.map(function(d){ return d.name + '様 <span style="color:var(--tx3);font-size:11px">(' + _fn(d.sales) + '千)</span>'; }).join('、 ');
+    html += '</div>';
+  }
+  // 進行中案件
+  if (!pb.activeDeals || !pb.activeDeals.length) {
+    html += '<div style="font-size:11.5px;color:var(--tx3);padding:8px 0;text-align:left">(進行中案件なし)</div>';
+  } else {
+    pb.activeDeals.forEach(function(d){
+      html += '<div style="padding:12px;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;text-align:left">';
+      // ヘッダ行
+      html +=   '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap;text-align:left">';
+      html +=     '<span style="font-size:13px;font-weight:900">▶ ' + (d.name||'—') + '様</span>';
+      if (d.pref) html += '<span style="font-size:11px;color:var(--tx3)">' + d.pref + '</span>';
+      if (d.dealType) html += '<span style="padding:1px 8px;background:var(--s3);border-radius:3px;font-size:10.5px;color:var(--tx2)">' + d.dealType + '</span>';
+      if (d.phase) html += '<span style="margin-left:auto;padding:2px 10px;background:var(--acc);color:#fff;border-radius:4px;font-size:11px;font-weight:700">' + d.phase + '</span>';
+      html +=   '</div>';
+      // 属性行
+      html +=   '<div style="font-size:11.5px;color:var(--tx2);line-height:1.8;text-align:left">';
+      var info = [];
+      if (d.route) info.push('ルート: <strong>' + d.route + (d.routeRef ? '（' + d.routeRef + '）' : '') + '</strong>');
+      if (d.kyogou && d.kyogou !== 'なし') info.push('競合: <strong>' + d.kyogou + '</strong>');
+      if (d.sales) info.push('売上見込: <strong style="' + num + '">' + _fn(d.sales) + '千</strong>');
+      if (d.cost && d.sales) info.push('粗利見込: <strong style="color:var(--grn);' + num + '">' + _fn((parseFloat(d.sales)||0) - (parseFloat(d.cost)||0)) + '千</strong>');
+      if (d.deliveryMonth) info.push('計上予定: <strong>' + d.deliveryMonth + '</strong>');
+      html +=     info.join(' / ');
+      html +=   '</div>';
+      // 訪問履歴(直近3件)
+      if (d.visits && d.visits.length) {
+        html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--bd);font-size:11px;color:var(--tx2);text-align:left">';
+        var recent = d.visits.slice(-3).reverse();
+        recent.forEach(function(v){
+          html += '<div style="margin-bottom:3px;text-align:left">📌 <strong>' + (v.date||'—') + '</strong> ' + (v.actType||v.action||'') + (v.actDetail||v.memo ? ' - ' + (v.actDetail||v.memo) : '') + '</div>';
+        });
+        if (d.visits.length > 3) html += '<div style="color:var(--tx3);font-size:10.5px;text-align:left">... 他 ' + (d.visits.length - 3) + '件</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+// 旧 _formatPersonBlock はテキスト整形用として残置(将来のテキストエクスポート用)
 function _formatPersonBlock(pb) {
   var p = pb.person;
   var lines = ['【' + p.name + '】'];
@@ -14204,20 +14397,20 @@ function _formatPersonBlock(pb) {
   return lines.join('\n');
 }
 
-// クリップボードに HTML テーブルをコピー (Excel貼付対応)
+// クリップボードに振り返りシート全体をコピー(HTMLとして、書式維持で他アプリへ貼付)
 function _copyFurikaeriTable() {
-  var tbl = document.getElementById('furikaeri-table');
-  if (!tbl) { if (typeof _showToast === 'function') _showToast('テーブルが見つかりません', 'warn', 3000); return; }
+  var content = document.getElementById('furikaeri-content');
+  if (!content) { if (typeof _showToast === 'function') _showToast('プレビューが見つかりません', 'warn', 3000); return; }
   try {
     var range = document.createRange();
-    range.selectNode(tbl);
+    range.selectNode(content);
     var sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
     var ok = document.execCommand('copy');
     sel.removeAllRanges();
     if (ok) {
-      if (typeof _showToast === 'function') _showToast('✅ クリップボードにコピーしました。Excelに貼付してください(Ctrl+V)', 'ok', 4000);
+      if (typeof _showToast === 'function') _showToast('✅ クリップボードにコピーしました。Excel/Word/メール等に貼付してください(Ctrl+V)', 'ok', 4000);
     } else {
       throw new Error('execCommand failed');
     }
