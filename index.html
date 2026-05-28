@@ -2800,6 +2800,32 @@ body.has-sidepanel #home-deal-mode {
 
 
 
+<!-- ════════ 📋 月末振り返りシート (㉔) ════════ -->
+<div id="tab-furikaeri" class="sec">
+  <div class="ptitle">📋 月末振り返りシート</div>
+  <div style="background:rgba(90,123,158,.04);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:12px;color:var(--tx3);line-height:1.7">
+    💡 各拠点が毎月末に提出する「中計進捗レビューシート」を自動生成します。<br>
+    自動入力: 売上/粗利の目標・実績、進行中案件、グループ薬局の納品予定 など<br>
+    手入力(後で Excel 上で): 分析・評価・対策などのコメント
+  </div>
+
+  <!-- コントロール -->
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <div>
+      <label style="font-size:11px;color:var(--tx3);font-weight:700;margin-right:6px">🏢 拠点</label>
+      <select id="furikaeri-branch" class="fi" style="width:auto;padding:6px 10px;font-size:13px" onchange="renderFurikaeri()"></select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:var(--tx3);font-weight:700;margin-right:6px">📅 対象月</label>
+      <select id="furikaeri-month" class="fi" style="width:auto;padding:6px 10px;font-size:13px" onchange="renderFurikaeri()"></select>
+    </div>
+    <button class="btn pr" onclick="_copyFurikaeriTable()" style="padding:9px 16px;font-size:12px;font-weight:700;margin-left:auto">📋 全選択+コピー(Excel貼付用)</button>
+  </div>
+
+  <!-- プレビュー -->
+  <div id="furikaeri-preview" style="overflow-x:auto;background:#fff;padding:20px;border:1px solid var(--bd);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.04)"></div>
+</div>
+
 <!-- ════════ 競合分析 ════════ -->
 <div id="tab-kyogou" class="sec">
   <div class="ptitle">⚔ 競合分析ダッシュボード</div>
@@ -8991,6 +9017,7 @@ function showTab(name,btn){
   if(name==='referral'){ensureReferrals();renderRefPtabs();renderReferrals();}
   if(name==='meeting'){renderMeeting();}
   if(name==='import')initImportCtrl();
+  if(name==='furikaeri'){initFurikaeriCtrl();renderFurikaeri();}
 }
 
 // ════════════════════════════════════════════════════════
@@ -13866,6 +13893,339 @@ function openDealFromDash(id) {
 // ================================================================
 
 // ── その他メニュー ─────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+// ㉔ 月末振り返りシート (HTMLプレビュー + コピペ)
+// ════════════════════════════════════════════════════════
+// 設計:
+// - 「2026年度+{拠点}_振り返りシート.xlsx」の構造を HTML テーブルで再現
+// - 自動入力: 売上/粗利の目標・実績、進行中案件、グループ薬局の納品予定 など
+// - 手入力: 分析・評価・対策コメント(空欄で出力、後で Excel に入力)
+// - 全選択+execCommand('copy') で書式維持のまま Excel に貼り付け可能
+
+function initFurikaeriCtrl() {
+  // 拠点プルダウン
+  var bs = document.getElementById('furikaeri-branch');
+  if (bs && bs.options.length === 0) {
+    var bm = (typeof getBranchMaster === 'function') ? getBranchMaster() : (D.branchMaster || []);
+    bs.innerHTML = bm.map(function(b){ return '<option value="' + b.name + '">' + b.name + '</option>'; }).join('');
+    // ログインユーザーの所属拠点を初期選択
+    if (typeof currentUserRole !== 'undefined' && currentUserRole && currentUserRole.branch) {
+      bs.value = currentUserRole.branch;
+    }
+  }
+  // 月プルダウン (4月〜3月、現在月をデフォルト)
+  var ms = document.getElementById('furikaeri-month');
+  if (ms && ms.options.length === 0) {
+    var now = new Date();
+    var curMi = now.getMonth() >= 3 ? now.getMonth() - 3 : now.getMonth() + 9;
+    var opts = '';
+    for (var i = 0; i < 12; i++) {
+      var sel = (i === curMi) ? ' selected' : '';
+      opts += '<option value="' + i + '"' + sel + '">' + ML[i] + '</option>';
+    }
+    ms.innerHTML = opts;
+  }
+}
+
+// 振り返りデータ取得
+function _buildFurikaeriData(branch, mi) {
+  var people = (D.people || []).filter(function(p){ return p.branch === branch && p.name && p.name.trim(); });
+  var spIds = people.map(function(p){ return p.id; });
+  var ymOfMi = function(midx){
+    var fm = midx + 4;
+    var yr = fm <= 12 ? fy : fy + 1;
+    var mo = fm <= 12 ? fm : fm - 12;
+    return yr + '-' + String(mo).padStart(2, '0');
+  };
+  var curYm = ymOfMi(mi);
+  var nextMi = (mi + 1) % 12;
+  var nextYm = ymOfMi(nextMi);
+
+  // ── 通期 (経過月 mi までの累積) ──
+  var yearlyBudS = 0, yearlyBudP = 0;
+  for (var i = 0; i < 12; i++) {
+    yearlyBudS += getBudgetValue(branch, 's', i);
+    yearlyBudP += getBudgetValue(branch, 'p', i);
+  }
+  var yearlyActS = 0, yearlyActP = 0;
+  for (var i = 0; i <= mi; i++) {
+    yearlyActS += getActualValue(branch, 's', i);
+    yearlyActP += getActualValue(branch, 'p', i);
+  }
+
+  // ── 当月 ──
+  var monthBudS = getBudgetValue(branch, 's', mi);
+  var monthBudP = getBudgetValue(branch, 'p', mi);
+  var monthActS = getActualValue(branch, 's', mi);
+  var monthActP = getActualValue(branch, 'p', mi);
+
+  // ── 上半期 (mi 0-5) / 下半期 (mi 6-11) 経過月累積 ──
+  var h1BudS=0, h1BudP=0, h1ActS=0, h1ActP=0;
+  var h2BudS=0, h2BudP=0, h2ActS=0, h2ActP=0;
+  for (var i = 0; i <= 5; i++) {
+    h1BudS += getBudgetValue(branch, 's', i);
+    h1BudP += getBudgetValue(branch, 'p', i);
+    if (i <= mi) {
+      h1ActS += getActualValue(branch, 's', i);
+      h1ActP += getActualValue(branch, 'p', i);
+    }
+  }
+  for (var i = 6; i < 12; i++) {
+    h2BudS += getBudgetValue(branch, 's', i);
+    h2BudP += getBudgetValue(branch, 'p', i);
+    if (i <= mi) {
+      h2ActS += getActualValue(branch, 's', i);
+      h2ActP += getActualValue(branch, 'p', i);
+    }
+  }
+
+  // ── 翌月 ──
+  var nextBudS = getBudgetValue(branch, 's', nextMi);
+  var nextBudP = getBudgetValue(branch, 'p', nextMi);
+  var nextDeals = (D.deals||[]).filter(function(d){
+    return d.deliveryMonth === nextYm
+      && spIds.indexOf(d.spId) >= 0
+      && d.phase && ['受注','口頭受注','見積提出','見積中'].indexOf(d.phase) >= 0;
+  });
+  var nextForecastS = nextDeals.reduce(function(s,d){ return s + (parseFloat(d.sales)||0); }, 0);
+  var nextForecastP = nextDeals.reduce(function(s,d){ return s + ((parseFloat(d.sales)||0) - (parseFloat(d.cost)||0)); }, 0);
+
+  // ── V8 販売 ──
+  // コンバート = 既存バージョンアップ (既存V7/Withからの入替), 新規 = 新規(他社入替)+新規開局
+  var convertTypes = ['既存バージョンアップ'];
+  var newTypes = ['新規(他社入替)','新規(他社入れ替え)','新規他社入替','新規他社入れ替え','新規開局'];
+  var brDeals = (D.deals||[]).filter(function(d){ return spIds.indexOf(d.spId) >= 0; });
+  var convertDeals = brDeals.filter(function(d){
+    return convertTypes.indexOf(d.dealType) >= 0
+      && d.deliveryMonth
+      && d.deliveryMonth >= ymOfMi(0)
+      && d.deliveryMonth <= curYm
+      && d.actualsReflected === true;
+  });
+  var newDeals = brDeals.filter(function(d){
+    return newTypes.indexOf(d.dealType) >= 0
+      && d.deliveryMonth
+      && d.deliveryMonth >= ymOfMi(0)
+      && d.deliveryMonth <= curYm
+      && d.actualsReflected === true;
+  });
+  var monthConvertCount = convertDeals.filter(function(d){ return d.deliveryMonth === curYm; }).length;
+  var monthNewCount     = newDeals.filter(function(d){ return d.deliveryMonth === curYm; }).length;
+
+  // ── 担当者ごとの進行中案件 (受注前) ──
+  var dealsByPerson = people.map(function(p){
+    var personDeals = (D.deals||[]).filter(function(d){
+      return d.spId === p.id
+        && d.actualsReflected !== true
+        && d.phase !== '失注'
+        && d.name && d.name.trim();
+    });
+    // 当月受注したものは件数として別途集計
+    var monthWonDeals = (D.deals||[]).filter(function(d){
+      return d.spId === p.id
+        && d.actualsReflected === true
+        && d.deliveryMonth === curYm
+        && d.name && d.name.trim();
+    });
+    return { person: p, activeDeals: personDeals, monthWonDeals: monthWonDeals };
+  });
+
+  // ── グループ薬局 ──
+  var groupDealsThis = (D.deals||[]).filter(function(d){
+    return d.category === 'グループ薬局' && d.deliveryMonth === curYm;
+  });
+  var groupDealsNext = (D.deals||[]).filter(function(d){
+    return d.category === 'グループ薬局' && d.deliveryMonth === nextYm;
+  });
+
+  return {
+    branch: branch, mi: mi, monthLabel: ML[mi], nextMonthLabel: ML[nextMi],
+    creator: (typeof currentUserRole !== 'undefined' && currentUserRole && currentUserRole.name) ? currentUserRole.name : '',
+    createdAt: new Date().toLocaleDateString('ja-JP'),
+    yearly: { budS:yearlyBudS, budP:yearlyBudP, actS:yearlyActS, actP:yearlyActP },
+    month:  { budS:monthBudS, budP:monthBudP, actS:monthActS, actP:monthActP },
+    half:   { h1BudS,h1BudP,h1ActS,h1ActP, h2BudS,h2BudP,h2ActS,h2ActP },
+    next:   { budS:nextBudS, budP:nextBudP, forecastS:nextForecastS, forecastP:nextForecastP, deals:nextDeals },
+    v8:     { convertCum: convertDeals.length, newCum: newDeals.length, monthConvert: monthConvertCount, monthNew: monthNewCount },
+    dealsByPerson: dealsByPerson,
+    groupPharma: { thisMonth: groupDealsThis, nextMonth: groupDealsNext }
+  };
+}
+
+// 達成率計算
+function _achv(act, bud) { return bud > 0 ? Math.round(act / bud * 100) : 0; }
+// 千円フォーマット (fmtN を流用)
+function _fn(v) { v = Math.round(v||0); return (typeof fmtN === 'function') ? fmtN(v) : v.toLocaleString(); }
+// 訪問履歴の整形(各案件用)
+function _formatVisits(visits) {
+  if (!visits || !visits.length) return '';
+  return visits.map(function(v){
+    var line = (v.date||'') + '　' + (v.actType||v.action||'') ;
+    if (v.actDetail || v.memo) line += '　' + (v.actDetail || v.memo);
+    return line;
+  }).join('\n');
+}
+
+// メインレンダリング
+function renderFurikaeri() {
+  initFurikaeriCtrl();
+  var branch = (document.getElementById('furikaeri-branch')||{}).value;
+  var mi = parseInt((document.getElementById('furikaeri-month')||{}).value);
+  var prevEl = document.getElementById('furikaeri-preview');
+  if (!prevEl || !branch || isNaN(mi)) return;
+  var d = _buildFurikaeriData(branch, mi);
+
+  var yAchvS = _achv(d.yearly.actS, d.yearly.budS);
+  var yAchvP = _achv(d.yearly.actP, d.yearly.budP);
+  var mAchvS = _achv(d.month.actS, d.month.budS);
+  var mAchvP = _achv(d.month.actP, d.month.budP);
+  var h1AchvS = _achv(d.half.h1ActS, d.half.h1BudS);
+  var h1AchvP = _achv(d.half.h1ActP, d.half.h1BudP);
+
+  // Excel そっくり風スタイル
+  var tdStyle = 'border:1px solid #888;padding:6px 8px;vertical-align:top;font-size:11px;line-height:1.6;white-space:pre-wrap;color:#000';
+  var thStyle = tdStyle + ';background:#e8e8e8;font-weight:700;text-align:center';
+  var inputBg = 'background:#fffbe6'; // 手入力部分は薄黄色
+
+  var html = '<table id="furikaeri-table" style="border-collapse:collapse;width:100%;min-width:1100px;background:#fff;font-family:\'MS PGothic\',\'Yu Gothic\',sans-serif">';
+  // タイトル行
+  html += '<tr><td colspan="7" style="' + thStyle + ';font-size:14px;padding:10px">中計進捗レビューシート（' + d.branch + '）</td></tr>';
+  html += '<tr><td colspan="5" style="' + tdStyle + ';background:#fafafa"></td>';
+  html += '<td style="' + tdStyle + ';background:#fafafa">作成日：' + d.createdAt + '</td>';
+  html += '<td style="' + tdStyle + ';background:#fafafa">作成者：' + (d.creator || '') + '</td></tr>';
+  // ヘッダ行
+  html += '<tr><td colspan="3" style="' + thStyle + '">課題テーマ</td>';
+  html += '<td style="' + thStyle + '">ゴール(指標・達成水準)<br>（収益・CSの視点）</td>';
+  html += '<td style="' + thStyle + '">現状・事実</td>';
+  html += '<td style="' + thStyle + '">分析　評価・感じたこと</td>';
+  html += '<td style="' + thStyle + '">対策</td></tr>';
+  html += '<tr><td colspan="3" style="' + thStyle + ';background:#f0f0f0"></td>';
+  html += '<td style="' + thStyle + ';background:#f0f0f0">目標</td>';
+  html += '<td style="' + thStyle + ';background:#f0f0f0">実施したこと<br>反応・変化</td>';
+  html += '<td style="' + thStyle + ';background:#f0f0f0">成功のポイント<br>阻害要因</td>';
+  html += '<td style="' + thStyle + ';background:#f0f0f0">行動（予定）</td></tr>';
+
+  // ●年度販売計画
+  html += '<tr>';
+  html += '<td rowspan="3" colspan="3" style="' + thStyle + ';background:#e8f1f9">●年度販売計画\n\n売上・粗利益目標達成</td>';
+  html += '<td rowspan="3" style="' + tdStyle + '">' + d.branch + '：\n売上目標：' + _fn(d.yearly.budS) + '千円\n粗利益目標：' + _fn(d.yearly.budP) + '千円\n\n売上実績　：' + _fn(d.yearly.actS) + '千円　達成率：' + yAchvS + '％\n粗利実績　：' + _fn(d.yearly.actP) + '千円　達成率：' + yAchvP + '％</td>';
+  html += '<td style="' + tdStyle + '">●' + d.monthLabel + '</td>';
+  html += '<td rowspan="2" style="' + tdStyle + '">上半期　経過月売上(予算/実績) 4〜9月\n' + _fn(d.half.h1ActS) + '千円/' + _fn(d.half.h1BudS) + '千円　達成率：' + h1AchvS + '％\n\n下半期　経過月売上(予算/実績) 10月〜3月\n' + _fn(d.half.h2ActS) + '千円/' + _fn(d.half.h2BudS) + '千円</td>';
+  html += '<td rowspan="3" style="' + tdStyle + '">●' + d.nextMonthLabel + '受注予定：\n売上目標：' + _fn(d.next.budS) + '千円\n売上見込：' + _fn(d.next.forecastS) + '千円\n\n粗利益目標：' + _fn(d.next.budP) + '千円\n粗利益見込：' + _fn(d.next.forecastP) + '千円</td>';
+  html += '</tr>';
+  html += '<tr><td style="' + tdStyle + '">売上目標：' + _fn(d.month.budS) + '千円\n売上実績：' + _fn(d.month.actS) + '千円\n達成率：' + mAchvS + '％</td></tr>';
+  html += '<tr><td style="' + tdStyle + '">粗利益目標：' + _fn(d.month.budP) + '千円\n粗利益実績：' + _fn(d.month.actP) + '千円\n達成率：' + mAchvP + '％</td>';
+  html += '<td style="' + tdStyle + '">上半期　経過月粗利益(予算/実績)　4〜9月\n' + _fn(d.half.h1ActP) + '千円/' + _fn(d.half.h1BudP) + '千円　達成率：' + h1AchvP + '％\n\n下半期　経過月粗利益(予算/実績)　10月〜3月\n' + _fn(d.half.h2ActP) + '千円/' + _fn(d.half.h2BudP) + '千円</td></tr>';
+
+  // ●調剤くん直販活動
+  var personRows = d.dealsByPerson.length;
+  html += '<tr>';
+  html += '<td rowspan="' + (personRows + 2) + '" colspan="3" style="' + thStyle + ';background:#e8f1f9">●調剤くん直販活動</td>';
+  html += '<td rowspan="' + (personRows + 2) + '" style="' + tdStyle + '">■V8販売目標\n\n直販ｺﾝﾊﾞｰﾄ：●件　　実績：' + d.v8.convertCum + '件\n直販新規　：●件　　実績：' + d.v8.newCum + '件</td>';
+  html += '<td rowspan="' + (personRows + 2) + '" style="' + tdStyle + '">・直販新規　：' + d.v8.monthNew + '件\n・直販コンバート：' + d.v8.monthConvert + '件</td>';
+  // 1人目
+  if (personRows > 0) {
+    var p0 = d.dealsByPerson[0];
+    html += '<td style="' + tdStyle + '">' + _formatPersonBlock(p0) + '</td>';
+  } else {
+    html += '<td style="' + tdStyle + '">(担当者なし)</td>';
+  }
+  html += '<td rowspan="' + (personRows + 2) + '" style="' + tdStyle + '">受注予定\n' + d.next.deals.map(function(dl){
+    var pp = (D.people||[]).find(function(p){ return p.id === dl.spId; });
+    return '・' + (dl.name||'') + '様　担当:' + (pp?pp.name:'—') + '　売上:' + _fn(dl.sales) + '千';
+  }).join('\n') + '</td></tr>';
+  // 残り担当者
+  for (var i = 1; i < personRows; i++) {
+    html += '<tr><td style="' + tdStyle + '">' + _formatPersonBlock(d.dealsByPerson[i]) + '</td></tr>';
+  }
+  html += '<tr><td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td></tr>';
+
+  // ●新規獲得活動
+  html += '<tr>';
+  html += '<td colspan="3" style="' + thStyle + ';background:#e8f1f9">●新規獲得活動</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 紹介拠点開拓方針)</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 案件紹介促進)</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 紹介拠点活動報告)</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: 対策)</td></tr>';
+
+  // 販売店
+  html += '<tr>';
+  html += '<td colspan="3" style="' + thStyle + ';background:#e8f1f9">販売店</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '"></td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '"></td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td></tr>';
+
+  // グループ薬局
+  var gpThis = d.groupPharma.thisMonth.map(function(dl){ return dl.name + '様　' + d.monthLabel + '導入'; }).join('\n');
+  var gpNext = d.groupPharma.nextMonth.map(function(dl){ return dl.name + '様　' + d.nextMonthLabel + '予定'; }).join('\n');
+  var gpAll = gpThis + (gpThis && gpNext ? '\n\n' : '') + gpNext;
+  html += '<tr>';
+  html += '<td colspan="3" style="' + thStyle + ';background:#e8f1f9">グループ薬局</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄: グループ薬局チェーン)</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td>';
+  html += '<td style="' + tdStyle + '">' + (gpAll || '(該当なし)') + '</td>';
+  html += '<td style="' + tdStyle + ';' + inputBg + '">(手入力欄)</td></tr>';
+
+  html += '</table>';
+
+  // 凡例
+  html += '<div style="margin-top:14px;display:flex;gap:14px;font-size:11px;color:var(--tx3);flex-wrap:wrap">';
+  html += '<div><span style="display:inline-block;width:14px;height:14px;background:#fff;border:1px solid #888;vertical-align:middle"></span> 自動入力(EIGYO PROのデータから)</div>';
+  html += '<div><span style="display:inline-block;width:14px;height:14px;background:#fffbe6;border:1px solid #888;vertical-align:middle"></span> 手入力(Excelに貼付後に追記)</div>';
+  html += '</div>';
+
+  prevEl.innerHTML = html;
+}
+
+// 担当者ブロックのテキスト整形
+function _formatPersonBlock(pb) {
+  var p = pb.person;
+  var lines = ['【' + p.name + '】'];
+  if (pb.monthWonDeals && pb.monthWonDeals.length) {
+    lines.push('受注件数：' + pb.monthWonDeals.length + '件（' +
+      pb.monthWonDeals.map(function(d){ return d.name+'様'; }).join('、') + '）');
+    lines.push('');
+  }
+  if (!pb.activeDeals || !pb.activeDeals.length) {
+    lines.push('(進行中案件なし)');
+  } else {
+    pb.activeDeals.forEach(function(d){
+      lines.push('▶ ' + (d.name||'') + '（' + (d.pref||'—') + '）');
+      if (d.route) lines.push('  ルート：' + d.route + (d.routeRef ? '（' + d.routeRef + '）' : ''));
+      if (d.dealType) lines.push('  種別：' + d.dealType);
+      if (d.kyogou && d.kyogou !== 'なし') lines.push('  競合：' + d.kyogou);
+      if (d.sales) lines.push('  売上見込：' + _fn(d.sales) + '千円　計上予定：' + (d.deliveryMonth||'未定') + '　確度：' + (d.phase||'—'));
+      var vstxt = _formatVisits(d.visits);
+      if (vstxt) lines.push('  ' + vstxt.replace(/\n/g, '\n  '));
+      lines.push('');
+    });
+  }
+  return lines.join('\n');
+}
+
+// クリップボードに HTML テーブルをコピー (Excel貼付対応)
+function _copyFurikaeriTable() {
+  var tbl = document.getElementById('furikaeri-table');
+  if (!tbl) { if (typeof _showToast === 'function') _showToast('テーブルが見つかりません', 'warn', 3000); return; }
+  try {
+    var range = document.createRange();
+    range.selectNode(tbl);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    var ok = document.execCommand('copy');
+    sel.removeAllRanges();
+    if (ok) {
+      if (typeof _showToast === 'function') _showToast('✅ クリップボードにコピーしました。Excelに貼付してください(Ctrl+V)', 'ok', 4000);
+    } else {
+      throw new Error('execCommand failed');
+    }
+  } catch (e) {
+    if (typeof _showToast === 'function') _showToast('❌ コピー失敗: ' + e.message, 'warn', 4000);
+  }
+}
+
 function toggleMoreMenu(btn) {
   const m = document.getElementById('more-menu');
   if (!m) return;
@@ -20364,6 +20724,7 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-report-btn" onclick="showTab('report',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📝 振り返り</button>
   <button class="htab" id="tab-kyogou-btn" onclick="showTab('kyogou',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">⚔ 競合分析</button>
   <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
+  <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
   <hr style="margin:6px 8px;border:none;border-top:1px solid var(--bd)">
   <button class="htab" id="tab-setup-menu-btn" onclick="showTab('setup',document.getElementById('tab-setup-btn'));closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🔒 設定（パスワード保護）</button>
 </div>
