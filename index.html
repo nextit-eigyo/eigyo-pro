@@ -13715,10 +13715,19 @@ function toggleMoreMenu(btn) {
   const isOpen = m.style.display === 'block';
   if (isOpen) { m.style.display = 'none'; return; }
   // ボタンの位置にメニューを配置（fixed）
+  // ボタン左端基準。画面右にはみ出す場合は右端基準にフォールバック
   const rect = btn.getBoundingClientRect();
-  m.style.top    = (rect.bottom + 4) + 'px';
-  m.style.right  = (window.innerWidth - rect.right) + 'px';
-  m.style.left   = 'auto';
+  const menuW = 200; // min-width 180 + 余裕
+  m.style.top = (rect.bottom + 4) + 'px';
+  if (rect.left + menuW <= window.innerWidth - 8) {
+    // ボタンの左端からメニューを右に展開
+    m.style.left  = rect.left + 'px';
+    m.style.right = 'auto';
+  } else {
+    // 画面右にはみ出す → ボタン右端に揃える(従来動作)
+    m.style.left  = 'auto';
+    m.style.right = (window.innerWidth - rect.right) + 'px';
+  }
   m.style.display = 'block';
   // 外クリックで閉じる
   setTimeout(() => {
