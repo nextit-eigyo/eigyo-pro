@@ -2824,6 +2824,10 @@ body.has-sidepanel #home-deal-mode {
           📂 JSON ファイルから復元
           <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">バックアップ JSON を選んで読込</span>
         </button>
+        <button class="btn" onclick="triggerDiffWithBackup()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left">
+          📊 バックアップとの差分を表示
+          <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">JSON を選んで「現在との変更点」を一覧化(復元前に確認)</span>
+        </button>
         <button class="btn" onclick="showRecovery()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left">
           🔍 保存データを検索・復元
           <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">localStorage の過去保存分を一覧</span>
@@ -4355,6 +4359,165 @@ function _deleteAutoBackup(key) {
   if (!confirm('このバックアップを削除しますか?\n(この操作は取り消せません)')) return;
   try { localStorage.removeItem(key); } catch(e) {}
   if (typeof renderAutoBackupList === 'function') renderAutoBackupList();
+}
+
+// ── 📊 バックアップとの差分表示 ───────────────────────────────
+// 「11時以降に何を変えたか」を可視化するための機能(2026-05-29 馬場さん要望)
+// バックアップ JSON を選択 → 現在の D と比較して deals/people/budgets の
+// 追加/削除/変更を一覧表示する。これを見ながら手動で再適用できる。
+function triggerDiffWithBackup() {
+  var inp = document.getElementById('import-json-file-diff');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file';
+    inp.id = 'import-json-file-diff';
+    inp.accept = '.json';
+    inp.style.display = 'none';
+    inp.onchange = function(){ _doShowDiffWithBackup(this); };
+    document.body.appendChild(inp);
+  }
+  inp.value = '';
+  inp.click();
+}
+
+function _doShowDiffWithBackup(input) {
+  var file = input.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var backup = JSON.parse(e.target.result);
+      // 自動バックアップ形式(data ラップあり)に対応
+      if (backup.data && (backup.data.deals || backup.data.people)) backup = backup.data;
+      if (!backup.deals && !backup.people) { alert('有効なバックアップではありません'); return; }
+      _renderDiffViewer(backup, D);
+    } catch(ex) { alert('読み込みエラー: ' + ex.message); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function _renderDiffViewer(backup, current) {
+  var diff = _computeDealsDiff(backup, current);
+  var bDate = backup._ts ? new Date(backup._ts).toLocaleString('ja-JP') : '不明';
+  var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.remove()">';
+  html += '<div style="background:var(--s1);border-radius:12px;max-width:1100px;width:100%;max-height:90vh;overflow:auto;padding:20px 24px;box-shadow:0 16px 48px rgba(0,0,0,.3)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px">';
+  html += '<div><div style="font-size:17px;font-weight:900">📊 バックアップとの差分</div>';
+  html += '<div style="font-size:11px;color:var(--tx3);margin-top:4px">バックアップ時刻: ' + bDate + ' / 現在のデータと比較</div></div>';
+  html += '<button class="btn sm" onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:6px 14px">✕ 閉じる</button>';
+  html += '</div>';
+
+  // サマリー
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">';
+  html += '<div style="padding:12px;background:rgba(122,142,90,.08);border-radius:8px;border-left:3px solid var(--grn)"><div style="font-size:11px;color:var(--tx3)">追加された案件</div><div style="font-size:22px;font-weight:900;color:var(--grn)">' + diff.added.length + '<span style="font-size:13px;color:var(--tx3)">件</span></div></div>';
+  html += '<div style="padding:12px;background:rgba(200,152,86,.08);border-radius:8px;border-left:3px solid var(--amb)"><div style="font-size:11px;color:var(--tx3)">変更された案件</div><div style="font-size:22px;font-weight:900;color:var(--amb)">' + diff.modified.length + '<span style="font-size:13px;color:var(--tx3)">件</span></div></div>';
+  html += '<div style="padding:12px;background:rgba(168,90,74,.08);border-radius:8px;border-left:3px solid var(--red)"><div style="font-size:11px;color:var(--tx3)">削除された案件</div><div style="font-size:22px;font-weight:900;color:var(--red)">' + diff.removed.length + '<span style="font-size:13px;color:var(--tx3)">件</span></div></div>';
+  html += '<div style="padding:12px;background:rgba(90,123,158,.08);border-radius:8px;border-left:3px solid var(--acc)"><div style="font-size:11px;color:var(--tx3)">変更なし</div><div style="font-size:22px;font-weight:900;color:var(--acc)">' + diff.unchanged + '<span style="font-size:13px;color:var(--tx3)">件</span></div></div>';
+  html += '</div>';
+
+  // 変更された案件(最重要)
+  if (diff.modified.length) {
+    html += '<div style="margin-bottom:18px"><div style="font-size:14px;font-weight:800;margin-bottom:8px;color:var(--amb)">⚠ 変更された案件(' + diff.modified.length + '件)</div>';
+    html += '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">11時以降に編集された項目です。バックアップ復元すると失われるので、必要に応じて復元後にもう一度同じ編集をしてください。</div>';
+    html += '<div style="border:1px solid var(--bd);border-radius:6px;overflow:hidden">';
+    diff.modified.forEach(function(m, idx) {
+      var isLast = idx === diff.modified.length - 1;
+      html += '<div style="padding:10px 14px;background:var(--s2);' + (isLast ? '' : 'border-bottom:1px solid var(--bds)') + '">';
+      html += '<div style="font-weight:800;font-size:13px;margin-bottom:6px">▸ ' + _esc(m.name || '(無名)') + ' <span style="font-size:10px;color:var(--tx3);font-weight:500">' + m.id + '</span></div>';
+      Object.keys(m.changes).forEach(function(field) {
+        var c = m.changes[field];
+        var fromLbl = c.from === '' || c.from === undefined || c.from === null ? '(空)' : String(c.from);
+        var toLbl   = c.to   === '' || c.to   === undefined || c.to   === null ? '(空)' : String(c.to);
+        html += '<div style="font-size:11.5px;margin-left:14px;color:var(--tx2);line-height:1.7"><strong style="color:var(--tx)">' + _diffFieldLabel(field) + '</strong>: <span style="color:var(--red);text-decoration:line-through">' + _esc(fromLbl) + '</span> → <span style="color:var(--grn);font-weight:700">' + _esc(toLbl) + '</span></div>';
+      });
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // 追加された案件
+  if (diff.added.length) {
+    html += '<div style="margin-bottom:18px"><div style="font-size:14px;font-weight:800;margin-bottom:8px;color:var(--grn)">＋ 追加された案件(' + diff.added.length + '件)</div>';
+    html += '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">バックアップには無く、現在ある案件。復元するとこれらは消えます。</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:4px">';
+    diff.added.forEach(function(d) {
+      html += '<div style="padding:7px 12px;background:rgba(122,142,90,.06);border-left:2px solid var(--grn);border-radius:4px;font-size:12px">';
+      html += '<strong>' + _esc(d.name || '(無名)') + '</strong> <span style="color:var(--tx3);font-size:11px">' + (d.deliveryMonth||'-') + ' / 売上' + (d.sales||0) + '千 / ' + (d.phase||'-') + '</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // 削除された案件
+  if (diff.removed.length) {
+    html += '<div style="margin-bottom:18px"><div style="font-size:14px;font-weight:800;margin-bottom:8px;color:var(--red)">− 削除された案件(' + diff.removed.length + '件)</div>';
+    html += '<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">バックアップにあったが、現在は無い案件。復元するとこれらが復活します。</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:4px">';
+    diff.removed.forEach(function(d) {
+      html += '<div style="padding:7px 12px;background:rgba(168,90,74,.06);border-left:2px solid var(--red);border-radius:4px;font-size:12px">';
+      html += '<strong>' + _esc(d.name || '(無名)') + '</strong> <span style="color:var(--tx3);font-size:11px">' + (d.deliveryMonth||'-') + ' / 売上' + (d.sales||0) + '千 / ' + (d.phase||'-') + '</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  if (!diff.modified.length && !diff.added.length && !diff.removed.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--tx3);font-size:13px">差分はありません。完全に同じデータです。</div>';
+  }
+
+  html += '<div style="margin-top:14px;padding:10px 14px;background:rgba(200,152,86,.06);border:1px solid rgba(200,152,86,.2);border-radius:8px;font-size:11.5px;color:var(--tx2);line-height:1.7">';
+  html += '💡 <strong>使い方</strong>: この一覧をスクリーンショットなどで控えてから JSON 復元を実行 → 復元後、控えた変更を手動で再適用すれば、11時以降の編集を取り戻せます。';
+  html += '</div>';
+
+  html += '</div></div>';
+  var container = document.createElement('div');
+  container.innerHTML = html;
+  document.body.appendChild(container.firstChild);
+}
+
+function _computeDealsDiff(backup, current) {
+  var bDeals = {};
+  (backup.deals || []).forEach(function(d){ if (d && d.id) bDeals[d.id] = d; });
+  var cDeals = {};
+  (current.deals || []).forEach(function(d){ if (d && d.id) cDeals[d.id] = d; });
+
+  var added = [], removed = [], modified = [], unchanged = 0;
+  var compareFields = ['name','deliveryMonth','activationMonth','sales','cost','phase','probability','category','spId','dealType','productType','productOption','pref','route','routeRef','resecon','kyogou','nextAction','actualsReflected'];
+
+  Object.keys(cDeals).forEach(function(id) {
+    if (!bDeals[id]) { added.push(cDeals[id]); return; }
+    var changes = {};
+    compareFields.forEach(function(f) {
+      var bv = bDeals[id][f];
+      var cv = cDeals[id][f];
+      if (String(bv == null ? '' : bv) !== String(cv == null ? '' : cv)) {
+        changes[f] = { from: bv, to: cv };
+      }
+    });
+    if (Object.keys(changes).length) {
+      modified.push({ id: id, name: cDeals[id].name, changes: changes });
+    } else {
+      unchanged++;
+    }
+  });
+  Object.keys(bDeals).forEach(function(id) {
+    if (!cDeals[id]) removed.push(bDeals[id]);
+  });
+  return { added: added, removed: removed, modified: modified, unchanged: unchanged };
+}
+
+function _diffFieldLabel(field) {
+  var labels = {
+    name: '薬局名', deliveryMonth: '計上月', activationMonth: '稼働月',
+    sales: '売上(千円)', cost: '原価(千円)',
+    phase: 'ステータス', probability: '確度',
+    category: 'カテゴリ', spId: '担当者ID',
+    dealType: '案件種別', productType: '製品', productOption: 'オプション',
+    pref: '都道府県', route: 'ルート', routeRef: '紹介元',
+    resecon: '入替元', kyogou: '競合',
+    nextAction: '次回アクション', actualsReflected: '実績反映フラグ'
+  };
+  return labels[field] || field;
 }
 
 function _backupReasonLabel(reason) {
