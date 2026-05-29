@@ -10689,7 +10689,8 @@ function renderKyogou() {
   const stats = {};
   allDeals.filter(d => spIds.includes(d.spId) && _dealInPeriod(d)).forEach(d => {
     const ls = lstat(d);
-    const kyogouList = (d.kyogou || '').split(/[・,、\/]+/).map(s => s.trim()).filter(s => s && s !== 'なし' && s !== '—');
+    // 「自社」は競合ではないので除外(入力ミス対策、2026-05-29 馬場さん確認)
+    const kyogouList = (d.kyogou || '').split(/[・,、\/]+/).map(s => s.trim()).filter(s => s && s !== 'なし' && s !== '—' && s !== '自社');
     kyogouList.forEach(k => {
       if (!stats[k]) stats[k] = { total:0, won:0, lost:0, active:0, deals:[], sales:0 };
       stats[k].total++;
