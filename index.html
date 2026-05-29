@@ -17093,10 +17093,6 @@ function applyDealToActuals(d, remove) {
       d.actualsReflected = true;
       d.actualsReflectedMonth = d.deliveryMonth;
       d.actualsGroup = true;
-      // インポート済み月の警告
-      if (branch !== 'office' && typeof _isMonthImported === 'function' && _isMonthImported(branch, mi)) {
-        _showToast('⚠ ' + (ML[mi]||'') + 'はExcelインポート済みです。担当者別実績に反映されましたが、営業所カードは次回インポート時に更新されます。', 'warn', 7000);
-      }
     }
   } else {
     if (!D.actuals) D.actuals = {};
@@ -17113,11 +17109,27 @@ function applyDealToActuals(d, remove) {
       D.actuals[d.spId].p[mi] = String(Math.round(prev_p + profit));
       d.actualsReflected = true;
       d.actualsReflectedMonth = d.deliveryMonth;
-      // インポート済み月の警告
-      if (typeof _isPersonMonthImported === 'function' && _isPersonMonthImported(d.spId, mi)) {
-        _showToast('⚠ ' + (ML[mi]||'') + 'はExcelインポート済みです。担当者別実績に反映されましたが、営業所カードは次回インポート時に更新されます。', 'warn', 7000);
-      }
     }
+  }
+
+  // ── 拠点全体集計(branchActuals)とソフト集計(branchSoftActuals)にも追従 ──
+  // Excelインポート済み月でも案件の計上月変更/受注確定/取消が集計値に反映されるよう同期。
+  // (Excel再インポート時はそちらで上書きされる。整合性チェックで差異把握可)
+  var _bpr = ap().find(function(p){ return p.id === d.spId; });
+  var _br = _bpr ? _bpr.branch : (isGroup && typeof _getBranchForGroupDeal === 'function' ? _getBranchForGroupDeal(d) : null);
+  if (_br && _br !== 'office') {
+    var _sign = remove ? -1 : 1;
+    var _apply = function(obj){
+      if (!obj[_br]) obj[_br] = {s:Array(12).fill(''), p:Array(12).fill('')};
+      var ps = parseFloat(obj[_br].s[mi]) || 0;
+      var pp = parseFloat(obj[_br].p[mi]) || 0;
+      obj[_br].s[mi] = String(Math.round(Math.max(0, ps + _sign * sv)));
+      obj[_br].p[mi] = String(Math.round(pp + _sign * profit));
+    };
+    if (!D.branchActuals) D.branchActuals = {};
+    if (!D.branchSoftActuals) D.branchSoftActuals = {};
+    _apply(D.branchActuals);
+    _apply(D.branchSoftActuals);
   }
 }
 
