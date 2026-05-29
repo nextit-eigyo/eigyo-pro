@@ -5795,24 +5795,13 @@ function getActualValue(target, field, mi) {
   if (typeof mi !== 'number' || mi < 0 || mi > 11) return 0;
 
   // ── 担当者単体集計 ──
+  // ⭐ ルール: グループ薬局の売上は担当者(個人実績)には計上しない。営業所(拠点)
+  //   側の集計でのみ加算される(line 5851 の getGroupActualsVal)。
+  //   spId が紐づいているグループ薬局案件があっても、担当者ビューでは除外する。
   if (target && typeof target === 'object' && target.type === 'person') {
     var personId = target.id;
     if (!personId) return 0;
-    var base = (D.actuals && D.actuals[personId]) ? safeGetArr(D.actuals[personId], field, mi) : 0;
-    // グループ薬局案件（spId一致・actualsReflected済み）を加算
-    var groupSum = 0;
-    (D.deals || []).forEach(function(d) {
-      if (!d.actualsReflected) return;
-      if (d.category !== 'グループ薬局') return;
-      if (d.spId !== personId) return;
-      var dMi = implToFyIdx(d.deliveryMonth || '');
-      if (dMi !== mi) return;
-      var sv = parseFloat(d.sales) || 0;
-      var cv = parseFloat(d.cost) || 0;
-      if (field === 's') groupSum += sv;
-      if (field === 'p') groupSum += (sv - cv);
-    });
-    return base + groupSum;
+    return (D.actuals && D.actuals[personId]) ? safeGetArr(D.actuals[personId], field, mi) : 0;
   }
 
   // ── 集計対象のブランチリストを決定 ──
