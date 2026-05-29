@@ -12649,6 +12649,27 @@ function updDealIssue(dealId, issueKey, checked) {
 
 // ── openDealCard を上書き ───────────────────────────────────────
 // ── updDeal に担当者変更対応追加 ───────────────────────────────
+// updDeal の save() 後、表示中の集計画面を自動再描画する
+// (save() は localStorage/Firebase 書き込みのみで render を呼ばないため、
+//  実績画面等が開いていてもDOMが更新されず「変更が未反映」と誤認される問題への対策)
+function _refreshViewsAfterDealUpdate() {
+  try {
+    var pairs = [
+      ['tab-actuals',   'renderActuals'],
+      ['tab-dashboard', 'renderDashboard'],
+      ['tab-furikaeri', 'renderFurikaeri'],
+      ['tab-meeting',   'renderMeeting'],
+      ['tab-report',    'renderReport']
+    ];
+    pairs.forEach(function(p){
+      var el = document.getElementById(p[0]);
+      if (el && el.classList.contains('on') && typeof window[p[1]] === 'function') {
+        try { window[p[1]](); } catch(e) { console.warn(p[1]+' 自動再描画失敗:', e); }
+      }
+    });
+  } catch(e) { console.warn('updDeal後の自動再描画失敗:', e); }
+}
+
 function updDeal(id, field, val) {
   const d = (D.deals||[]).find(x => x.id === id);
   if (!d) return;
@@ -12712,6 +12733,7 @@ function updDeal(id, field, val) {
     }
 
     save();
+    _refreshViewsAfterDealUpdate();
     // 受注に変わった場合: 進行中タブから消えるので全再描画
     if (phaseChanged && d.phase === '受注') {
       if (typeof renderDeals === 'function') {
@@ -12750,6 +12772,7 @@ function updDeal(id, field, val) {
   }
 
   save();
+  _refreshViewsAfterDealUpdate();
 }
 
 
