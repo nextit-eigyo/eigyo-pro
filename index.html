@@ -1959,6 +1959,7 @@ body.has-sidepanel #home-deal-mode {
         <hr style="margin:0;border-color:var(--bds)">
         <button class="dmitem" onclick="applyAllWonToActuals();closeDataMenu()">🔄 受注実績を再計算</button>
         <button class="dmitem" onclick="showRecovery();closeDataMenu()">🔍 保存データを検索・復元</button>
+        <button class="dmitem" onclick="forceResyncFromFirebase();closeDataMenu()" title="他PCで変更したのに反映されない時の応急処置。ローカルキャッシュを消してFirebaseから最新を強制受信します。">🔥 Firebaseから強制再受信</button>
         <button class="dmitem danger" onclick="if(confirm('全データをリセット？'))clearAllData();closeDataMenu()">🗑 データをリセット</button>
       </div>
     </div>
@@ -4119,7 +4120,7 @@ async function syncLoad() {
       updateSyncUI('warn','OneDrive: ローカル件数が多いため受信スキップ');
       return;
     }
-    if(r && remoteTs >= localTs){D=r; _localSave();}
+    if(r && remoteTs >= localTs){D=r; _localSave({preserveTs:true});}
     updateSyncUI('ok','同期済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
   } catch(e){updateSyncUI('err','読込失敗');}
 }
@@ -4208,6 +4209,17 @@ function showRecovery(){
   if(confirm(found[idx].key+' を読み込みますか？現在のデータは上書きされます')){D=found[idx].data;save();rebuildAll();alert('復元しました！');}
 }
 function clearAllData(){D=initD();save();rebuildAll();alert('リセットしました');}
+
+// ── 🔥 Firebaseから強制再受信 ────────────────────────────────
+// 他PCで変更したのに反映されない時の応急処置。
+// ローカルキャッシュ(localStorage)を消してリロード → fbStartSync が空状態を検出して
+// Firebaseから最新データを強制受信する(initial sync 経路を通る)。
+// 通常は _localSave({preserveTs:true}) の修正で発生しないはずだが、安全弁として残す。
+function forceResyncFromFirebase(){
+  if (!confirm('Firebaseから最新データを強制受信します。\n\n他PCで編集した内容が反映されない時の応急処置です。\n(ローカルキャッシュをクリアして再ログインします)\n\n実行しますか？')) return;
+  try { localStorage.removeItem(skey()); } catch(e) {}
+  location.reload();
+}
 function checkDataOnStart(){
   if(D.deals&&D.deals.length)return;
   if(D.people&&D.people.filter(p=>p.name).length)return;
@@ -5299,9 +5311,16 @@ function initD(){return{
 }}
 function load(){try{const r=localStorage.getItem(skey());if(r){D=JSON.parse(r);return}}catch(e){}D=initD()}
 // ── ローカルのみ保存（Firebaseを呼ばない・ループ防止用）─────────
-function _localSave(){
+function _localSave(opts){
   sanitizeD();
-  D._ts = Date.now(); // 常にタイムスタンプ更新（Firebase上書き防止の根本）
+  // ⭐ {preserveTs: true} の場合は D._ts を更新しない(Firebase/OneDrive受信時の保存用)
+  //   従来は受信後も Date.now() で _ts を上書きしていたため、PC間の時計ズレ(clock skew)
+  //   があると次回受信比較で「ローカルが新しい」と誤判定し、リモート更新を**受信拒否**
+  //   してしまうバグがあった(2026-05-29 馬場さん指摘: 担当者予算が他PCに反映されない)。
+  //   受信時は remote._ts をそのまま保持して同期を成立させる。
+  if (!opts || !opts.preserveTs) {
+    D._ts = Date.now();
+  }
   try { localStorage.setItem(skey(), JSON.stringify(D)); } catch(e) {}
 }
 
@@ -11272,7 +11291,7 @@ function fbStartSync() {
           remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
         }
         D = remote;
-        _localSave();
+        _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
         sanitizeD();
         rebuildAll();
         setTimeout(showPersonSelectDialog, 500);
@@ -11280,7 +11299,7 @@ function fbStartSync() {
         console.log('[EIGYO PRO] 初回同期完了', {deals: (D.deals||[]).length});
         return;
       }
-      
+
       // ③ タイムスタンプ比較による通常同期
       if (remoteTs > localTs) {
         console.log('[EIGYO PRO] タイムスタンプ更新検出 → 受信');
@@ -11288,7 +11307,7 @@ function fbStartSync() {
           remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
         }
         D = remote;
-        _localSave();
+        _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
         sanitizeD();
         rebuildAll();
         setTimeout(showPersonSelectDialog, 500);
