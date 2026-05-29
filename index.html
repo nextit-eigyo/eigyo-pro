@@ -16640,6 +16640,88 @@ function renderActuals() {
       }
     }
 
+    // ── 担当者モード: 受注案件リストを展開可能に ─────────────────
+    // 「この月の actS(=D.actuals[spId].s[i])は どの案件由来か」を1クリックで確認
+    // できるようにする(2026-05-29 馬場さん要望)。
+    // グループ薬局は個人実績に入らない(feedback ルール)ので除外。
+    if (sp && actS > 0) {
+      var personDeals = (D.deals || []).filter(function(d) {
+        if (d.spId !== sp.id) return false;
+        if (!d.actualsReflected) return false;
+        if (d.category === 'グループ薬局') return false;
+        var dMi = implToFyIdx(d.deliveryMonth || '');
+        return dMi === i;
+      });
+      // 売上の大きい順にソート(視認性向上)
+      personDeals.sort(function(a, b){
+        return (parseFloat(b.sales)||0) - (parseFloat(a.sales)||0);
+      });
+      if (personDeals.length > 0) {
+        var pdRowId = 'pd-row-' + i;
+        var pdBtn = document.createElement('button');
+        pdBtn.textContent = '▼';
+        pdBtn.title = '受注案件を展開';
+        pdBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:11px;color:var(--acc);padding:0 0 0 4px;vertical-align:middle';
+        (function(rowId, btn) {
+          btn.onclick = function(e) {
+            e.stopPropagation();
+            var r = document.getElementById(rowId);
+            if (r) {
+              var isHidden = r.style.display === 'none' || !r.style.display;
+              r.style.display = isHidden ? '' : 'none';
+              btn.textContent = isHidden ? '▲' : '▼';
+            }
+          };
+        })(pdRowId, pdBtn);
+        tdM.appendChild(pdBtn);
+
+        var pdTr = document.createElement('tr');
+        pdTr.id = pdRowId;
+        pdTr.style.cssText = 'display:none;background:var(--s2)';
+        var pdTd = document.createElement('td');
+        pdTd.colSpan = 10;
+        pdTd.style.cssText = 'padding:10px 16px 14px 36px;border-bottom:1px solid var(--bds);background:var(--s2)';
+
+        var sumS = personDeals.reduce(function(s,d){ return s + (parseFloat(d.sales)||0); }, 0);
+        var sumP = personDeals.reduce(function(s,d){ return s + ((parseFloat(d.sales)||0) - (parseFloat(d.cost)||0)); }, 0);
+        var diffS = Math.round(actS - sumS);
+
+        var pdHtml = '<div style="font-size:11.5px;color:var(--tx2);margin-bottom:8px;font-weight:600;display:flex;gap:14px;flex-wrap:wrap;align-items:baseline">';
+        pdHtml += '<span>📦 ' + _esc(m) + ' 受注案件 <strong style="color:var(--tx);font-size:13px">' + personDeals.length + '件</strong></span>';
+        pdHtml += '<span style="color:var(--tx3)">売上計 <strong style="color:var(--tx)">' + fmtN(Math.round(sumS)) + '</strong> 千</span>';
+        pdHtml += '<span style="color:var(--tx3)">粗利計 <strong style="color:var(--grn)">' + fmtN(Math.round(sumP)) + '</strong> 千</span>';
+        if (Math.abs(diffS) > 0) {
+          pdHtml += '<span style="color:var(--amb);font-size:11px;margin-left:auto" title="案件管理上の合計と D.actuals の値に差があります。Excelインポート時の差異や、過去の手入力残存の可能性。">⚠ 実績との差 ' + (diffS > 0 ? '+' : '') + fmtN(diffS) + ' 千</span>';
+        }
+        pdHtml += '</div>';
+
+        pdHtml += '<div style="display:flex;flex-direction:column;gap:4px">';
+        personDeals.forEach(function(d) {
+          var sv = parseFloat(d.sales)||0;
+          var cv = parseFloat(d.cost)||0;
+          var pv = sv - cv;
+          var dt = d.dealType || '';
+          var pt = d.productType || '';
+          var cat = d.category || '';
+          var meta = [];
+          if (pt) meta.push(pt);
+          if (cat && cat !== '直販') meta.push(cat);
+          if (dt) meta.push(dt);
+          pdHtml += '<div style="display:grid;grid-template-columns:1.6fr 1.4fr 110px 110px;gap:10px;align-items:center;padding:6px 12px;background:var(--s1);border-radius:6px;font-size:12px;border:0.5px solid var(--bds)">';
+          pdHtml += '<div style="font-weight:700;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">▸ ' + _esc(d.name || '(無名)') + '</div>';
+          pdHtml += '<div style="color:var(--tx3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(meta.join(' / ')) + '</div>';
+          pdHtml += '<div style="text-align:right">売上 <strong>' + fmtN(Math.round(sv)) + '</strong><span style="color:var(--tx3);font-size:10px;margin-left:2px">千</span></div>';
+          pdHtml += '<div style="text-align:right;color:var(--grn)">粗利 <strong>' + fmtN(Math.round(pv)) + '</strong><span style="color:var(--tx3);font-size:10px;margin-left:2px">千</span></div>';
+          pdHtml += '</div>';
+        });
+        pdHtml += '</div>';
+
+        pdTd.innerHTML = pdHtml;
+        pdTr.appendChild(pdTd);
+        tb.appendChild(pdTr);
+      }
+    }
+
     // 上期小計（9月=mi:5の直後）
     if (i === 5) {
       tb.appendChild(makeSubtotalRow('上期小計（4〜9月）', h1BudS, h1ActS, h1BudP, h1ActP, 'rgba(90,123,158,.06)'));
