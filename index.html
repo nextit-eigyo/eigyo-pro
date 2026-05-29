@@ -14020,22 +14020,33 @@ function _buildFurikaeriData(branch, mi) {
         && d.phase !== '失注'
         && d.name && d.name.trim();
     });
-    // 当月受注したものは件数として別途集計
+    // 当月受注 (調剤くんV8・直販のみ。グループ薬局/販売店は除外)
     var monthWonDeals = (D.deals||[]).filter(function(d){
       return d.spId === p.id
         && d.actualsReflected === true
         && d.deliveryMonth === curYm
-        && d.name && d.name.trim();
+        && d.name && d.name.trim()
+        && (d.productType||'') === '調剤くんV8'
+        && d.category !== 'グループ薬局'
+        && d.category !== '販売店';
     });
     return { person: p, activeDeals: personDeals, monthWonDeals: monthWonDeals };
   });
 
-  // ── グループ薬局 ──
+  // ── グループ薬局 (選択拠点に紐づくもののみ) ──
+  // 担当者の拠点を最優先、office案件は _getBranchForGroupDeal で拠点を推定する
+  var _grpBranch = function(gd){
+    if (gd.spId && gd.spId !== 'office') {
+      var gp = (D.people||[]).find(function(x){ return x.id === gd.spId; });
+      if (gp && gp.branch) return gp.branch;
+    }
+    return (typeof _getBranchForGroupDeal === 'function') ? _getBranchForGroupDeal(gd) : 'office';
+  };
   var groupDealsThis = (D.deals||[]).filter(function(d){
-    return d.category === 'グループ薬局' && d.deliveryMonth === curYm;
+    return d.category === 'グループ薬局' && d.deliveryMonth === curYm && _grpBranch(d) === branch;
   });
   var groupDealsNext = (D.deals||[]).filter(function(d){
-    return d.category === 'グループ薬局' && d.deliveryMonth === nextYm;
+    return d.category === 'グループ薬局' && d.deliveryMonth === nextYm && _grpBranch(d) === branch;
   });
 
   return {
@@ -14312,6 +14323,25 @@ function _renderKPITable(rows) {
   return html;
 }
 
+// 受注済みV8案件の1行整形 (薬局名（版数）/入替元より入替え/ルート/売上/粗利)
+function _fmtWonV8(d) {
+  var num = 'font-feature-settings:\"tnum\";font-variant-numeric:tabular-nums';
+  var parts = [];
+  var ver = d.productOption ? '（' + d.productOption + '）' : '';
+  parts.push('<strong>' + (d.name||'—') + '様' + ver + '</strong>');
+  var dt = String(d.dealType||'');
+  if (/他社入替|他社入れ替え/.test(dt) && d.resecon) {
+    parts.push(d.resecon + 'より入替え');
+  } else if (dt) {
+    parts.push(dt);
+  }
+  if (d.route) parts.push('ルート：' + d.route + (d.routeRef ? '（' + d.routeRef + '）' : ''));
+  var profit = (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0);
+  parts.push('<span style="' + num + '">売上' + _fn(d.sales) + '千円</span>');
+  parts.push('<span style="' + num + ';color:var(--grn)">粗利' + _fn(profit) + '千円</span>');
+  return parts.join(' / ');
+}
+
 // 担当者カード
 function _renderPersonCard(pb, monthLabel) {
   var num = 'font-feature-settings:\"tnum\";font-variant-numeric:tabular-nums';
@@ -14320,15 +14350,17 @@ function _renderPersonCard(pb, monthLabel) {
   html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;text-align:left">';
   html +=   '<span style="font-size:15px;font-weight:900">👤 ' + pb.person.name + '</span>';
   if (pb.monthWonDeals && pb.monthWonDeals.length) {
-    html += '<span style="padding:3px 10px;background:var(--grn);color:#fff;border-radius:6px;font-size:11px;font-weight:700">✅ ' + monthLabel + '受注 ' + pb.monthWonDeals.length + '件</span>';
+    html += '<span style="padding:3px 10px;background:var(--grn);color:#fff;border-radius:6px;font-size:11px;font-weight:700">✅ ' + monthLabel + ' V8受注 ' + pb.monthWonDeals.length + '件</span>';
   }
   html +=   '<span style="color:var(--tx3);font-size:11px;margin-left:auto">進行中 ' + (pb.activeDeals||[]).length + '件</span>';
   html += '</div>';
-  // 受注済み案件
+  // 受注済み案件 (調剤くんV8・直販のみ。版数/入替元/ルート/売上/粗利を明記)
   if (pb.monthWonDeals && pb.monthWonDeals.length) {
-    html += '<div style="margin-bottom:10px;padding:8px 12px;background:rgba(122,142,90,.08);border-left:3px solid var(--grn);border-radius:6px;font-size:12px;text-align:left">';
-    html +=   '<strong style="color:var(--grn)">受注:</strong> ';
-    html +=   pb.monthWonDeals.map(function(d){ return d.name + '様 <span style="color:var(--tx3);font-size:11px">(' + _fn(d.sales) + '千)</span>'; }).join('、 ');
+    html += '<div style="margin-bottom:10px;padding:10px 12px;background:rgba(122,142,90,.08);border-left:3px solid var(--grn);border-radius:6px;font-size:12px;text-align:left;line-height:1.9">';
+    html +=   '<div style="font-weight:900;color:var(--grn);margin-bottom:4px">✅ ' + monthLabel + ' 受注（調剤くんV8・直販）</div>';
+    pb.monthWonDeals.forEach(function(d){
+      html += '<div style="margin-bottom:2px">・' + _fmtWonV8(d) + '</div>';
+    });
     html += '</div>';
   }
   // 進行中案件
@@ -14354,14 +14386,13 @@ function _renderPersonCard(pb, monthLabel) {
       if (d.deliveryMonth) info.push('計上予定: <strong>' + d.deliveryMonth + '</strong>');
       html +=     info.join(' / ');
       html +=   '</div>';
-      // 訪問履歴(直近3件)
+      // 現状(最新訪問のみを報告形式で表示。過去ログは件数のみ)
       if (d.visits && d.visits.length) {
+        var latest = d.visits[d.visits.length - 1];
+        var latestMemo = latest.actDetail || latest.memo || '';
         html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--bd);font-size:11px;color:var(--tx2);text-align:left">';
-        var recent = d.visits.slice(-3).reverse();
-        recent.forEach(function(v){
-          html += '<div style="margin-bottom:3px;text-align:left">📌 <strong>' + (v.date||'—') + '</strong> ' + (v.actType||v.action||'') + (v.actDetail||v.memo ? ' - ' + (v.actDetail||v.memo) : '') + '</div>';
-        });
-        if (d.visits.length > 3) html += '<div style="color:var(--tx3);font-size:10.5px;text-align:left">... 他 ' + (d.visits.length - 3) + '件</div>';
+        html +=   '<div style="text-align:left">📋 <strong>現状</strong>（' + (latest.date||'—') + ' ' + (latest.actType||latest.action||'') + '）：' + (latestMemo || '—') + '</div>';
+        if (d.visits.length > 1) html += '<div style="color:var(--tx3);font-size:10.5px;margin-top:2px;text-align:left">（訪問履歴 他 ' + (d.visits.length - 1) + '件）</div>';
         html += '</div>';
       }
       html += '</div>';
