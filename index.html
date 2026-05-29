@@ -5787,6 +5787,18 @@ function getWeightedSales(d) {
   var w = getProbDef(getProb(d)).weight;
   return Math.round(sales * w / 100);
 }
+// ★ 計上対象判定の統一ルール（最重要）
+//   売上実績に計上するのは「確度5（受注＝書面受領）」のみ。
+//   「確度4（口頭受注）」は見込みであり、書面を交わすまで計上しない。
+//   注: d.phase ではなく getProb(確度)で判定する。phase='受注'でも確度4なら非計上。
+//   注: Excelインポート由来の案件は probability:5 で生成されるため計上対象になる。
+function _countsAsWon(d) {
+  if (!d) return false;
+  if (getProb(d) !== 5) return false;
+  if (!d.deliveryMonth) return false;
+  if (d.sales === '' || d.sales == null) return false;
+  return true;
+}
 // 既存案件を初期化：受注済みは5、その他は3
 function _initDealProbabilities() {
   var initCount = 0;
@@ -7463,8 +7475,8 @@ function addVisit(dealId){
   }
 
   // ── 実績即時反映 ──
-  // 受注/口頭受注に変わった瞬間、未反映ならapplyDealToActualsを呼ぶ
-  if ((status === '受注' || status === '口頭受注') && !d.actualsReflected && d.deliveryMonth && d.sales !== '') {
+  // 計上対象は確度5(受注=書面)のみ。口頭受注は見込みのため計上しない。
+  if (status === '受注' && _countsAsWon(d) && !d.actualsReflected) {
     try {
       applyDealToActuals(d, false);
     } catch(e) {
@@ -8573,6 +8585,7 @@ function _showFuzzyMatchDialog(pendingList, onComplete) {
         productType: item.impDeal.productType || '調剤くんV8',
         productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
         nextAction: '',
+        probability: 5, phase: '受注', // Excelインポート由来は確度5(確定実績)
         visits:[{ date: today2, actType: '受注', status: '受注',
           reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
           memo: 'Excelインポートより自動登録（別案件として確認済み）' }]
@@ -8927,6 +8940,7 @@ function _doConfirmImport(addedMasters){
               productType: impDeal.productType || '調剤くんV8',
               productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
               nextAction: isNoRep ? '⚠️ 担当者を設定してください' : '',
+              probability: 5, phase: '受注', // Excelインポート由来は確度5(確定実績)
               visits:[{ date: today, actType: '受注', status: '受注',
                 reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
                 memo: dealMemo }]
@@ -9011,6 +9025,7 @@ function _doConfirmImport(addedMasters){
             productType: /V8Core/.test(gd.midCat) ? '調剤くんV8Core版' : '調剤くんV8',
             productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
             nextAction: '',
+            probability: 5, phase: '受注', // Excelインポート由来は確度5(確定実績)
             visits:[{ date: today2, actType: '受注', status: '受注',
               reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
               memo: 'Excelインポートより自動登録（グループ薬局: ' + gd.midCat + '）' }]
@@ -13129,26 +13144,22 @@ function updDeal(id, field, val) {
     d.probability = newProb;
     var phaseChanged = false;
 
-    if (newProb === 5 && prevPhase !== '受注') {
-      // 確度5(受注) → ステータスも「受注」に
-      d.phase = '受注';
-      phaseChanged = true;
-      // 実績反映
+    if (newProb === 5) {
+      // 確度5(受注=書面受領) → ステータスを「受注」に。未計上なら計上。
+      if (prevPhase !== '受注') { d.phase = '受注'; phaseChanged = true; }
       if (!d.actualsReflected && d.deliveryMonth && d.sales !== '') {
         try { applyDealToActuals(d, false); } catch(e) { console.error('実績反映エラー:', e); }
       }
-    } else if (newProb === 4 && prevPhase !== '口頭受注' && prevPhase !== '受注') {
-      // 確度4(口頭受注) → ステータスも「口頭受注」に
-      d.phase = '口頭受注';
-      phaseChanged = true;
-      // 口頭受注も実績反映対象
-      if (!d.actualsReflected && d.deliveryMonth && d.sales !== '') {
-        try { applyDealToActuals(d, false); } catch(e) { console.error('実績反映エラー:', e); }
+    } else if (newProb === 4) {
+      // 確度4(口頭受注) → ステータスを「口頭受注」に同期。口頭受注は見込みのため計上しない(書面前)。
+      if (prevPhase !== '口頭受注') { d.phase = '口頭受注'; phaseChanged = true; }
+      // 受注→口頭受注に降格した場合、既に計上済みなら計上を取り消す
+      if (d.actualsReflected) {
+        try { applyDealToActuals(d, true); } catch(e) { console.error('実績取消エラー:', e); }
       }
-    } else if (newProb < 4 && (prevPhase === '受注' || prevPhase === '口頭受注')) {
-      // 確度を4未満に下げた場合: ステータスをクリア（visits最新statusに任せる）
-      d.phase = '';
-      phaseChanged = true;
+    } else if (newProb < 4) {
+      // 確度3以下に下げた場合: ステータスをクリア（visits最新statusに任せる）
+      if (prevPhase === '受注' || prevPhase === '口頭受注') { d.phase = ''; phaseChanged = true; }
       // 実績を取り消し
       if (d.actualsReflected) {
         try { applyDealToActuals(d, true); } catch(e) { console.error('実績取消エラー:', e); }
@@ -17617,6 +17628,9 @@ function confirmWin() {
   if (sales === '' || isNaN(parseFloat(sales))) { alert('売上金額を入力してください'); return; }
   d.deliveryMonth = deliveryMonth;
   d.sales = sales; d.cost = cost;
+  // 受注確定=書面受領 → 確度5・ステータス受注を明示（計上対象）
+  d.probability = 5;
+  d.phase = '受注';
   if (!d.visits) d.visits = [];
   d.visits.push({ date: new Date().toISOString().slice(0,10), actType:'受注', status:'受注', reaction:'', reason:'', memo: memo||'受注確定' });
   // 実績に反映（グループ薬局かどうかで振り先が変わる）
@@ -18146,8 +18160,8 @@ function _migrateGroupActuals() {
 // 起動時サイレント処理：未反映の受注案件を自動加算（アラートなし）
 function _silentApplyWonToActuals() {
   (D.deals || []).forEach(function(d) {
-    var ls = lstat(d);
-    if ((ls === '受注' || ls === '口頭受注') && !d.actualsReflected && d.deliveryMonth && d.sales !== '') {
+    // 計上対象は確度5(受注=書面)のみ。確度4(口頭受注)は見込みで非計上。
+    if (_countsAsWon(d) && !d.actualsReflected) {
       applyDealToActuals(d, false);
     }
   });
@@ -18173,8 +18187,8 @@ function applyAllWonToActuals() {
   // 全受注案件を再適用
   var count = 0;
   (D.deals||[]).forEach(function(d) {
-    var ls = lstat(d);
-    if ((ls === '受注' || ls === '口頭受注') && d.deliveryMonth && d.sales !== '') {
+    // 計上対象は確度5(受注=書面)のみ。確度4(口頭受注)は見込みで非計上。
+    if (_countsAsWon(d)) {
       applyDealToActuals(d, false);
       count++;
     }
@@ -18762,6 +18776,9 @@ function openStatusChangeModal(dealId) {
     var prevStatus = lstat(d);
     // フェーズのみ更新（活動履歴には追加しない）
     d.phase = status;
+    // ステータスと確度を同期（受注=5 / 口頭受注=4）
+    if (status === '受注') d.probability = 5;
+    else if (status === '口頭受注') d.probability = 4;
 
     // 受注・口頭受注の場合は nextAction をクリア
     if (status === '受注' || status === '口頭受注') {
@@ -18807,7 +18824,8 @@ function setDealPhase(id, phase) {
   if (phase === '受注' && d.probability !== 5) {
     d.probability = 5;
     probChanged = true;
-  } else if (phase === '口頭受注' && d.probability !== 4 && d.probability !== 5) {
+  } else if (phase === '口頭受注' && d.probability !== 4) {
+    // 口頭受注は確度4に同期（受注5から明示的に降格した場合も含む）
     d.probability = 4;
     probChanged = true;
   }
