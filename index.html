@@ -17643,6 +17643,10 @@ function confirmWin() {
   alert('受注確定しました！');
 }
 
+// 再計算中フラグ: true の間は applyDealToActuals が branchActuals/branchSoftActuals(拠点値)を触らない。
+// 再計算(applyAllWonToActuals)は拠点値をリセットしないため、ここで触ると案件分が二重加算され、
+// Excel値の膨張・保守料の脱落(getActualValueの早期return経由)が起きる。これを防ぐためのガード。
+var _skipBranchSync = false;
 // ── 案件1件分を実績に加算/減算する共通ヘルパー ─────────────────
 // グループ薬局案件 → D.groupActuals[営業所]（担当者個人実績には含めない）
 // 通常案件       → D.actuals[spId]
@@ -17702,7 +17706,7 @@ function applyDealToActuals(d, remove) {
   // (Excel再インポート時はそちらで上書きされる。整合性チェックで差異把握可)
   var _bpr = ap().find(function(p){ return p.id === d.spId; });
   var _br = _bpr ? _bpr.branch : (isGroup && typeof _getBranchForGroupDeal === 'function' ? _getBranchForGroupDeal(d) : null);
-  if (_br && _br !== 'office') {
+  if (!_skipBranchSync && _br && _br !== 'office') {
     var _sign = remove ? -1 : 1;
     var _apply = function(obj){
       if (!obj[_br]) obj[_br] = {s:Array(12).fill(''), p:Array(12).fill('')};
@@ -18185,14 +18189,21 @@ function applyAllWonToActuals() {
   });
 
   // 全受注案件を再適用
+  // ⚠️ 再計算中は branchActuals/branchSoftActuals(拠点値=Excel由来)を触らない。
+  //    リセットされていない拠点値に案件分が二重加算され、Excel値膨張・保守料脱落が起きる重大バグを防ぐ。
   var count = 0;
-  (D.deals||[]).forEach(function(d) {
-    // 計上対象は確度5(受注=書面)のみ。確度4(口頭受注)は見込みで非計上。
-    if (_countsAsWon(d)) {
-      applyDealToActuals(d, false);
-      count++;
-    }
-  });
+  _skipBranchSync = true;
+  try {
+    (D.deals||[]).forEach(function(d) {
+      // 計上対象は確度5(受注=書面)のみ。確度4(口頭受注)は見込みで非計上。
+      if (_countsAsWon(d)) {
+        applyDealToActuals(d, false);
+        count++;
+      }
+    });
+  } finally {
+    _skipBranchSync = false;
+  }
 
   save();
   rebuildAll();
