@@ -5873,38 +5873,47 @@ function getActualValue(target, field, mi) {
   }
 
   // ── ブランチごとに集計 ──
+  // ⭐ 設計変更(2026-05-29 馬場さん指摘の根本修正):
+  //   以前は branchActuals(Excel全体合計)が >0 なら他のソースを足さず早期return していた。
+  //   これだと Excel 再インポート後に登録された受注案件(例: 本町薬局)が branchActuals に
+  //   含まれず、ソフト内訳には出るのに合計に含まれない矛盾が生じていた。
+  //   修正後の方針:
+  //     - ソフト売上 = 案件管理(担当者別 actuals + groupActuals + office案件) を最優先
+  //                  案件管理にデータが無いときに限り branchSoftActuals(Excel ソフト) を採用
+  //     - HW/保守/消耗品/その他 = Excel から個別に取得(従来通り)
+  //     - branchActuals(全体合計値)は内部参照のみ、表示集計には使わない
+  //   これにより「内訳と合計の不一致」「Excel上書きで案件分が消える」両方を解消。
   var total = 0;
   branches.forEach(function(bn) {
-    // ① Excelインポート優先
-    var brVal = (D.branchActuals && D.branchActuals[bn]) ? safeGetArr(D.branchActuals[bn], field, mi) : 0;
-    if (brVal > 0) {
-      total += brVal;
-      return; // この拠点は branchActuals だけ。他のソースは足さない
-    }
-
-    // ② 担当者由来実績
+    // ── ソフト売上: 案件管理を最優先 ──
+    var caseSoft = 0;
     if (D.people) {
       D.people.filter(function(p){ return p.branch === bn; }).forEach(function(p) {
-        total += (D.actuals && D.actuals[p.id]) ? safeGetArr(D.actuals[p.id], field, mi) : 0;
+        caseSoft += (D.actuals && D.actuals[p.id]) ? safeGetArr(D.actuals[p.id], field, mi) : 0;
       });
     }
-    // ③ グループ薬局実績
     if (typeof getGroupActualsVal === 'function') {
-      total += getGroupActualsVal(bn, field, mi);
+      caseSoft += getGroupActualsVal(bn, field, mi);
     }
-    // ④ office案件（actualsGroup未設定のフォールバック）
     if (typeof _getOfficeDealsTotalForBranch === 'function') {
-      total += _getOfficeDealsTotalForBranch(bn, field, mi);
+      caseSoft += _getOfficeDealsTotalForBranch(bn, field, mi);
     }
-    // ⑤ 保守料
+    if (caseSoft > 0) {
+      total += caseSoft;
+    } else if (D.branchSoftActuals && D.branchSoftActuals[bn]) {
+      // 案件管理にデータが無いときのみ Excel ソフト確定値にフォールバック
+      total += safeGetArr(D.branchSoftActuals[bn], field, mi);
+    }
+
+    // ⑤ 保守料(Excel)
     if (typeof getMaintVal === 'function') {
       total += getMaintVal(bn, field, mi);
     }
-    // ⑥ HW
+    // ⑥ HW(Excel)
     if (D.hardware && D.hardware[bn]) {
       total += safeGetArr(D.hardware[bn], field, mi);
     }
-    // ⑦ その他
+    // ⑦ その他(Excel)
     if (D.other && D.other[bn]) {
       total += safeGetArr(D.other[bn], field, mi);
     }
@@ -16148,28 +16157,29 @@ function _getBreakdownForMi(branch, field, mi) {
     }
 
     // ── ソフト(system) の計算 ──
-    // 優先順位: ① branchSoftActuals(Excelソフト確定値)
-    //          ② branchActualsからの逆算（旧データ救済）
-    //          ③ 案件管理から積み上げ
-    var soft = D.branchSoftActuals && D.branchSoftActuals[bn] ? _sg(D.branchSoftActuals[bn], field, mi) : 0;
-    var ba   = D.branchActuals     && D.branchActuals[bn]     ? _sg(D.branchActuals[bn],     field, mi) : 0;
+    // ⭐ 2026-05-29 修正: 案件管理(担当者別 actuals + groupActuals + office案件)を
+    //   最優先。案件管理にデータが無い時のみ branchSoftActuals(Excel ソフト)を採用。
+    //   getActualValue と同じ優先順位にして、内訳と合計の整合を保証する。
+    var _fp = window.filterPeople || filterPeople || function(){ return []; };
+    var caseSoft = 0;
+    _fp(bn).forEach(function(p) {
+      caseSoft += _sg(D.actuals && D.actuals[p.id], field, mi);
+    });
+    if (typeof getGroupActualsVal === 'function') caseSoft += getGroupActualsVal(bn, field, mi);
+    if (typeof _getOfficeDealsTotalForBranch === 'function') caseSoft += _getOfficeDealsTotalForBranch(bn, field, mi);
 
-    if (soft > 0) {
-      // ① Excelソフト確定値あり → 最優先
-      breakdown.system += soft;
-    } else if (ba > 0 && ba > (hwVal + otVal + mtVal + csVal)) {
-      // ② branchActuals(Excel全部入り)はあるが branchSoftActuals が空
-      //   → branchActuals から他カテゴリを引いて逆算
-      //   (古い時期にインポートされた月で branchSoftActuals が未保存だった月の救済)
-      breakdown.system += ba - (hwVal + otVal + mtVal + csVal);
+    if (caseSoft > 0) {
+      breakdown.system += caseSoft;
     } else {
-      // ③ Excelデータなし → 案件管理から積み上げ
-      var _fp = window.filterPeople || filterPeople || function(){ return []; };
-      _fp(bn).forEach(function(p) {
-        breakdown.system += _sg(D.actuals && D.actuals[p.id], field, mi);
-      });
-      if (typeof getGroupActualsVal === 'function') breakdown.system += getGroupActualsVal(bn, field, mi);
-      if (typeof _getOfficeDealsTotalForBranch === 'function') breakdown.system += _getOfficeDealsTotalForBranch(bn, field, mi);
+      // 案件管理にデータ無し → Excel ソフト確定値にフォールバック
+      var soft = D.branchSoftActuals && D.branchSoftActuals[bn] ? _sg(D.branchSoftActuals[bn], field, mi) : 0;
+      var ba   = D.branchActuals     && D.branchActuals[bn]     ? _sg(D.branchActuals[bn],     field, mi) : 0;
+      if (soft > 0) {
+        breakdown.system += soft;
+      } else if (ba > 0 && ba > (hwVal + otVal + mtVal + csVal)) {
+        // 旧データ救済: branchActuals から他カテゴリを引いて逆算
+        breakdown.system += ba - (hwVal + otVal + mtVal + csVal);
+      }
     }
 
     // HW・その他・保守・消耗品 を breakdown に反映
