@@ -1943,10 +1943,14 @@ body.has-sidepanel #home-deal-mode {
     <button class="htab" id="tab-actuals-btn" onclick="showTab('actuals',this)" style="display:none">📈 実績確認</button>
     <button class="htab" id="tab-kpt-btn"     onclick="showTab('kpt',this);renderKPT()" style="display:none">📝 KPT</button>
     <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)" style="display:none">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
-    <!-- その他メニュー(振り返り/競合分析/月次レポート等) -->
+    <!-- その他メニュー(設定 等) -->
     <div style="position:relative">
       <button class="htab" id="tab-more-btn" onclick="toggleMoreMenu(this)" style="gap:4px;opacity:.7">☰ <span style="font-size:11px">▼</span></button>
       <div id="more-menu-placeholder" style="display:none"></div>
+    </div>
+    <!-- 📊 レポート ドロップダウン (競合分析/月次レポート/月末振り返りシート) -->
+    <div style="position:relative">
+      <button class="htab" id="tab-reportmenu-btn" onclick="toggleReportMenu(this)" style="gap:5px;font-size:12px">📊 <span style="font-weight:600">レポート</span> <span style="font-size:11px;opacity:.6">▼</span></button>
     </div>
   </div>
   <div id="hdr-r">
@@ -14546,6 +14550,38 @@ function closeMoreMenu() {
   if (m) m.style.display = 'none';
 }
 
+// 📊 レポートドロップダウン(競合分析・月次レポート・月末振り返りシート) ─────
+function toggleReportMenu(btn) {
+  const m = document.getElementById('report-menu');
+  if (!m) return;
+  const isOpen = m.style.display === 'block';
+  if (isOpen) { m.style.display = 'none'; return; }
+  const rect = btn.getBoundingClientRect();
+  const menuW = 220;
+  m.style.top = (rect.bottom + 4) + 'px';
+  if (rect.left + menuW <= window.innerWidth - 8) {
+    m.style.left  = rect.left + 'px';
+    m.style.right = 'auto';
+  } else {
+    m.style.left  = 'auto';
+    m.style.right = (window.innerWidth - rect.right) + 'px';
+  }
+  m.style.display = 'block';
+  setTimeout(() => {
+    function closeMenu(e) {
+      if (!m.contains(e.target) && e.target !== btn) {
+        m.style.display = 'none';
+        document.removeEventListener('click', closeMenu);
+      }
+    }
+    document.addEventListener('click', closeMenu);
+  }, 30);
+}
+function closeReportMenu() {
+  const m = document.getElementById('report-menu');
+  if (m) m.style.display = 'none';
+}
+
 // ── 案件追加モーダル：詳細折りたたみ ─────────────────────────
 function toggleAdmExtra() {
   const wrap  = document.getElementById('adm-extra-wrap');
@@ -21137,14 +21173,19 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
 <div id="user-badge" style="display:none"></div>
 
 <!-- more-menu: body直下 fixed 配置でz-index問題を回避 -->
+<!-- 競合分析/月次レポート/月末振り返りシートは「📊 レポート ▾」ドロップダウンへ移動済み(2026-05-29) -->
+<!-- 「振り返り」は使用していないため削除(KPT機能とは別物の旧画面) -->
 <div id="more-menu" style="display:none;position:fixed;z-index:9000;background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);box-shadow:0 8px 32px rgba(0,0,0,.15);min-width:180px;padding:5px;overflow:hidden">
   <div style="padding:5px 10px 4px;font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em">メニュー</div>
-  <button class="htab" id="tab-report-btn" onclick="showTab('report',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📝 振り返り</button>
-  <button class="htab" id="tab-kyogou-btn" onclick="showTab('kyogou',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">⚔ 競合分析</button>
-  <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
-  <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
-  <hr style="margin:6px 8px;border:none;border-top:1px solid var(--bd)">
   <button class="htab" id="tab-setup-menu-btn" onclick="showTab('setup',document.getElementById('tab-setup-btn'));closeMoreMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🔒 設定（パスワード保護）</button>
+</div>
+
+<!-- 📊 レポートドロップダウン(競合分析・月次レポート・月末振り返りシート) -->
+<div id="report-menu" style="display:none;position:fixed;z-index:9000;background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);box-shadow:0 8px 32px rgba(0,0,0,.15);min-width:200px;padding:5px;overflow:hidden">
+  <div style="padding:5px 10px 4px;font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em">📊 レポート</div>
+  <button class="htab" id="tab-kyogou-btn" onclick="showTab('kyogou',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">⚔ 競合分析</button>
+  <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
+  <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
 <div id="memo-full-modal">
