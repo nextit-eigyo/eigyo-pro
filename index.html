@@ -1954,13 +1954,12 @@ body.has-sidepanel #home-deal-mode {
     <div style="position:relative">
       <button class="data-btn" onclick="toggleDataMenu()">💾 データ管理 ▾</button>
       <div id="data-menu" style="display:none">
-        <button class="dmitem" onclick="exportData();closeDataMenu()">💾 バックアップ保存（JSON）</button>
-        <button class="dmitem" onclick="triggerImportFile();closeDataMenu()">📂 JSONファイルから復元</button>
-        <hr style="margin:0;border-color:var(--bds)">
+        <!-- 日常使用 (営業担当者を含む全員) -->
         <button class="dmitem" onclick="applyAllWonToActuals();closeDataMenu()">🔄 受注実績を再計算</button>
-        <button class="dmitem" onclick="showRecovery();closeDataMenu()">🔍 保存データを検索・復元</button>
         <button class="dmitem" onclick="forceResyncFromFirebase();closeDataMenu()" title="他PCで変更したのに反映されない時の応急処置。ローカルキャッシュを消してFirebaseから最新を強制受信します。">🔥 Firebaseから強制再受信</button>
-        <button class="dmitem danger" onclick="if(confirm('全データをリセット？'))clearAllData();closeDataMenu()">🗑 データをリセット</button>
+        <hr style="margin:0;border-color:var(--bds)">
+        <!-- 管理用(バックアップ/復元/リセット)は 設定 → その他 → データ管理 に集約 -->
+        <button class="dmitem" onclick="showTab('setup',document.getElementById('tab-setup-btn'));showCfgGroup('other');showCfgTab('datamgmt',document.getElementById('cfg-tab-datamgmt'));closeDataMenu()" style="font-size:11px;color:var(--tx3)">⚙ バックアップ/復元/リセット → 設定へ</button>
       </div>
     </div>
     <input type="file" id="import-json-file" accept=".json" style="display:none" onchange="importFromFile(this)">
@@ -2371,6 +2370,7 @@ body.has-sidepanel #home-deal-mode {
     <button class="cfg-tab active" id="cfg-tab-import" onclick="showCfgTab('import',this)">⬆ インポート</button>
     <button class="cfg-tab"        id="cfg-tab-sync"   onclick="showCfgTab('sync',this)">☁ 同期</button>
     <button class="cfg-tab"        id="cfg-tab-integrity" onclick="showCfgTab('integrity',this);renderIntegrityCheck()">🔧 整合性チェック</button>
+    <button class="cfg-tab"        id="cfg-tab-datamgmt"  onclick="showCfgTab('datamgmt',this)">💾 データ管理</button>
   </div>
 
   <!-- 担当者 -->
@@ -2784,6 +2784,35 @@ body.has-sidepanel #home-deal-mode {
       <div style="font-size:11px;color:var(--tx3);margin-top:10px;line-height:1.5">
         ⚠️ パスワード忘れ時: F12 → Application → Local Storage で <code>eigyo_setup_pw_hash</code> を削除してください<br>
         💡 同じブラウザセッション中は再認証なしで設定画面を開けます（ブラウザを閉じるか上記「セッション認証をクリア」で解除）
+      </div>
+    </div>
+  </div>
+
+  <!-- データ管理 (管理者用: バックアップ/復元/リセット) -->
+  <div id="cfg-datamgmt" class="cfg-section">
+    <div class="card" style="max-width:1100px">
+      <div class="card-title" style="margin-bottom:6px">💾 データ管理(管理者用)</div>
+      <div style="font-size:12px;color:var(--tx3);line-height:1.6;margin-bottom:14px">
+        バックアップの取得・復元・データリセットなど、運用上重要な操作です。<br>
+        ※ 日常使用する「受注実績の再計算」「Firebaseから強制再受信」はヘッダの 💾 データ管理 メニューにあります。
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn pr" onclick="exportData()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left">
+          💾 バックアップ保存(JSON ファイル)
+          <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">現在のデータを JSON でダウンロード</span>
+        </button>
+        <button class="btn" onclick="triggerImportFile()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left">
+          📂 JSON ファイルから復元
+          <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">バックアップ JSON を選んで読込</span>
+        </button>
+        <button class="btn" onclick="showRecovery()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left">
+          🔍 保存データを検索・復元
+          <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">localStorage の過去保存分を一覧</span>
+        </button>
+        <button class="btn" onclick="if(confirm('全データをリセット？\n(バックアップを取ってから実行することを推奨)'))clearAllData()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left;color:var(--red);border-color:rgba(168,90,74,.4)">
+          🗑 データをリセット
+          <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">全データを削除して初期化(危険)</span>
+        </button>
       </div>
     </div>
   </div>
@@ -16234,7 +16263,24 @@ function renderActualPtabs() {
 }
 
 // ── 実績確認 本体 ─────────────────────────────────────────────
+// ── 担当者ビューの受注案件展開行: グローバル状態管理 ────────────
+// 同時に1つしか開かない + 外側クリックで自動クローズ のため、現在開いている
+// 行への参照とクローズ用ハンドラを保持する。
+var _currentOpenPersonDealRow = null; // {row, btn, closeHandler} or null
+function _closeCurrentPersonDealRow() {
+  if (!_currentOpenPersonDealRow) return;
+  var rec = _currentOpenPersonDealRow;
+  try {
+    if (rec.row && rec.row.style) rec.row.style.display = 'none';
+    if (rec.btn) rec.btn.textContent = '▼';
+    if (rec.closeHandler) document.removeEventListener('click', rec.closeHandler);
+  } catch(e) { /* DOM が再生成された後等は無視 */ }
+  _currentOpenPersonDealRow = null;
+}
+
 function renderActuals() {
+  // 再描画時は前回の展開状態をリセット(DOM が作り直されるため)
+  _closeCurrentPersonDealRow();
   renderActualPtabs();
   const people = ap();
   if (!people.length) return;
@@ -16660,16 +16706,32 @@ function renderActuals() {
         var pdRowId = 'pd-row-' + i;
         var pdBtn = document.createElement('button');
         pdBtn.textContent = '▼';
-        pdBtn.title = '受注案件を展開';
+        pdBtn.title = '受注案件を展開(他をクリックで閉じる)';
         pdBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:11px;color:var(--acc);padding:0 0 0 4px;vertical-align:middle';
+        pdBtn.classList.add('pd-toggle-btn');
         (function(rowId, btn) {
           btn.onclick = function(e) {
             e.stopPropagation();
             var r = document.getElementById(rowId);
-            if (r) {
-              var isHidden = r.style.display === 'none' || !r.style.display;
-              r.style.display = isHidden ? '' : 'none';
-              btn.textContent = isHidden ? '▲' : '▼';
+            if (!r) return;
+            var isHidden = r.style.display === 'none' || !r.style.display;
+            if (isHidden) {
+              // 既に開いている他の行を閉じる(同時に開けるのは1つだけ)
+              _closeCurrentPersonDealRow();
+              r.style.display = '';
+              btn.textContent = '▲';
+              // 外側クリックで自動クローズ(次のイベントループで登録して、現在のクリックは無視)
+              setTimeout(function() {
+                var handler = function(ev) {
+                  if (!r.contains(ev.target) && !btn.contains(ev.target)) {
+                    _closeCurrentPersonDealRow();
+                  }
+                };
+                _currentOpenPersonDealRow = { row: r, btn: btn, closeHandler: handler };
+                document.addEventListener('click', handler);
+              }, 0);
+            } else {
+              _closeCurrentPersonDealRow();
             }
           };
         })(pdRowId, pdBtn);
@@ -20934,12 +20996,19 @@ function _isPersonMonthImported(spId, mi) {
 
 // ════════ バックアップ警告バナー ════════
 function _checkBackupBanner() {
+  var banner = document.getElementById('backup-banner');
+  if (!banner) return;
+  // ⭐ super_admin(現状は馬場(大))のみバックアップ取得を促す。営業担当者は責任範囲外なので非表示。
+  //   (2026-05-29 馬場さん指示)
+  var role = (currentUserRole || {}).role || '';
+  if (role !== 'super_admin') {
+    banner.style.display = 'none';
+    return;
+  }
   var last = parseInt(localStorage.getItem('eigyo_last_backup') || '0');
   var now  = Date.now();
   var elapsed = now - last;
   var hours = Math.floor(elapsed / 3600000);
-  var banner = document.getElementById('backup-banner');
-  if (!banner) return;
   if (!last || elapsed > 24 * 3600000) {
     // 24時間以上 or 一度もバックアップなし
     var el = document.getElementById('bb-elapsed');
