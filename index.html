@@ -7126,20 +7126,12 @@ function addVisit(dealId){
   }
 
   // ── 実績即時反映 ──
-  // ⭐ ポリシー: 売上実績に計上するのは「受注」のみ。「口頭受注」は対象外。
-  //   (2026-05-29 馬場さん指示。CLAUDE.md §7 V8新規軒数と同じ扱い)
-  if (status === '受注' && !d.actualsReflected && d.deliveryMonth && d.sales !== '') {
+  // 受注/口頭受注に変わった瞬間、未反映ならapplyDealToActualsを呼ぶ
+  if ((status === '受注' || status === '口頭受注') && !d.actualsReflected && d.deliveryMonth && d.sales !== '') {
     try {
       applyDealToActuals(d, false);
     } catch(e) {
       console.error('実績反映エラー:', e);
-    }
-  } else if (status === '口頭受注' && d.actualsReflected) {
-    // 受注済みから口頭受注に降格された場合は実績取消
-    try {
-      applyDealToActuals(d, true);
-    } catch(e) {
-      console.error('実績取消エラー:', e);
     }
   }
 
@@ -12793,37 +12785,33 @@ function updDeal(id, field, val) {
     _refreshDealAfterEdit(id);
   } else if (field === 'probability') {
     // ── 確度変更時のステータス自動連動 ──
-    // ⭐ ポリシー(2026-05-29 馬場さん指示): 売上実績に計上するのは「受注(確度5)」のみ。
-    //   口頭受注(確度4)は実績にカウントしない(口頭=正式契約前のため)。
-    //   また UI 表示と実データの整合のため、d.phase は d.probability から常に同期する。
     var newProb = parseInt(val);
     var prevPhase = lstat(d);
-    var wasReflected = !!d.actualsReflected;
     d.probability = newProb;
     var phaseChanged = false;
 
-    if (newProb === 5) {
-      // 確度5(受注) → ステータスを「受注」に
-      if (d.phase !== '受注') { d.phase = '受注'; phaseChanged = true; }
-      // 受注になったら実績反映
-      if (!wasReflected && d.deliveryMonth && d.sales !== '') {
+    if (newProb === 5 && prevPhase !== '受注') {
+      // 確度5(受注) → ステータスも「受注」に
+      d.phase = '受注';
+      phaseChanged = true;
+      // 実績反映
+      if (!d.actualsReflected && d.deliveryMonth && d.sales !== '') {
         try { applyDealToActuals(d, false); } catch(e) { console.error('実績反映エラー:', e); }
       }
-    } else if (newProb === 4) {
-      // 確度4(口頭受注) → ステータスを「口頭受注」に
-      if (d.phase !== '口頭受注') { d.phase = '口頭受注'; phaseChanged = true; }
-      // 受注からの降格時は実績取消(口頭受注は計上対象外)
-      if (wasReflected && prevPhase === '受注') {
-        try { applyDealToActuals(d, true); } catch(e) { console.error('実績取消エラー:', e); }
+    } else if (newProb === 4 && prevPhase !== '口頭受注' && prevPhase !== '受注') {
+      // 確度4(口頭受注) → ステータスも「口頭受注」に
+      d.phase = '口頭受注';
+      phaseChanged = true;
+      // 口頭受注も実績反映対象
+      if (!d.actualsReflected && d.deliveryMonth && d.sales !== '') {
+        try { applyDealToActuals(d, false); } catch(e) { console.error('実績反映エラー:', e); }
       }
-    } else {
-      // 確度3以下: ステータスをクリア(visits最新statusに任せる)
-      if (d.phase === '受注' || d.phase === '口頭受注') {
-        d.phase = '';
-        phaseChanged = true;
-      }
-      // 受注から下げた場合は実績取消
-      if (wasReflected && prevPhase === '受注') {
+    } else if (newProb < 4 && (prevPhase === '受注' || prevPhase === '口頭受注')) {
+      // 確度を4未満に下げた場合: ステータスをクリア（visits最新statusに任せる）
+      d.phase = '';
+      phaseChanged = true;
+      // 実績を取り消し
+      if (d.actualsReflected) {
         try { applyDealToActuals(d, true); } catch(e) { console.error('実績取消エラー:', e); }
       }
     }
@@ -17816,50 +17804,35 @@ function _migrateGroupActuals() {
   if (needSave) save();
 }
 
-// 起動時サイレント処理：未反映の受注案件を自動加算 + 不整合を自動補正(アラートなし)
-// ⭐ ポリシー(2026-05-29 馬場さん指示): 売上実績に計上するのは「受注」のみ。
-//   「口頭受注」は実績対象外。確度プルダウン経由の旧データ整合不良(d.phase='受注'のまま
-//   probability=4 になっているケース)もここで自動修復する。
+// 起動時サイレント処理：未反映の受注案件を自動加算（アラートなし）
 function _silentApplyWonToActuals() {
   (D.deals || []).forEach(function(d) {
-    // 確度と phase の同期(旧バグ対策)
-    if (d.probability === 5 && d.phase !== '受注') d.phase = '受注';
-    else if (d.probability === 4 && d.phase !== '口頭受注') d.phase = '口頭受注';
-
     var ls = lstat(d);
-    // 受注で未反映 → 反映
-    if (ls === '受注' && !d.actualsReflected && d.deliveryMonth && d.sales !== '') {
+    if ((ls === '受注' || ls === '口頭受注') && !d.actualsReflected && d.deliveryMonth && d.sales !== '') {
       applyDealToActuals(d, false);
-    }
-    // 受注以外(口頭受注/失注等)で反映済 → 取消
-    else if (ls !== '受注' && d.actualsReflected) {
-      applyDealToActuals(d, true);
     }
   });
   save();
 }
 
 function applyAllWonToActuals() {
-  if (!confirm('全受注案件の実績を再計算します。\nD.actuals（担当者実績）とD.groupActuals（グループ薬局実績）をリセットして再計算します。\n（D.branchActuals=Excelインポート値には影響しません）\n\n⭐ 売上実績に計上するのは「受注」のみです。「口頭受注」は対象外になります。\n\nよろしいですか？')) return;
+  if (!confirm('全受注案件の実績を再計算します。\nD.actuals（担当者実績）とD.groupActuals（グループ薬局実績）をリセットして再計算します。\n（D.branchActuals=Excelインポート値には影響しません）\n\nよろしいですか？')) return;
 
   // D.actuals と D.groupActuals をリセット（branchActualsは触らない）
   D.actuals = {};
   D.groupActuals = {};
-  // 全案件の actualsReflected フラグをクリア + 確度↔phase 整合修復
+  // 全案件の actualsReflected フラグをクリア
   (D.deals||[]).forEach(function(d) {
     d.actualsReflected = false;
     d.actualsReflectedMonth = '';
     d.actualsGroup = false;
-    // 確度と phase の同期
-    if (d.probability === 5 && d.phase !== '受注') d.phase = '受注';
-    else if (d.probability === 4 && d.phase !== '口頭受注') d.phase = '口頭受注';
   });
 
-  // 「受注」のみ再適用(口頭受注は計上対象外)
+  // 全受注案件を再適用
   var count = 0;
   (D.deals||[]).forEach(function(d) {
     var ls = lstat(d);
-    if (ls === '受注' && d.deliveryMonth && d.sales !== '') {
+    if ((ls === '受注' || ls === '口頭受注') && d.deliveryMonth && d.sales !== '') {
       applyDealToActuals(d, false);
       count++;
     }
@@ -17867,7 +17840,7 @@ function applyAllWonToActuals() {
 
   save();
   rebuildAll();
-  _showToast('✅ ' + count + '件の受注案件を実績に再計算しました(口頭受注は対象外)', 'ok', 4000);
+  _showToast('✅ ' + count + '件の実績を再計算しました', 'ok', 4000);
 }
 
 
