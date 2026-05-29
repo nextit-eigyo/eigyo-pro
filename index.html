@@ -11549,6 +11549,8 @@ var FB = {
   lastRemoteTs: 0,
   localPendingWrite: false,
   writeDebounce: null,
+  clientId: null,       // この端末の書込み識別子（自分のエコー受信検出用・clock skew根治）
+  wseq: 0,              // 書込み連番（自分の最新書込みのエコーだけを識別するため）
 };
 
 // ── Firebase config をlocalStorageから読み込み ──────────────────
@@ -11694,6 +11696,17 @@ function fbStartSync() {
       const remoteTs = remote._ts || 0;
       const localTs  = D._ts  || 0;
 
+      // ⭐ 自分自身の書き込みのエコー受信 → 再描画/ダイアログを抑止し、サーバ確定時刻だけ取り込む。
+      //   以後の TS 比較がサーバ時刻基準になり clock skew が解消する。
+      //   判定は「自分のclientId かつ 自分の最新連番」のみ true（他端末はclientIdが異なるので誤判定なし）。
+      //   ここでは D を作り替えず _ts のみ更新するため、万一外してもデータ消失は起きない。
+      if (remote._wid && FB.clientId && remote._wid === FB.clientId && remote._wseq === FB.wseq) {
+        D._ts = remoteTs;
+        _localSave({preserveTs:true});
+        FB.lastRemoteTs = remoteTs;
+        return;
+      }
+
       // remote.dealsを安全に件数カウント（配列・オブジェクト両対応）
       const remoteDealsArr = remote.deals
         ? (Array.isArray(remote.deals) ? remote.deals : Object.values(remote.deals))
@@ -11795,7 +11808,18 @@ function _doFbWrite() {
     // _localSave()でD._tsを更新してからFirebaseに書き込む
     // save()を呼ぶとfbWriteが再度呼ばれ無限ループになるため_localSave()を使用
     _localSave();
-    FB.dbRef.set(D)
+    // ⭐ サーバタイムスタンプ化（clock skew 根治）:
+    //   _ts を各PCのローカル時計ではなくサーバ時刻(ServerValue.TIMESTAMP)で打つ。
+    //   これにより受信判定 remoteTs>localTs が全端末でサーバ時刻基準になり、
+    //   時計ズレで他PCの更新(予算変更等)を誤って受信拒否する問題が解消する。
+    //   併せて書込み元ID(_wid)と連番(_wseq)を付与し、自分の書込みのエコー受信を
+    //   識別して無駄な再描画・「受信」表示を抑止する。
+    if (!FB.clientId) FB.clientId = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    FB.wseq = (FB.wseq || 0) + 1;
+    D._wid = FB.clientId;
+    D._wseq = FB.wseq;
+    var _payload = Object.assign({}, D, { _ts: firebase.database.ServerValue.TIMESTAMP });
+    FB.dbRef.set(_payload)
       .then(() => showSyncBadge('保存'))
       .catch(e => fbSetStatus('error', '書き込みエラー: ' + e.message));
   }).catch(function(e) {
@@ -13105,6 +13129,10 @@ function _refreshViewsAfterDealUpdate() {
         try { window[p[1]](); } catch(e) { console.warn(p[1]+' 自動再描画失敗:', e); }
       }
     });
+    // 営業ホームの「今月のストーリー」も更新（#story-panel が無ければ内部で即return＝安全）
+    if (typeof renderStoryPanel === 'function') {
+      try { renderStoryPanel(); } catch(e) { console.warn('renderStoryPanel 自動再描画失敗:', e); }
+    }
   } catch(e) { console.warn('updDeal後の自動再描画失敗:', e); }
 }
 
