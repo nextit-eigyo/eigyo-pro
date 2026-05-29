@@ -4355,6 +4355,20 @@ function _restoreAutoBackup(key) {
   alert('✅ 自動バックアップを復元しました\n\n' + dt + ' 時点のデータに戻りました。');
 }
 
+// 自動バックアップ vs 現在のデータの差分表示
+// (「11時以降に何を変えたか」を取り出すための機能。2026-05-29 馬場さん要望)
+function _diffAutoBackupWithCurrent(key) {
+  var list = _listAutoBackups();
+  var item = list.find(function(x){ return x.key === key; });
+  if (!item) { alert('バックアップが見つかりません'); return; }
+  // バックアップ時点のデータ vs 現在のデータ で差分表示
+  // 「バックアップにあって現在には無い」フィールドが、復元によって失われた変更
+  _renderDiffViewer(item.data, D, {
+    leftLabel: '🛡 ' + _backupReasonLabel(item.reason) + ' (' + new Date(item.ts).toLocaleString('ja-JP') + ')',
+    rightLabel: '📍 現在のデータ'
+  });
+}
+
 function _deleteAutoBackup(key) {
   if (!confirm('このバックアップを削除しますか?\n(この操作は取り消せません)')) return;
   try { localStorage.removeItem(key); } catch(e) {}
@@ -4396,14 +4410,19 @@ function _doShowDiffWithBackup(input) {
   reader.readAsText(file);
 }
 
-function _renderDiffViewer(backup, current) {
+function _renderDiffViewer(backup, current, opts) {
+  opts = opts || {};
+  var leftLabel = opts.leftLabel || ('📁 バックアップ' + (backup._ts ? ' (' + new Date(backup._ts).toLocaleString('ja-JP') + ')' : ''));
+  var rightLabel = opts.rightLabel || '📍 現在のデータ';
   var diff = _computeDealsDiff(backup, current);
-  var bDate = backup._ts ? new Date(backup._ts).toLocaleString('ja-JP') : '不明';
   var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.remove()">';
   html += '<div style="background:var(--s1);border-radius:12px;max-width:1100px;width:100%;max-height:90vh;overflow:auto;padding:20px 24px;box-shadow:0 16px 48px rgba(0,0,0,.3)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px">';
-  html += '<div><div style="font-size:17px;font-weight:900">📊 バックアップとの差分</div>';
-  html += '<div style="font-size:11px;color:var(--tx3);margin-top:4px">バックアップ時刻: ' + bDate + ' / 現在のデータと比較</div></div>';
+  html += '<div><div style="font-size:17px;font-weight:900">📊 差分表示</div>';
+  html += '<div style="font-size:11.5px;color:var(--tx2);margin-top:6px;line-height:1.7">';
+  html += '<div><strong style="color:var(--tx3)">変更前:</strong> ' + _esc(leftLabel) + '</div>';
+  html += '<div><strong style="color:var(--tx3)">変更後:</strong> ' + _esc(rightLabel) + '</div>';
+  html += '</div></div>';
   html += '<button class="btn sm" onclick="this.closest(\'[style*=fixed]\').remove()" style="padding:6px 14px">✕ 閉じる</button>';
   html += '</div>';
 
@@ -4559,8 +4578,9 @@ function renderAutoBackupList() {
     html += '<td style="padding:7px 8px;text-align:right">' + item.dealsCount + '</td>';
     html += '<td style="padding:7px 8px;text-align:right">' + item.peopleCount + '</td>';
     html += '<td style="padding:7px 8px;text-align:right;color:var(--tx3)">' + Math.round(item.size/1024) + ' KB</td>';
-    html += '<td style="padding:7px 8px;text-align:center">';
-    html += '<button class="btn sm pr" onclick="_restoreAutoBackup(\'' + item.key + '\')" style="padding:4px 11px;font-size:11px;font-weight:700;margin-right:4px">復元</button>';
+    html += '<td style="padding:7px 8px;text-align:center;white-space:nowrap">';
+    html += '<button class="btn sm" onclick="_diffAutoBackupWithCurrent(\'' + item.key + '\')" title="このバックアップと現在のデータの差分を表示" style="padding:4px 9px;font-size:11px;margin-right:3px">📊 差分</button>';
+    html += '<button class="btn sm pr" onclick="_restoreAutoBackup(\'' + item.key + '\')" style="padding:4px 11px;font-size:11px;font-weight:700;margin-right:3px">復元</button>';
     html += '<button class="btn sm" onclick="_deleteAutoBackup(\'' + item.key + '\')" style="padding:4px 9px;font-size:11px;color:var(--red);border-color:rgba(168,90,74,.3)">削除</button>';
     html += '</td></tr>';
   });
