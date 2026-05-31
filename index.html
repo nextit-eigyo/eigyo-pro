@@ -10164,10 +10164,13 @@ function renderStoryPanel() {
   halfMis.forEach(function(mi) {
     halfBudS += getBud('s', mi);
     halfBudP += getBud('p', mi);
-    if (mi <= thisMi) {
-      halfActS += getAct('s', mi);
-      halfActP += getAct('p', mi);
-    }
+    // 実績は上期(下期)6ヶ月すべてを加算する。
+    // ★ 以前は「経過月(mi<=thisMi)のみ加算」していたが、実績確認/営業会議は
+    //   将来計上の受注も含めて6ヶ月全部を集計するため、ストーリーだけ値がズレていた。
+    //   (例: 6月計上の受注を岩下が既に持つ場合、他画面は加算・ストーリーは除外→矛盾)
+    //   画面間の数字を一致させるため、ここも全月加算に統一する。
+    halfActS += getAct('s', mi);
+    halfActP += getAct('p', mi);
   });
   var halfAchS = halfBudS > 0 ? (halfActS / halfBudS * 100) : 0;
   var halfGapS = Math.max(0, halfBudS - halfActS);
