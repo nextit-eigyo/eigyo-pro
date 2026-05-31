@@ -941,25 +941,20 @@ tr:hover td{background:rgba(90,123,158,.02)}
   position:sticky;top:var(--nav);z-index:150;
   box-shadow:0 2px 6px rgba(58,90,126,.04);
 }
+/* タブ: アンダーライン型(案B) — シャープでモダンな印象 */
 .sub-tab{
-  background:#fff;border:1.5px solid var(--bd);
+  background:transparent;border:none;border-bottom:2.5px solid transparent;
   color:var(--tx2);font-family:inherit;font-size:15px;font-weight:700;
-  padding:9px 20px;border-radius:10px;cursor:pointer;
-  transition:all .12s;display:inline-flex;align-items:center;gap:5px;
-  letter-spacing:.02em;
+  padding:13px 14px 10px;border-radius:0;cursor:pointer;
+  transition:color .12s,border-color .12s;display:inline-flex;align-items:center;gap:5px;
+  letter-spacing:.02em;white-space:nowrap;
 }
-.sub-tab:hover{
-  background:var(--s3);color:var(--tx);
-  border-color:var(--acc);transform:translateY(-1px);
-  box-shadow:0 3px 8px rgba(58,90,126,.10);
-}
+.sub-tab:hover{ color:var(--tx); border-bottom-color:var(--bd); }
 .sub-tab.active{
-  background:var(--acc);color:#fff;font-weight:900;
-  border-color:var(--acc);
-  box-shadow:0 4px 10px rgba(58,90,126,.25);
-  transform:translateY(-1px);
+  color:var(--acc);font-weight:900;
+  border-bottom-color:var(--acc);background:transparent;
 }
-.sub-tab.active .nb{background:#fff;color:var(--acc)}
+.sub-tab.active .nb{background:var(--red);color:#fff}
 
 /* === 🛠 薬局構成図 (PharmacyConfig) === */
 .pc-section-title{font-size:12px;font-weight:700;color:var(--tx);padding:6px 0 4px;border-bottom:1px solid var(--bd);margin-bottom:8px;letter-spacing:.04em}
