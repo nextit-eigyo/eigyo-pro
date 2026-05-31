@@ -1696,70 +1696,68 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .story-foot .lnk.pri { background:var(--tx); color:#fff; border-color:var(--tx); }
 #story-panel .story-foot .lnk.pri:hover { background:#000; color:#fff; }
 
-/* ── 営業ホーム ストーリーパネル 右カラム(粗利ゴールゲージ + 翌月パイプライン) ── */
-#story-panel .story-main { display:flex; gap:26px; flex-wrap:wrap; align-items:stretch; }
-#story-panel .story-text { flex:1.3 1 400px; min-width:0; }
+/* ── 営業ホーム ストーリーパネル 2カラム(左ストーリー / 右シミュレーション) ── */
+#story-panel .story-main { display:flex; gap:30px; flex-wrap:wrap; align-items:stretch; }
+#story-panel .story-text { flex:1 1 440px; min-width:0; }
 #story-panel .story-aside {
-  flex:1 1 360px; display:flex; flex-direction:column; gap:16px;
-  border-left:1.5px dashed var(--bd); padding-left:26px; justify-content:center;
+  flex:1.25 1 460px; display:flex; flex-direction:column; gap:18px;
+  border-left:1.5px dashed var(--bd); padding-left:30px; justify-content:center;
 }
 @media (max-width:880px){
   #story-panel .story-aside{ border-left:none; padding-left:0; border-top:1.5px dashed var(--bd); padding-top:16px; }
 }
-/* 粗利ゴールゲージ */
-#story-panel .sa-gauge { display:flex; align-items:center; gap:18px; }
-#story-panel .sa-gauge-pct { font-size:38px; font-weight:900; line-height:1; color:var(--acc); }
-#story-panel .sa-gauge-pct.g { color:#4a5a32; }
-#story-panel .sa-gauge-pct.a { color:#7a5a2a; }
-#story-panel .sa-gauge-pct.r { color:#7a3a2a; }
-#story-panel .sa-gauge-body { flex:1; min-width:0; }
-#story-panel .sa-cap { font-size:12px; color:var(--tx3); margin-bottom:5px; font-weight:700; }
-#story-panel .sa-track { height:16px; background:#ece6da; border-radius:8px; overflow:hidden; }
-#story-panel .sa-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,#9db4cc,var(--acc)); transition:width .4s ease; }
-#story-panel .sa-fill.g { background:linear-gradient(90deg,#a9c089,#7a8e5a); }
-#story-panel .sa-fill.a { background:linear-gradient(90deg,#e0bd7e,#c89856); }
-#story-panel .sa-rest { font-size:13px; margin-top:6px; color:#7a3a2a; font-weight:700; }
-#story-panel .sa-rest b { font-size:16px; color:#7a3a2a; }
-#story-panel .sa-rest.ok { color:#4a5a32; }
-#story-panel .sa-rest.ok b { color:#4a5a32; }
+/* 左ストーリー: セクション化して見やすく(改行+フォント拡大) */
+#story-panel .st-sec { padding:11px 0; border-bottom:1px dotted var(--bd); }
+#story-panel .st-sec:last-child { border-bottom:none; }
+#story-panel .st-label { font-size:13px; font-weight:900; color:var(--acc); margin-bottom:7px; letter-spacing:.03em; }
+#story-panel .st-line { font-size:15.5px; line-height:1.85; color:var(--tx2); }
+#story-panel .st-line.big { font-size:17px; }
+#story-panel .st-line b { color:var(--tx); font-weight:900; font-size:18px; }
+#story-panel .st-line .lbl { color:var(--tx3); font-size:13px; font-weight:700; margin-right:4px; }
+#story-panel .st-line .sep { color:var(--bd); margin:0 10px; }
+#story-panel .st-line .muted { font-size:13px; color:var(--tx3); font-weight:700; }
+#story-panel .st-line .hl-r, #story-panel .st-line .hl-a, #story-panel .st-line .hl-g { font-size:15px; }
+#story-panel .st-recent { background:#eef3e6; border:1px solid #d7e2c4; border-radius:10px; padding:11px 14px; font-size:15px; font-weight:700; color:#46562c; }
+#story-panel .st-recent b { font-size:16px; color:#46562c; }
 /* 翌月パイプライン */
-#story-panel .sa-pipe-ttl { font-size:12px; color:var(--tx3); font-weight:700; margin-bottom:8px; }
+#story-panel .sa-pipe-ttl { font-size:13px; color:var(--tx3); font-weight:900; margin-bottom:9px; }
 #story-panel .sa-pill {
-  display:flex; align-items:center; gap:10px; background:#fff;
-  border:1px solid var(--bd); border-radius:10px; padding:8px 12px; margin-bottom:7px;
+  display:flex; align-items:center; gap:11px; background:#fff;
+  border:1px solid var(--bd); border-radius:11px; padding:11px 14px; margin-bottom:7px;
 }
-#story-panel .sa-stars { font-size:13px; letter-spacing:1px; flex:0 0 auto; }
-#story-panel .sa-nm { font-weight:900; font-size:14px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#story-panel .sa-ph { font-size:11px; border-radius:999px; padding:2px 8px; font-weight:700; flex:0 0 auto; }
-#story-panel .sa-amt { font-size:14px; font-weight:900; color:var(--acc); flex:0 0 auto; }
-#story-panel .sa-more { font-size:11px; color:var(--tx3); margin:2px 0 6px; }
-#story-panel .sa-sum { font-size:12px; color:var(--tx2); margin-top:4px; }
+#story-panel .sa-stars { font-size:15px; letter-spacing:1px; flex:0 0 auto; }
+#story-panel .sa-nm { font-weight:900; font-size:16px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#story-panel .sa-ph { font-size:12px; border-radius:999px; padding:3px 10px; font-weight:700; flex:0 0 auto; }
+#story-panel .sa-amt { font-size:16px; font-weight:900; color:var(--acc); flex:0 0 auto; }
+#story-panel .sa-more { font-size:12px; color:var(--tx3); margin:2px 0 6px; }
+#story-panel .sa-sum { font-size:13px; color:var(--tx2); margin-top:7px; }
 #story-panel .sa-sum b { color:var(--tx); font-weight:900; }
-#story-panel .sa-empty { font-size:12px; color:var(--tx3); padding:10px 0; line-height:1.7; }
+#story-panel .sa-empty { font-size:13px; color:var(--tx3); padding:10px 0; line-height:1.7; }
 /* 上期達成シミュレーション(粗利) */
-#story-panel .sa-sim-head { display:flex; align-items:baseline; gap:8px; margin-bottom:9px; flex-wrap:wrap; }
-#story-panel .sa-sim-head .t { font-size:13px; font-weight:900; }
-#story-panel .sa-sim-head .g { font-size:12px; color:var(--tx3); font-weight:700; margin-left:auto; }
-#story-panel .sa-sim-head .ach { font-size:12px; font-weight:900; color:var(--acc); background:rgba(90,123,158,.1); padding:2px 9px; border-radius:999px; }
-#story-panel .sa-bar { position:relative; height:26px; border-radius:8px; background:#ece6da; overflow:hidden; display:flex; margin-bottom:6px; }
-#story-panel .sa-seg { height:100%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; }
+#story-panel .sa-sim-head { display:flex; align-items:baseline; gap:8px; margin-bottom:11px; flex-wrap:wrap; }
+#story-panel .sa-sim-head .t { font-size:15px; font-weight:900; }
+#story-panel .sa-sim-head .g { font-size:14px; color:var(--tx3); font-weight:700; margin-left:auto; }
+#story-panel .sa-sim-head .ach { font-size:13px; font-weight:900; color:var(--acc); background:rgba(90,123,158,.1); padding:3px 11px; border-radius:999px; }
+#story-panel .sa-bar { position:relative; height:32px; border-radius:9px; background:#ece6da; overflow:hidden; display:flex; margin-bottom:7px; }
+#story-panel .sa-seg { height:100%; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; }
 #story-panel .sa-seg.fixed { background:linear-gradient(180deg,#8ba06d,#7a8e5a); }
 #story-panel .sa-seg.pipe { background:linear-gradient(180deg,#dcb673,#c89856); }
 #story-panel .sa-seg.gap { background:repeating-linear-gradient(45deg,#efe2dd,#efe2dd 6px,#e7d3cd 6px,#e7d3cd 12px); color:#a85a4a; }
 #story-panel .sa-goalmark { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--tx); }
-#story-panel .sa-leg { display:flex; gap:12px; font-size:11px; color:var(--tx2); margin-bottom:10px; flex-wrap:wrap; }
-#story-panel .sa-leg i { display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:-1px; margin-right:3px; }
+#story-panel .sa-leg { display:flex; gap:14px; font-size:12px; color:var(--tx2); margin-bottom:13px; flex-wrap:wrap; }
+#story-panel .sa-leg i { display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:4px; }
 #story-panel .sa-leg i.f { background:#7a8e5a; }
 #story-panel .sa-leg i.p { background:#c89856; }
 #story-panel .sa-leg i.x { background:#e7d3cd; }
-#story-panel .sa-rows { font-size:12px; margin-bottom:10px; }
-#story-panel .sa-r { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dotted var(--bd); gap:8px; }
+#story-panel .sa-rows { font-size:14px; margin-bottom:13px; }
+#story-panel .sa-r { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dotted var(--bd); gap:8px; }
 #story-panel .sa-r:last-child { border-bottom:none; }
 #story-panel .sa-r .v { font-weight:900; white-space:nowrap; }
-#story-panel .sa-verdict { border-radius:10px; padding:10px 13px; font-size:13px; line-height:1.6; }
+#story-panel .sa-verdict { border-radius:11px; padding:13px 16px; font-size:15px; line-height:1.7; }
 #story-panel .sa-verdict.ng { background:#f7e7e2; border:1px solid #e9c9c0; color:#7a3a2a; }
 #story-panel .sa-verdict.ok { background:#e7efd9; border:1px solid #cfdcb5; color:#46562c; }
 #story-panel .sa-verdict b { font-weight:900; }
+#story-panel .sa-verdict .big { font-size:20px; font-weight:900; }
 
 /* ════════════════ MEETING TAB (営業会議レポート) ════════════════ */
 #tab-meeting .meeting-toolbar {
@@ -10250,63 +10248,60 @@ function renderStoryPanel() {
     if (ach >= 80)  return '<span class="hl-a">' + ach.toFixed(0) + '%</span>';
     return '<span class="hl-r">' + ach.toFixed(0) + '%</span>';
   }
-  html += '<p>';
-  html += moLabels[thisMi] + 'の達成率: ';
+  // セクション1: 今月の達成率
+  html += '<div class="st-sec">';
+  html += '<div class="st-label">📅 ' + moLabels[thisMi] + 'の達成率</div>';
   if (thisM_budS === 0 && thisM_budP === 0) {
-    html += '<span class="dim">予算未設定</span>。';
+    html += '<div class="st-line"><span class="dim">予算未設定</span></div>';
   } else {
-    var parts = [];
-    if (thisM_budS > 0) parts.push('売上 ' + _achTag(thisM_achS));
-    if (thisM_budP > 0) parts.push('<b>粗利 ' + _achTag(thisM_achP) + '</b>');
-    html += parts.join(' / ');
-    var bestAch = Math.max(thisM_achS, thisM_achP);
-    if (bestAch >= 100) html += ' 🎉';
-    html += '。';
+    html += '<div class="st-line">';
+    var _ps = [];
+    if (thisM_budS > 0) _ps.push('<span class="lbl">売上</span>' + _achTag(thisM_achS));
+    if (thisM_budP > 0) _ps.push('<span class="lbl">粗利</span>' + _achTag(thisM_achP));
+    html += _ps.join('<span class="sep">/</span>');
+    if (Math.max(thisM_achS, thisM_achP) >= 100) html += ' 🎉';
+    html += '</div>';
   }
-  // 上期/下期累計
+  html += '</div>';
+
+  // セクション2: 上期/下期累計
   if (halfBudS > 0 || halfBudP > 0) {
-    html += '<br>';
-    html += halfLbl + '累計: ';
-    var hparts = [];
+    html += '<div class="st-sec">';
+    html += '<div class="st-label">📈 ' + halfLbl + '累計</div>';
     if (halfBudS > 0) {
-      var s = '売上 <span class="num">' + halfAchS.toFixed(0) + '%</span>';
-      if (halfGapS > 0) s += ' (あと <span class="hl-r">' + Math.round(halfGapS).toLocaleString() + '千</span>)';
-      else s += ' <span class="hl-g">達成</span>';
-      hparts.push(s);
+      html += '<div class="st-line"><span class="lbl">売上</span><b>' + halfAchS.toFixed(0) + '%</b>';
+      if (halfGapS > 0) html += ' <span class="muted">ゴールまであと</span> <span class="hl-r">' + Math.round(halfGapS).toLocaleString() + '千</span>';
+      else html += ' <span class="hl-g">達成🎉</span>';
+      html += '</div>';
     }
     if (halfBudP > 0) {
-      var p = '<b>粗利 <span class="num">' + halfAchP.toFixed(0) + '%</span></b>';
-      if (halfGapP > 0) p += ' (あと <span class="hl-r">' + Math.round(halfGapP).toLocaleString() + '千</span>)';
-      else p += ' <span class="hl-g">達成</span>';
-      hparts.push(p);
+      html += '<div class="st-line big"><span class="lbl">粗利</span><b>' + halfAchP.toFixed(0) + '%</b>';
+      if (halfGapP > 0) html += ' <span class="muted">ゴールまであと</span> <span class="hl-r">' + Math.round(halfGapP).toLocaleString() + '千</span>';
+      else html += ' <span class="hl-g">達成🎉</span>';
+      html += '</div>';
     }
-    html += hparts.join(' / ') + '。';
+    html += '</div>';
   }
-  html += '</p>';
 
-  // パラグラフ2: 翌月の仕込み
-  html += '<p>';
-  html += nextMoLabelStr + 'の仕込み: 進行中 <span class="num">' + nextDeals.length + '件</span>';
+  // セクション3: 翌月の仕込み
+  html += '<div class="st-sec">';
+  html += '<div class="st-label">🌱 ' + nextMoLabelStr + 'の仕込み</div>';
+  html += '<div class="st-line"><span class="lbl">進行中</span><b>' + nextDeals.length + '件</b></div>';
   if (nextDeals.length > 0) {
-    html += ' / 想定売上 <span class="num">' + Math.round(nextTotalS).toLocaleString() + '千</span>';
-    html += ' / <b>想定粗利 <span class="num">' + Math.round(nextTotalP).toLocaleString() + '千</span></b>';
-    if (nextHighProb >= 2) {
-      html += ' (うち確度A以上 <span class="hl-g">' + nextHighProb + '件</span>)';
-    } else if (nextHighProb === 1) {
-      html += ' (うち確度A以上 <span class="hl-a">1件のみ</span>)';
-    } else {
-      html += ' (<span class="hl-r">確度A以上なし</span>)';
-    }
+    html += '<div class="st-line"><span class="lbl">想定売上</span><b>' + Math.round(nextTotalS).toLocaleString() + '千</b><span class="sep">/</span><span class="lbl">想定粗利</span><b>' + Math.round(nextTotalP).toLocaleString() + '千</b></div>';
+    html += '<div class="st-line"><span class="lbl">確度A以上</span>';
+    if (nextHighProb >= 2)      html += '<span class="hl-g">' + nextHighProb + '件</span>';
+    else if (nextHighProb === 1) html += '<span class="hl-a">1件のみ</span>';
+    else                         html += '<span class="hl-r">なし</span>';
+    html += '</div>';
   }
-  html += '。';
-  html += '</p>';
+  html += '</div>';
 
-  // パラグラフ3: 直近の受注(あれば)
+  // セクション4: 直近の受注(あれば)
   if (recentWon.length > 0) {
-    html += '<p>🎉 直近の受注: ';
-    html += recentWon.slice(0, 3).map(function(d){ return '<b>' + _esc(d.name||'') + '</b>'; }).join(' / ');
-    if (recentWon.length > 3) html += ' 他 ' + (recentWon.length - 3) + '件';
-    html += '。' + (scope === 'person' ? 'お礼TEL推奨。' : '') + '</p>';
+    var _rw = recentWon.slice(0, 3).map(function(d){ return _esc(d.name || ''); }).join(' / ');
+    if (recentWon.length > 3) _rw += ' 他' + (recentWon.length - 3) + '件';
+    html += '<div class="st-sec"><div class="st-recent">🎉 直近の受注　<b>' + _rw + '</b>' + (scope === 'person' ? '　→　お礼TEL推奨' : '') + '</div></div>';
   }
 
   html += '</div>'; // close .story-text
@@ -10359,10 +10354,10 @@ function renderStoryPanel() {
     html += '<div class="sa-r"><span>🔵 進行中を全部受注すると</span><span class="v">+' + Math.round(simPipeP).toLocaleString() + '千 → 計 ' + Math.round(simProjP).toLocaleString() + '千</span></div>';
     html += '</div>';
     if (simAchievable) {
-      html += '<div class="sa-verdict ok">🎉 <b>動いている案件を全部受注すれば' + halfLbl + '達成！</b><br>ゴール超過の余裕は <b>+' + Math.round(simSurplus).toLocaleString() + '千</b>。取りこぼさず確実に受注を。</div>';
+      html += '<div class="sa-verdict ok">🎉 <b>動いている案件を全部受注すれば' + halfLbl + '達成！</b><br>ゴール超過の余裕は <b class="big">+' + Math.round(simSurplus).toLocaleString() + '千</b>。取りこぼさず確実に受注を。</div>';
     } else {
-      html += '<div class="sa-verdict ng">⚠ 全部受注しても <b>あと ' + Math.round(simShort).toLocaleString() + '千</b> 不足。';
-      if (simNeed) html += '<br>→ 平均 <b>' + Math.round(simAvg).toLocaleString() + '千</b> の案件が <b>あと' + simNeed + '件</b> 必要。';
+      html += '<div class="sa-verdict ng">⚠ 全部受注しても <b class="big">あと ' + Math.round(simShort).toLocaleString() + '千</b> 不足。';
+      if (simNeed) html += '<br>→ 平均 <b>' + Math.round(simAvg).toLocaleString() + '千</b> の案件が <b class="big">あと' + simNeed + '件</b> 必要。';
       else html += '<br>新規の仕込みが必要です 🌱';
       html += '</div>';
     }
