@@ -10771,7 +10771,19 @@ function _cleanupAbnormalActuals() {
 }
 window._cleanupAbnormalActuals = _cleanupAbnormalActuals;
 
-function rebuildAll(){renderSetup();renderAllPtabs();renderDashboard();renderDeals();initQuickLog();if(typeof _syncMobBadges==='function')_syncMobBadges();if(typeof _checkBackupBanner==='function')_checkBackupBanner();if(typeof _updateKptTabVisibility==='function')_updateKptTabVisibility();}
+function rebuildAll(){renderSetup();renderAllPtabs();renderDashboard();renderDeals();initQuickLog();_rerenderStoryPanelIfVisible();if(typeof _syncMobBadges==='function')_syncMobBadges();if(typeof _checkBackupBanner==='function')_checkBackupBanner();if(typeof _updateKptTabVisibility==='function')_updateKptTabVisibility();}
+// ストーリーパネルが「現在表示中」の時だけ再描画する。
+// Firebase同期(rebuildAll)等でデータが更新された際、ストーリーパネルだけ
+// 再描画されず古い数字が残る問題への対策。案件/設定モードでは非表示なので、
+// 表示中(display!=='none')に限定して呼び、誤表示(案件モードでの出現)を防ぐ。
+function _rerenderStoryPanelIfVisible(){
+  try {
+    var sp = document.getElementById('story-panel');
+    if (sp && sp.style.display !== 'none' && typeof renderStoryPanel === 'function') {
+      renderStoryPanel();
+    }
+  } catch(e) { console.warn('ストーリーパネル再描画失敗:', e); }
+}
 
 // ── QL Mode switch ──────────────────────────────────────
 var qlMode = 'deal';
