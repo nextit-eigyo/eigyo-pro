@@ -1714,6 +1714,21 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .st-line .hl-r, #story-panel .st-line .hl-a, #story-panel .st-line .hl-g { font-size:15px; }
 #story-panel .st-recent { background:#eef3e6; border:1px solid #d7e2c4; border-radius:10px; padding:11px 14px; font-size:15px; font-weight:700; color:#46562c; }
 #story-panel .st-recent b { font-size:16px; color:#46562c; }
+/* ネクストアクション(自動TODO) */
+#story-panel .na-item { display:flex; gap:10px; align-items:flex-start; padding:7px 0; }
+#story-panel .na-item .ic { font-size:17px; flex-shrink:0; line-height:1.4; }
+#story-panel .na-item .tx { font-size:14.5px; line-height:1.5; color:var(--tx); }
+#story-panel .na-item .tx .sub { font-size:12px; color:var(--tx3); font-weight:500; }
+#story-panel .na-item .tx b { font-weight:900; }
+#story-panel .na-tag { font-size:10px; border-radius:999px; padding:1px 8px; font-weight:700; margin-left:6px; vertical-align:1px; }
+#story-panel .na-tag.now { background:#f5d5cc; color:#7a3a2a; }
+#story-panel .na-tag.soon { background:#fde6c5; color:#7a5a2a; }
+/* 今月の活動サマリー */
+#story-panel .act-grid { display:flex; gap:10px; flex-wrap:wrap; margin-top:2px; }
+#story-panel .act-chip { background:#fff; border:1px solid var(--bd); border-radius:11px; padding:9px 0; flex:1; min-width:72px; text-align:center; }
+#story-panel .act-chip .n { font-size:21px; font-weight:900; color:var(--acc); line-height:1; }
+#story-panel .act-chip .l { font-size:11px; color:var(--tx3); font-weight:700; margin-top:4px; }
+#story-panel .act-note { font-size:12px; color:var(--tx3); margin-top:8px; }
 /* 翌月パイプライン */
 #story-panel .sa-pipe-ttl { font-size:13px; color:var(--tx3); font-weight:900; margin-bottom:9px; }
 #story-panel .sa-pill {
@@ -10457,36 +10472,80 @@ function renderStoryPanel() {
   }
   html += '</div>';
 
-  // セクション2: 上期/下期累計
-  if (halfBudS > 0 || halfBudP > 0) {
-    html += '<div class="st-sec">';
-    html += '<div class="st-label">📈 ' + halfLbl + '累計</div>';
-    if (halfBudS > 0) {
-      html += '<div class="st-line"><span class="lbl">売上</span><b>' + halfAchS.toFixed(0) + '%</b>';
-      if (halfGapS > 0) html += ' <span class="muted">ゴールまであと</span> <span class="hl-r">' + Math.round(halfGapS).toLocaleString() + '千</span>';
-      else html += ' <span class="hl-g">達成🎉</span>';
-      html += '</div>';
+  // セクション2: ネクストアクション(自動TODO) — 「次の一手」を実データから抽出
+  // (上期累計/翌月の仕込みは右の「上期粗利ゴール」と重複するため左からは削除)
+  var naItems = [];
+  // お礼TEL(直近受注)
+  recentWon.forEach(function(d){
+    naItems.push({ pri:1, ic:'📞', label:_esc(d.name||'(無名)')+'</b> にお礼TEL', tag:'未済', tagcls:'now', sub:'受注済 — 関係強化のチャンス' });
+  });
+  // 進行中案件を1件1アクションで分類(優先度: 計上月接近 > 確度UP > 停滞)
+  var _nm = (thisMo === 12 ? 1 : thisMo + 1);
+  var _nowMs = now.getTime();
+  (D.deals || []).forEach(function(d){
+    if (!scopeDealFilter(d)) return;
+    if (getProb(d) >= 5) return; // 受注済はお礼TELで別途扱い
+    var dm = d.deliveryMonth ? parseInt(String(d.deliveryMonth).split('-')[1]) : 0;
+    var pr = getProb(d);
+    var lastV = (d.visits && d.visits.length) ? d.visits[d.visits.length-1].date : null;
+    var days = lastV ? Math.floor((_nowMs - new Date(lastV).getTime())/86400000) : 999;
+    if (dm === thisMo || dm === _nm) {
+      naItems.push({ pri:2, ic:'⏰', label:_esc(d.name||'(無名)')+'</b> '+dm+'月計上・未受注', tag:'期日近', tagcls:'now', sub:'計上月が近い。クロージングを' });
+    } else if (pr === 3 || pr === 4) {
+      naItems.push({ pri:3, ic:'📈', label:_esc(d.name||'(無名)')+'</b> の確度を上げる', tag:'詰め', tagcls:'soon', sub:getProbDef(pr).label+'（'+getProbDef(pr).pct+'%）→ 後押しを' });
+    } else if (days >= 30 && days < 900) {
+      naItems.push({ pri:4, ic:'🔁', label:_esc(d.name||'(無名)')+'</b> '+days+'日 連絡なし', tag:'', tagcls:'', sub:'停滞中。フォロー連絡を' });
     }
-    if (halfBudP > 0) {
-      html += '<div class="st-line big"><span class="lbl">粗利</span><b>' + halfAchP.toFixed(0) + '%</b>';
-      if (halfGapP > 0) html += ' <span class="muted">ゴールまであと</span> <span class="hl-r">' + Math.round(halfGapP).toLocaleString() + '千</span>';
-      else html += ' <span class="hl-g">達成🎉</span>';
-      html += '</div>';
-    }
-    html += '</div>';
+  });
+  naItems.sort(function(a,b){ return a.pri - b.pri; });
+  naItems = naItems.slice(0, 4);
+  html += '<div class="st-sec"><div class="st-label">🎯 ネクストアクション</div>';
+  if (naItems.length === 0) {
+    html += '<div class="st-line" style="font-size:13px;color:var(--tx3)">いまの優先アクションはありません。新規の仕込みを 🌱</div>';
+  } else {
+    naItems.forEach(function(it){
+      html += '<div class="na-item"><span class="ic">' + it.ic + '</span><span class="tx"><b>' + it.label;
+      if (it.tag) html += '<span class="na-tag ' + it.tagcls + '">' + it.tag + '</span>';
+      html += '<br><span class="sub">' + _esc(it.sub) + '</span></span></div>';
+    });
   }
+  html += '</div>';
 
-  // セクション3: 翌月の仕込み
-  html += '<div class="st-sec">';
-  html += '<div class="st-label">🌱 ' + nextMoLabelStr + 'の仕込み</div>';
-  html += '<div class="st-line"><span class="lbl">進行中</span><b>' + nextDeals.length + '件</b></div>';
-  if (nextDeals.length > 0) {
-    html += '<div class="st-line"><span class="lbl">想定売上</span><b>' + Math.round(nextTotalS).toLocaleString() + '千</b><span class="sep">/</span><span class="lbl">想定粗利</span><b>' + Math.round(nextTotalP).toLocaleString() + '千</b></div>';
-    html += '<div class="st-line"><span class="lbl">確度A以上</span>';
-    if (nextHighProb >= 2)      html += '<span class="hl-g">' + nextHighProb + '件</span>';
-    else if (nextHighProb === 1) html += '<span class="hl-a">1件のみ</span>';
-    else                         html += '<span class="hl-r">なし</span>';
-    html += '</div>';
+  // セクション3: 今月の活動サマリー(行動量)
+  var actVisit=0, actTel=0, actNew=0, actWon=0, actLastSame=0;
+  var _thisYm = now.getFullYear() + '-' + String(thisMo).padStart(2,'0');
+  var _lm = thisMo - 1, _ly = now.getFullYear(); if (_lm < 1) { _lm = 12; _ly--; }
+  var _lastYm = _ly + '-' + String(_lm).padStart(2,'0');
+  var _dayCut = now.getDate();
+  (D.deals || []).forEach(function(d){
+    if (!scopeDealFilter(d)) return;
+    if (d.originMonth === _thisYm) actNew++;
+    (d.visits || []).forEach(function(v){
+      if (!v || !v.date) return;
+      var ym = String(v.date).slice(0,7), at = v.actType || '';
+      if (ym === _thisYm) {
+        if (at === '受注') actWon++;
+        else if (at.indexOf('電話') >= 0 || at.indexOf('TEL') >= 0) actTel++;
+        else actVisit++;
+      } else if (ym === _lastYm) {
+        var day = parseInt(String(v.date).slice(8,10)) || 99;
+        if (day <= _dayCut && at !== '受注') actLastSame++;
+      }
+    });
+  });
+  var _actThis = actVisit + actTel;
+  var _actDelta = _actThis - actLastSame;
+  html += '<div class="st-sec"><div class="st-label">📞 今月の活動サマリー</div>';
+  html += '<div class="act-grid">';
+  html += '<div class="act-chip"><div class="n">' + actVisit + '</div><div class="l">🚶 訪問</div></div>';
+  html += '<div class="act-chip"><div class="n">' + actTel + '</div><div class="l">📞 TEL</div></div>';
+  html += '<div class="act-chip"><div class="n">' + actNew + '</div><div class="l">✨ 新規</div></div>';
+  html += '<div class="act-chip"><div class="n">' + actWon + '</div><div class="l">🎯 受注</div></div>';
+  html += '</div>';
+  if (_actThis > 0 || actLastSame > 0) {
+    var _dc = _actDelta >= 0 ? 'color:#46562c' : 'color:#7a3a2a';
+    var _ds = _actDelta >= 0 ? '+' : '';
+    html += '<div class="act-note">先月同期比 活動 <b style="' + _dc + '">' + _ds + _actDelta + '件</b>' + (_actDelta >= 0 ? ' 動けています 👍' : '') + '</div>';
   }
   html += '</div>';
 
