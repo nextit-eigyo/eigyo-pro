@@ -6375,13 +6375,13 @@ function renderBudget() {
     var tdS  = document.createElement('td'); tdS.className = 'tc';
     var inS  = document.createElement('input'); inS.type='number'; inS.className='w90'; inS.value=sVal||''; inS.placeholder='0';
     inS.oninput = function() { onInpS.call(this); };
-    inS.onblur  = function() { autoConvertToSenBudget(this); onInpS.call(this); };
+    inS.onblur  = function() { autoConvertToSenBudget(this); onInpS.call(this); _afterBudgetEdit(); };
     inS.onkeydown = budgetTableEnterNav;
     var tdSp = document.createElement('td'); tdSp.className='std';
     var tdP  = document.createElement('td'); tdP.className = 'tc';
     var inP  = document.createElement('input'); inP.type='number'; inP.className='w90'; inP.value=pVal||''; inP.placeholder='0';
     inP.oninput = function() { onInpP.call(this); };
-    inP.onblur  = function() { autoConvertToSenBudget(this); onInpP.call(this); };
+    inP.onblur  = function() { autoConvertToSenBudget(this); onInpP.call(this); _afterBudgetEdit(); };
     inP.onkeydown = budgetTableEnterNav;
     tdS.appendChild(inS); tdP.appendChild(inP);
     tr.appendChild(tdM); tr.appendChild(tdS); tr.appendChild(tdSp); tr.appendChild(tdP);
@@ -6409,6 +6409,15 @@ function setBudget(spId,t,i,v){
   if(!D.budgets[spId])D.budgets[spId]={s:Array(12).fill(''),p:Array(12).fill('')};
   D.budgets[spId][t][i]=v;
   save();
+}
+// 予算の確定編集(onblur)後に、開いている集計画面＋営業ホームのストーリーパネルを再描画する。
+// setBudget/拠点予算は save() のみで render を呼ばないため、予算変更が
+// 営業ホーム等に即反映されず「古い数字のまま」に見える問題への対策。
+// (案件更新の _refreshViewsAfterDealUpdate と同じ画面群を再描画)
+function _afterBudgetEdit(){
+  try {
+    if (typeof _refreshViewsAfterDealUpdate === 'function') _refreshViewsAfterDealUpdate();
+  } catch(e) { console.warn('予算編集後の自動再描画失敗:', e); }
 }
 
 // ===== DEALS =====
@@ -15241,6 +15250,7 @@ function renderBranchBudget(branch) {
       autoConvertToSenBudget(this);
       if (!D.branchBudgets[br]) D.branchBudgets[br]={s:Array(12).fill(''),p:Array(12).fill('')};
       D.branchBudgets[br].s[idx_i]=this.value; save();
+      _afterBudgetEdit();
     };
     var tdSp = document.createElement('td'); tdSp.className='std';
     var tdP = document.createElement('td'); tdP.className='tc';
@@ -15254,6 +15264,7 @@ function renderBranchBudget(branch) {
       autoConvertToSenBudget(this);
       if (!D.branchBudgets[br]) D.branchBudgets[br]={s:Array(12).fill(''),p:Array(12).fill('')};
       D.branchBudgets[br].p[idx_i]=this.value; save();
+      _afterBudgetEdit();
     };
     tdS.appendChild(inS); tdP.appendChild(inP);
     tr.appendChild(tdM); tr.appendChild(tdS); tr.appendChild(tdSp); tr.appendChild(tdP);
