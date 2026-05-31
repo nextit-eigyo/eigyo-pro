@@ -1768,26 +1768,14 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .sa-verdict.ok { background:#e7efd9; border:1px solid #cfdcb5; color:#46562c; }
 #story-panel .sa-verdict b { font-weight:900; }
 #story-panel .sa-verdict .big { font-size:20px; font-weight:900; }
-/* 上期 着地見込み ＆ 必要ペース */
-#story-panel .sa-land-wrap { border-top:1px dashed var(--bd); padding-top:14px; }
-#story-panel .sa-land { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
-#story-panel .sa-land .cap { font-size:12px; color:var(--tx3); }
-#story-panel .sa-land .big { font-size:24px; font-weight:900; line-height:1; color:#7a5a2a; }
-#story-panel .sa-land .big.g { color:#4a5a32; }
-#story-panel .sa-land .big.a { color:#7a5a2a; }
-#story-panel .sa-land .big.r { color:#7a3a2a; }
-#story-panel .sa-land .ach { font-size:12px; font-weight:900; padding:2px 9px; border-radius:999px; background:#f3e6cf; color:#7a5a2a; }
-#story-panel .sa-land .ach.g { background:#e4ecd8; color:#4a5a32; }
-#story-panel .sa-land .ach.a { background:#f3e6cf; color:#7a5a2a; }
-#story-panel .sa-land .ach.r { background:#f6e3df; color:#7a3a2a; }
-#story-panel .sa-landbar { position:relative; height:14px; border-radius:7px; background:#ece6da; overflow:hidden; margin:9px 0; }
-#story-panel .sa-landbar .fill { position:absolute; left:0; top:0; bottom:0; border-radius:7px; background:linear-gradient(90deg,#e0bd7e,#c89856); }
-#story-panel .sa-landbar .fill.g { background:linear-gradient(90deg,#a9c089,#7a8e5a); }
-#story-panel .sa-landbar .fill.r { background:linear-gradient(90deg,#dba99e,#a85a4a); }
-#story-panel .sa-pace { display:flex; align-items:center; gap:11px; margin-top:4px; }
-#story-panel .sa-pace .ic { font-size:20px; flex-shrink:0; }
-#story-panel .sa-pace .t { font-size:13px; line-height:1.6; color:var(--tx2); }
-#story-panel .sa-pace .t b { font-size:17px; font-weight:900; color:var(--acc); }
+/* 🚦 ひとこと信号(上期ゴールの状況を色＋一言で) */
+#story-panel .sa-signal { border-radius:11px; padding:13px 16px; border:1px solid; margin-top:2px; }
+#story-panel .sa-signal .sig-head { font-size:17px; font-weight:900; line-height:1.2; }
+#story-panel .sa-signal .sig-sub { font-size:13px; margin-top:5px; line-height:1.55; }
+#story-panel .sa-signal.g { background:#e7efd9; border-color:#cfdcb5; color:#3f5226; }
+#story-panel .sa-signal.a { background:#fbeed2; border-color:#ecd9a8; color:#7a5a2a; }
+#story-panel .sa-signal.r { background:#f7e1da; border-color:#e6bcae; color:#7a3a2a; }
+#story-panel .sa-signal.n { background:var(--s3); border-color:var(--bd); color:var(--tx3); }
 
 /* ════════════════ MEETING TAB (営業会議レポート) ════════════════ */
 #tab-meeting .meeting-toolbar {
@@ -10583,7 +10571,7 @@ function renderStoryPanel() {
   // 受注済(確度5)は確定側(halfActP)に計上済みのため除外し平均算出のフォールバックにのみ使う。
   var simGoalP = halfBudP;          // 半期 粗利ゴール
   var simFixedP = halfActP;         // 確定(受注済)粗利
-  var simPipeP = 0, simPipeCount = 0, simWonP = 0, simWonCount = 0, simPipeWeightedP = 0;
+  var simPipeP = 0, simPipeCount = 0, simWonP = 0, simWonCount = 0;
   (D.deals || []).forEach(function(d) {
     if (!scopeDealFilter(d)) return;        // スコープ&グループ薬局除外
     if (!d.deliveryMonth) return;
@@ -10593,10 +10581,7 @@ function renderStoryPanel() {
     if (halfMis.indexOf(_dmi) < 0) return;   // 当該半期(上期/下期)外は対象外
     var _gp = (parseFloat(d.sales) || 0) - (parseFloat(d.cost) || 0);
     if (getProb(d) >= 5) { simWonP += _gp; simWonCount++; }            // 受注済(平均算出用)
-    else {
-      simPipeP += (_gp > 0 ? _gp : 0); simPipeCount++;                 // 進行中(未受注)
-      simPipeWeightedP += (_gp > 0 ? _gp : 0) * (getProbDef(getProb(d)).weight / 100); // 確度加重(着地見込み用)
-    }
+    else { simPipeP += (_gp > 0 ? _gp : 0); simPipeCount++; }          // 進行中(未受注)
   });
   var simProjP = simFixedP + simPipeP;                       // 全部受注したら(単純合計)
   var simAchievable = (simGoalP > 0) && (simProjP >= simGoalP);
@@ -10666,28 +10651,23 @@ function renderStoryPanel() {
   }
   html += '</div>'; // close .sa-pipe
 
-  // ── 上期 着地見込み(確度加重) ＆ 必要ペース ──
-  if (simGoalP > 0) {
-    var _landP = simFixedP + simPipeWeightedP;            // 確定 + 進行中の確度加重見込み
-    var _landAch = simGoalP > 0 ? (_landP / simGoalP * 100) : 0;
-    var _landCls = _landAch >= 100 ? 'g' : (_landAch >= 80 ? 'a' : 'r');
-    var _remainMonths = halfMis.filter(function(mi){ return mi > thisMi; }).length;
-    var _gapToGoal = Math.max(0, simGoalP - simFixedP);
-    html += '<div class="sa-land-wrap">';
-    html += '<div class="sa-pipe-ttl">📉 ' + halfLbl + ' 着地見込み（確度加重）</div>';
-    html += '<div class="sa-land"><span class="cap">このままだと</span><span class="big ' + _landCls + '">' + Math.round(_landP).toLocaleString() + '千</span><span class="ach ' + _landCls + '">達成率 ' + _landAch.toFixed(0) + '%</span><span class="cap">で着地</span></div>';
-    html += '<div class="sa-landbar"><div class="fill ' + _landCls + '" style="width:' + Math.min(100, _landAch).toFixed(0) + '%"></div></div>';
-    html += '<div class="sa-pace">';
-    if (_gapToGoal <= 0) {
-      html += '<span class="ic">🎉</span><span class="t"><b>確定だけで' + halfLbl + 'ゴール達成！</b></span>';
-    } else if (_remainMonths > 0) {
-      html += '<span class="ic">⏳</span><span class="t">' + halfLbl + '残り <b>' + _remainMonths + 'ヶ月</b> / 達成には月あたり <b>' + Math.round(_gapToGoal / _remainMonths).toLocaleString() + '千</b> の粗利が必要</span>';
-    } else {
-      html += '<span class="ic">⏳</span><span class="t">今月が' + halfLbl + '最終月。達成まであと <b>' + Math.round(_gapToGoal).toLocaleString() + '千</b></span>';
-    }
-    html += '</div>';
-    html += '</div>'; // close .sa-land-wrap
+  // ── 🚦 ひとこと信号 — 上期ゴールの状況を「色＋一言」で瞬時に判断 ──
+  // ゴール系の数字を増やさず、シミュレーションの結論だけを信号で提示する。
+  var sigCls, sigLabel, sigSub;
+  if (simGoalP <= 0) {
+    sigCls = 'n'; sigLabel = '⚪ 予算未設定';
+    sigSub = '設定→予算 で' + halfLbl + '目標を入力してください';
+  } else if (simFixedP >= simGoalP) {
+    sigCls = 'g'; sigLabel = '🟢 順調';
+    sigSub = '確定だけで' + halfLbl + 'ゴール達成 🎉 さらに上積みを';
+  } else if (simShort > 0) {
+    sigCls = 'r'; sigLabel = '🔴 危険';
+    sigSub = '今の案件を全部受注しても不足。新規の仕込みを急いで' + (simNeed ? '（あと' + simNeed + '件で到達）' : '');
+  } else {
+    sigCls = 'a'; sigLabel = '🟡 要加速';
+    sigSub = '今ある案件を確実に受注すれば届く。確度を上げて詰めを';
   }
+  html += '<div class="sa-signal ' + sigCls + '"><div class="sig-head">' + sigLabel + '</div><div class="sig-sub">' + sigSub + '</div></div>';
 
   html += '</div>'; // close .story-aside
   html += '</div>'; // close .story-main
