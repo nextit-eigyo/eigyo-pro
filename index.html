@@ -1975,19 +1975,23 @@ body.has-sidepanel #home-deal-mode {
 <div id="hdr">
   <div id="logo" onclick="showTab('deals',document.getElementById('tab-deals-btn'));if(typeof setHomeMode==='function')setHomeMode('num')" title="営業ホーム(数字モード)に戻る">EIGYO<em>PRO</em></div>
   <div class="htabs" id="main-tabs">
-    <!-- トップグループ: ☰メニューのみ(営業ホーム/KPTはロゴクリック、設定は☰メニュー内+パスワード保護) -->
+    <!-- 隠しタブ(他コードからのプログラム参照用に保持。display:none) -->
     <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)" style="display:none">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
     <button class="htab" id="tab-setup-btn" onclick="showTab('setup',this)" style="display:none">⚙ 設定</button>
-    <!-- 隠しタブ(他コードからのプログラム参照用に保持) -->
     <button class="htab" id="tab-db-btn" onclick="showTab('dashboard',this)" style="display:none">📊 ダッシュボード</button>
     <button class="htab" id="tab-actions-btn" onclick="showTab('actions',this)" style="display:none">✅ アクション</button>
     <button class="htab" id="tab-actuals-btn" onclick="showTab('actuals',this)" style="display:none">📈 実績確認</button>
     <button class="htab" id="tab-kpt-btn"     onclick="showTab('kpt',this);renderKPT()" style="display:none">📝 KPT</button>
     <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)" style="display:none">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
-    <!-- 📊 レポート ドロップダウン (競合分析/月次レポート/月末振り返りシート) -->
-    <div style="position:relative">
-      <button class="htab" id="tab-reportmenu-btn" onclick="toggleReportMenu(this)" style="gap:5px;font-size:12px">📊 <span style="font-weight:600">レポート</span> <span style="font-size:11px;opacity:.6">▼</span></button>
-    </div>
+    <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
+    <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
+    <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()">🎯 案件</button>
+    <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
+    <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
+    <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
+    <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
+    <button id="tab-reportmenu-btn" class="sub-tab" onclick="toggleReportMenu(this)" style="gap:6px">📊 レポート <span style="font-size:11px;opacity:.6">▼</span></button>
+    <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
   </div>
   <div id="hdr-r">
     <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
@@ -2012,16 +2016,7 @@ body.has-sidepanel #home-deal-mode {
   </div>
 </div>
 
-<!-- ════════ 営業ホーム配下のサブタブバー(設定中は非表示) ════════ -->
-<div id="sub-tab-bar" class="sub-tab-bar">
-  <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
-  <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()">🎯 案件</button>
-  <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
-  <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
-  <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
-  <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
-  <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
-</div>
+<!-- メインナビ(数字〜KPT)はヘッダー(#main-tabs)に統合済み。旧サブタブバーは廃止。 -->
 
 <!-- ════════ TOAST NOTIFICATIONS ════════ -->
 <div id="toast-wrap"></div>
@@ -10359,8 +10354,8 @@ function _syncTopGroupUI(name) {
   if (setupBtn) setupBtn.classList[isSetup ? 'add' : 'remove']('active');
   if (homeBtn)  homeBtn.classList[isSetup ? 'remove' : 'add']('active');
 
-  var subBar = document.getElementById('sub-tab-bar');
-  if (subBar) subBar.style.display = isSetup ? 'none' : 'flex';
+  // メインナビ(数字〜KPT)はヘッダー(#main-tabs)に統合。各タブのアクティブ状態を一旦クリア。
+  document.querySelectorAll('#main-tabs .sub-tab').forEach(function(b){ b.classList.remove('active'); });
 
   var subBtnMap = {
     actuals: 'subtab-actuals',
@@ -16104,8 +16099,8 @@ function setHomeMode(mode) {
     // 案件モード時はストーリーパネル非表示
     if (typeof _hideStoryPanel === 'function') _hideStoryPanel();
   }
-  // サブタブのアクティブ状態を更新(案件モード or 数字モード)
-  document.querySelectorAll('#sub-tab-bar .sub-tab').forEach(function(b){ b.classList.remove('active'); });
+  // サブタブのアクティブ状態を更新(案件モード or 数字モード) ※ヘッダー(#main-tabs)に統合済み
+  document.querySelectorAll('#main-tabs .sub-tab').forEach(function(b){ b.classList.remove('active'); });
   var subBtn = document.getElementById(isNum ? 'subtab-num' : 'subtab-deal');
   if (subBtn) subBtn.classList.add('active');
 }
