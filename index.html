@@ -938,7 +938,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
   background:linear-gradient(180deg, var(--s2) 0%, var(--s1) 100%);
   border-bottom:2px solid var(--bd);
   align-items:center;flex-wrap:wrap;
-  position:sticky;top:0;z-index:10;
+  position:sticky;top:var(--nav);z-index:150;
   box-shadow:0 2px 6px rgba(58,90,126,.04);
 }
 .sub-tab{
@@ -1984,11 +1984,6 @@ body.has-sidepanel #home-deal-mode {
     <button class="htab" id="tab-actuals-btn" onclick="showTab('actuals',this)" style="display:none">📈 実績確認</button>
     <button class="htab" id="tab-kpt-btn"     onclick="showTab('kpt',this);renderKPT()" style="display:none">📝 KPT</button>
     <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)" style="display:none">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
-    <!-- その他メニュー(設定 等) -->
-    <div style="position:relative">
-      <button class="htab" id="tab-more-btn" onclick="toggleMoreMenu(this)" style="gap:4px;opacity:.7">☰ <span style="font-size:11px">▼</span></button>
-      <div id="more-menu-placeholder" style="display:none"></div>
-    </div>
     <!-- 📊 レポート ドロップダウン (競合分析/月次レポート/月末振り返りシート) -->
     <div style="position:relative">
       <button class="htab" id="tab-reportmenu-btn" onclick="toggleReportMenu(this)" style="gap:5px;font-size:12px">📊 <span style="font-weight:600">レポート</span> <span style="font-size:11px;opacity:.6">▼</span></button>
@@ -2008,6 +2003,7 @@ body.has-sidepanel #home-deal-mode {
       </div>
     </div>
     <input type="file" id="import-json-file" accept=".json" style="display:none" onchange="importFromFile(this)">
+    <button class="data-btn" id="tab-setup-hdr-btn" onclick="showTab('setup',document.getElementById('tab-setup-btn'))" title="設定（パスワード保護）">🔒 設定</button>
     <button id="sync-wrap" onclick="showTab('setup',document.getElementById('tab-setup-btn'));showCfgTab('sync',document.getElementById('cfg-tab-sync'))" title="同期設定">
       <div class="sdot" id="sdot-hdr" style="width:6px;height:6px;border-radius:50%;background:var(--tx3);flex-shrink:0;transition:background .3s"></div>
       <span id="slabel-hdr" style="font-size:11px">同期設定</span>
