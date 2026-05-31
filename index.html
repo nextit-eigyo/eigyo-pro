@@ -1736,6 +1736,30 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .sa-sum { font-size:12px; color:var(--tx2); margin-top:4px; }
 #story-panel .sa-sum b { color:var(--tx); font-weight:900; }
 #story-panel .sa-empty { font-size:12px; color:var(--tx3); padding:10px 0; line-height:1.7; }
+/* 上期達成シミュレーション(粗利) */
+#story-panel .sa-sim-head { display:flex; align-items:baseline; gap:8px; margin-bottom:9px; flex-wrap:wrap; }
+#story-panel .sa-sim-head .t { font-size:13px; font-weight:900; }
+#story-panel .sa-sim-head .g { font-size:12px; color:var(--tx3); font-weight:700; margin-left:auto; }
+#story-panel .sa-sim-head .ach { font-size:12px; font-weight:900; color:var(--acc); background:rgba(90,123,158,.1); padding:2px 9px; border-radius:999px; }
+#story-panel .sa-bar { position:relative; height:26px; border-radius:8px; background:#ece6da; overflow:hidden; display:flex; margin-bottom:6px; }
+#story-panel .sa-seg { height:100%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; }
+#story-panel .sa-seg.fixed { background:linear-gradient(180deg,#8ba06d,#7a8e5a); }
+#story-panel .sa-seg.pipe { background:linear-gradient(180deg,#dcb673,#c89856); }
+#story-panel .sa-seg.gap { background:repeating-linear-gradient(45deg,#efe2dd,#efe2dd 6px,#e7d3cd 6px,#e7d3cd 12px); color:#a85a4a; }
+#story-panel .sa-goalmark { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--tx); }
+#story-panel .sa-leg { display:flex; gap:12px; font-size:11px; color:var(--tx2); margin-bottom:10px; flex-wrap:wrap; }
+#story-panel .sa-leg i { display:inline-block; width:10px; height:10px; border-radius:3px; vertical-align:-1px; margin-right:3px; }
+#story-panel .sa-leg i.f { background:#7a8e5a; }
+#story-panel .sa-leg i.p { background:#c89856; }
+#story-panel .sa-leg i.x { background:#e7d3cd; }
+#story-panel .sa-rows { font-size:12px; margin-bottom:10px; }
+#story-panel .sa-r { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dotted var(--bd); gap:8px; }
+#story-panel .sa-r:last-child { border-bottom:none; }
+#story-panel .sa-r .v { font-weight:900; white-space:nowrap; }
+#story-panel .sa-verdict { border-radius:10px; padding:10px 13px; font-size:13px; line-height:1.6; }
+#story-panel .sa-verdict.ng { background:#f7e7e2; border:1px solid #e9c9c0; color:#7a3a2a; }
+#story-panel .sa-verdict.ok { background:#e7efd9; border:1px solid #cfdcb5; color:#46562c; }
+#story-panel .sa-verdict b { font-weight:900; }
 
 /* ════════════════ MEETING TAB (営業会議レポート) ════════════════ */
 #tab-meeting .meeting-toolbar {
@@ -10287,23 +10311,63 @@ function renderStoryPanel() {
 
   html += '</div>'; // close .story-text
 
-  // ── 右カラム: 粗利ゴールゲージ + 翌月パイプライン ──
+  // ── 右カラム: 上期達成シミュレーション(粗利) + 翌月パイプライン ──
+  // 進行中(当該半期に計上予定・未受注=確度1〜4)の想定粗利を集計。
+  // 受注済(確度5)は確定側(halfActP)に計上済みのため除外し平均算出のフォールバックにのみ使う。
+  var simGoalP = halfBudP;          // 半期 粗利ゴール
+  var simFixedP = halfActP;         // 確定(受注済)粗利
+  var simPipeP = 0, simPipeCount = 0, simWonP = 0, simWonCount = 0;
+  (D.deals || []).forEach(function(d) {
+    if (!scopeDealFilter(d)) return;        // スコープ&グループ薬局除外
+    if (!d.deliveryMonth) return;
+    var _dm = parseInt(String(d.deliveryMonth).split('-')[1]);
+    if (isNaN(_dm)) return;
+    var _dmi = _dm >= 4 ? _dm - 4 : _dm + 8; // 月→mi(0=4月)
+    if (halfMis.indexOf(_dmi) < 0) return;   // 当該半期(上期/下期)外は対象外
+    var _gp = (parseFloat(d.sales) || 0) - (parseFloat(d.cost) || 0);
+    if (getProb(d) >= 5) { simWonP += _gp; simWonCount++; }            // 受注済(平均算出用)
+    else { simPipeP += (_gp > 0 ? _gp : 0); simPipeCount++; }          // 進行中(未受注)
+  });
+  var simProjP = simFixedP + simPipeP;                       // 全部受注したら(単純合計)
+  var simAchievable = (simGoalP > 0) && (simProjP >= simGoalP);
+  var simShort = Math.max(0, simGoalP - simProjP);
+  var simSurplus = Math.max(0, simProjP - simGoalP);
+  var simAvg = simPipeCount > 0 ? (simPipeP / simPipeCount)
+             : (simWonCount > 0 ? (simWonP / simWonCount) : 0);
+  var simNeed = (simShort > 0 && simAvg > 0) ? Math.ceil(simShort / simAvg) : null;
+  var simBase = Math.max(simGoalP, simProjP, 1);
+  var _wFixed = Math.round(simFixedP / simBase * 100);
+  var _wPipe  = Math.round(simPipeP / simBase * 100);
+  var _wGap   = Math.max(0, 100 - _wFixed - _wPipe);
+  var _goalPct = Math.min(100, Math.round(simGoalP / simBase * 100));
+
   html += '<div class="story-aside">';
-  // 粗利ゴールゲージ(半期)
-  var _gCls = halfAchP >= 100 ? 'g' : (halfAchP >= 80 ? 'a' : 'r');
-  html += '<div class="sa-gauge">';
-  html += '<div class="sa-gauge-pct ' + _gCls + '">' + halfAchP.toFixed(0) + '%</div>';
-  html += '<div class="sa-gauge-body">';
-  html += '<div class="sa-cap">' + halfLbl + ' 粗利ゴール</div>';
-  html += '<div class="sa-track"><div class="sa-fill ' + _gCls + '" style="width:' + Math.min(100, halfAchP).toFixed(0) + '%"></div></div>';
-  if (halfBudP <= 0) {
-    html += '<div class="sa-rest" style="color:var(--tx3)">粗利予算 未設定</div>';
-  } else if (halfGapP > 0) {
-    html += '<div class="sa-rest">ゴールまで あと <b>' + Math.round(halfGapP).toLocaleString() + '千</b></div>';
+  html += '<div class="sa-sim">';
+  html += '<div class="sa-sim-head"><span class="t">🎯 ' + halfLbl + ' 粗利ゴール</span><span class="g">' + Math.round(simGoalP).toLocaleString() + '千</span><span class="ach">確定 ' + halfAchP.toFixed(0) + '%</span></div>';
+  if (simGoalP <= 0) {
+    html += '<div class="sa-empty">粗利予算が未設定です。設定→予算 で入力してください。</div>';
   } else {
-    html += '<div class="sa-rest ok">🎉 粗利ゴール達成！</div>';
+    html += '<div class="sa-bar">';
+    if (_wFixed > 0) html += '<div class="sa-seg fixed" style="width:' + _wFixed + '%">' + (_wFixed >= 14 ? '確定 ' + Math.round(simFixedP).toLocaleString() : '') + '</div>';
+    if (_wPipe > 0)  html += '<div class="sa-seg pipe" style="width:' + _wPipe + '%">' + (_wPipe >= 14 ? '進行中 +' + Math.round(simPipeP).toLocaleString() : '') + '</div>';
+    if (!simAchievable && _wGap > 0) html += '<div class="sa-seg gap" style="width:' + _wGap + '%">' + (_wGap >= 14 ? '不足 ' + Math.round(simShort).toLocaleString() : '') + '</div>';
+    html += '<div class="sa-goalmark" style="left:' + _goalPct + '%"></div>';
+    html += '</div>';
+    html += '<div class="sa-leg"><span><i class="f"></i>確定</span><span><i class="p"></i>進行中(全部受注)</span>' + (!simAchievable ? '<span><i class="x"></i>不足</span>' : '') + '<span>┃ゴール</span></div>';
+    html += '<div class="sa-rows">';
+    html += '<div class="sa-r"><span>✅ 確定(受注済)</span><span class="v">' + Math.round(simFixedP).toLocaleString() + '千</span></div>';
+    html += '<div class="sa-r"><span>🔵 進行中を全部受注すると</span><span class="v">+' + Math.round(simPipeP).toLocaleString() + '千 → 計 ' + Math.round(simProjP).toLocaleString() + '千</span></div>';
+    html += '</div>';
+    if (simAchievable) {
+      html += '<div class="sa-verdict ok">🎉 <b>動いている案件を全部受注すれば' + halfLbl + '達成！</b><br>ゴール超過の余裕は <b>+' + Math.round(simSurplus).toLocaleString() + '千</b>。取りこぼさず確実に受注を。</div>';
+    } else {
+      html += '<div class="sa-verdict ng">⚠ 全部受注しても <b>あと ' + Math.round(simShort).toLocaleString() + '千</b> 不足。';
+      if (simNeed) html += '<br>→ 平均 <b>' + Math.round(simAvg).toLocaleString() + '千</b> の案件が <b>あと' + simNeed + '件</b> 必要。';
+      else html += '<br>新規の仕込みが必要です 🌱';
+      html += '</div>';
+    }
   }
-  html += '</div></div>';
+  html += '</div>'; // close .sa-sim
   // 翌月パイプライン(確度順)
   html += '<div class="sa-pipe">';
   html += '<div class="sa-pipe-ttl">' + nextMoLabelStr + 'の仕込み（確度順）</div>';
