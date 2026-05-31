@@ -2424,6 +2424,7 @@ body.has-sidepanel #home-deal-mode {
     <button class="cfg-tab"        id="cfg-tab-sync"   onclick="showCfgTab('sync',this)">☁ 同期</button>
     <button class="cfg-tab"        id="cfg-tab-integrity" onclick="showCfgTab('integrity',this);renderIntegrityCheck()">🔧 整合性チェック</button>
     <button class="cfg-tab"        id="cfg-tab-datamgmt"  onclick="showCfgTab('datamgmt',this)">💾 データ管理</button>
+    <button class="cfg-tab"        id="cfg-tab-auditlog"  onclick="showCfgTab('auditlog',this)">📜 操作ログ</button>
   </div>
 
   <!-- 担当者 -->
@@ -2886,6 +2887,31 @@ body.has-sidepanel #home-deal-mode {
           <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">全データを削除して初期化(危険)</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- 📜 操作ログ(監査ログ) -->
+  <div id="cfg-auditlog" class="cfg-section">
+    <div class="card" style="max-width:1100px">
+      <div class="card-title" style="margin-bottom:6px">📜 操作ログ（誰が・いつ・何を 追加/編集/削除したか）</div>
+      <div style="font-size:12px;color:var(--tx3);line-height:1.6;margin-bottom:12px">
+        案件の<strong>追加・編集・削除</strong>を記録します（最大3000件 / 180日保持）。<br>
+        Firebase同期で<strong>全PC共有・サーバ保管</strong>されるため、運用監査や万一の確認に使えます。<br>
+        ※ 削除した案件は内容を保持しているので、<strong>「↩ 復元」</strong>で個別に元に戻せます。
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <input id="audit-q" type="text" class="fi" placeholder="🔍 薬局名・担当者で検索" style="width:220px;font-size:12px;padding:7px 10px" oninput="renderAuditLog()">
+        <select id="audit-action" class="fs" style="width:auto;font-size:12px;padding:7px 10px" onchange="renderAuditLog()">
+          <option value="">すべての操作</option>
+          <option value="add">追加</option>
+          <option value="edit">編集</option>
+          <option value="delete">削除</option>
+        </select>
+        <select id="audit-user" class="fs" style="width:auto;font-size:12px;padding:7px 10px" onchange="renderAuditLog()"><option value="">すべての操作者</option></select>
+        <button class="btn" onclick="renderAuditLog()" style="padding:7px 14px;font-size:12px;font-weight:700">🔄 更新</button>
+        <button class="btn" onclick="exportAuditLogCsv()" style="padding:7px 14px;font-size:12px;font-weight:700">⬇ CSV出力</button>
+      </div>
+      <div id="auditlog-body"></div>
     </div>
   </div>
 </div>
@@ -3815,6 +3841,7 @@ function showCfgTab(name, btn) {
     else if (name === 'tpl')      { renderCfgTplList(); }
     else if (name === 'sync')     renderSyncPanel();
     else if (name === 'datamgmt') { if (typeof renderAutoBackupList === 'function') renderAutoBackupList(); }
+    else if (name === 'auditlog') { if (typeof renderAuditLog === 'function') renderAuditLog(); }
   } catch(e) {
     console.error('showCfgTab [' + name + ']:', e);
   }
@@ -7327,6 +7354,174 @@ function renderPipeline(deals) {
 }
 
 
+// ════════════════ 操作ログ(監査ログ) ════════════════
+// 「誰が・いつ・何を 追加/編集/削除したか」を D.auditLog に記録。
+// D の一部なので localStorage + Firebase 同期に自動的に乗る(全PC共有・サーバ保管)。
+// 万一のデータ消失時のリカバリ(削除案件はスナップショット保持)・運用監査に使う。
+var AUDIT_MAX = 3000;   // 最大保持件数
+var AUDIT_DAYS = 180;   // 最大保持日数
+var AUDIT_FIELD_LABEL = {
+  name:'薬局名', sales:'売上', cost:'原価', deliveryMonth:'計上月', activationMonth:'稼働月',
+  phase:'フェーズ', probability:'確度', spId:'担当者', pref:'都道府県', category:'区分',
+  dealType:'案件種別', route:'ルート', routeRef:'紹介元', memo:'メモ', resecon:'現レセコン'
+};
+function _auditUser(){
+  try {
+    var id = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
+    var p = id && (D.people||[]).find(function(x){ return x.id === id; });
+    if (p && p.name) return p.name;
+    if (typeof currentUserRole === 'object' && currentUserRole && currentUserRole.name) return currentUserRole.name;
+  } catch(e){}
+  return '不明';
+}
+function _auditFmtTs(ms){
+  var d = new Date(ms); function z(n){ return (n<10?'0':'')+n; }
+  return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes());
+}
+function _auditShort(v){
+  if (v === undefined || v === null || v === '') return '(空)';
+  v = String(v);
+  return v.length > 40 ? v.slice(0,40)+'…' : v;
+}
+function _auditTrim(){
+  if (!D.auditLog) return;
+  var cutoff = Date.now() - AUDIT_DAYS*24*60*60*1000;
+  D.auditLog = D.auditLog.filter(function(e){ return (e._tms||0) >= cutoff; });
+  if (D.auditLog.length > AUDIT_MAX) D.auditLog = D.auditLog.slice(D.auditLog.length - AUDIT_MAX);
+}
+// ログ追加(保存は呼び出し元の save() に任せる=二重書き込み回避)
+function _auditPush(entry){
+  if (!D.auditLog) D.auditLog = [];
+  var now = Date.now();
+  entry._tms = now;
+  entry.ts = _auditFmtTs(now);
+  entry.user = _auditUser();
+  D.auditLog.push(entry);
+  _auditTrim();
+}
+// ※ ログ処理の失敗が本体操作(追加/編集/削除)を絶対に壊さないよう全て try/catch で保護
+function _auditDealAdd(d, note){
+  try {
+    if (!d) return;
+    _auditPush({ action:'add', entityType:'deal', entityId:d.id, entityName:(d.name||'(無名)'), note:(note||'') });
+  } catch(e){ console.warn('操作ログ(add)失敗:', e); }
+}
+function _auditDealDelete(d){
+  try {
+    if (!d) return;
+    // 削除前の案件まるごとをスナップショット保持(リカバリ用)
+    var snap = ''; try { snap = JSON.stringify(d); } catch(e){}
+    _auditPush({ action:'delete', entityType:'deal', entityId:d.id, entityName:(d.name||'(無名)'), snapshot:snap });
+  } catch(e){ console.warn('操作ログ(delete)失敗:', e); }
+}
+// 編集ログ(同一ユーザー・同一案件・同一項目への連続入力は8秒以内なら1件にまとめる)
+function _auditDealEdit(d, field, oldVal, newVal){
+  try {
+    if (!d) return;
+    var ov = (oldVal==null?'':String(oldVal)), nv = (newVal==null?'':String(newVal));
+    if (ov === nv) return; // 変化なしは記録しない
+    if (!D.auditLog) D.auditLog = [];
+    var now = Date.now(), user = _auditUser();
+    var last = D.auditLog[D.auditLog.length-1];
+    if (last && last.action==='edit' && last.entityId===d.id && last.field===field && last.user===user && (now-(last._tms||0))<8000){
+      last.newVal = _auditShort(newVal); last._tms = now; last.ts = _auditFmtTs(now);
+      _auditTrim(); return;
+    }
+    _auditPush({ action:'edit', entityType:'deal', entityId:d.id, entityName:(d.name||'(無名)'),
+      field:field, fieldLabel:(AUDIT_FIELD_LABEL[field]||field), oldVal:_auditShort(oldVal), newVal:_auditShort(newVal) });
+  } catch(e){ console.warn('操作ログ(edit)失敗:', e); }
+}
+
+// 操作ログ ビューア(設定→その他→操作ログ)
+function renderAuditLog(){
+  var body = document.getElementById('auditlog-body');
+  if (!body) return;
+  if (!D.auditLog) D.auditLog = [];
+  // 操作者フィルタの選択肢を更新
+  var usel = document.getElementById('audit-user');
+  if (usel) {
+    var cur = usel.value, users = {};
+    D.auditLog.forEach(function(e){ if (e.user) users[e.user] = 1; });
+    var opts = '<option value="">すべての操作者</option>';
+    Object.keys(users).sort().forEach(function(u){ opts += '<option value="'+_esc(u)+'"'+(u===cur?' selected':'')+'>'+_esc(u)+'</option>'; });
+    usel.innerHTML = opts;
+  }
+  var q  = ((document.getElementById('audit-q')||{}).value || '').trim().toLowerCase();
+  var fa = (document.getElementById('audit-action')||{}).value || '';
+  var fu = (document.getElementById('audit-user')||{}).value || '';
+  var rows = D.auditLog.filter(function(e){
+    if (fa && e.action !== fa) return false;
+    if (fu && e.user !== fu) return false;
+    if (q) {
+      var hay = ((e.entityName||'')+' '+(e.user||'')+' '+(e.fieldLabel||'')).toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  }).slice().reverse(); // 新しい順
+  var total = D.auditLog.length;
+  if (rows.length === 0) {
+    body.innerHTML = '<div class="empty" style="padding:20px;color:var(--tx3)">該当するログがありません（記録 '+total+'件）</div>';
+    return;
+  }
+  var actMap = { add:{t:'追加',c:'#4a5a32',bg:'#e0e9d3'}, edit:{t:'編集',c:'#7a5a2a',bg:'#fde6c5'}, delete:{t:'削除',c:'#7a3a2a',bg:'#f5d5cc'} };
+  var h = '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">表示 '+rows.length+'件 / 記録 '+total+'件（最大'+AUDIT_MAX+'件・'+AUDIT_DAYS+'日保持）</div>';
+  h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  h += '<thead><tr style="text-align:left;color:var(--tx3);border-bottom:2px solid var(--bd)">'
+     + '<th style="padding:6px 8px;white-space:nowrap">日時</th><th style="padding:6px 8px">操作者</th><th style="padding:6px 8px">操作</th><th style="padding:6px 8px">対象</th><th style="padding:6px 8px">内容</th></tr></thead><tbody>';
+  rows.forEach(function(e){
+    var a = actMap[e.action] || {t:e.action,c:'var(--tx2)',bg:'var(--s3)'};
+    var content = '';
+    if (e.action === 'edit') content = '<b>'+_esc(e.fieldLabel||e.field||'')+'</b>： '+_esc(e.oldVal)+' → <b>'+_esc(e.newVal)+'</b>';
+    else if (e.action === 'add') content = e.note ? _esc(e.note) : '新規作成';
+    else if (e.action === 'delete') {
+      var gi = D.auditLog.indexOf(e);
+      content = '<span style="color:var(--red);font-weight:700">案件を削除</span>' + (e.snapshot ? ' <button class="btn sm" style="padding:2px 9px;font-size:11px" onclick="_auditRestoreDeal('+gi+')">↩ 復元</button>' : '');
+    }
+    h += '<tr style="border-bottom:1px solid var(--bds)">'
+       + '<td style="padding:6px 8px;white-space:nowrap;color:var(--tx3)">'+_esc(e.ts||'')+'</td>'
+       + '<td style="padding:6px 8px;white-space:nowrap;font-weight:700">'+_esc(e.user||'')+'</td>'
+       + '<td style="padding:6px 8px"><span style="background:'+a.bg+';color:'+a.c+';padding:2px 8px;border-radius:6px;font-weight:700;white-space:nowrap">'+a.t+'</span></td>'
+       + '<td style="padding:6px 8px;font-weight:700">'+_esc(e.entityName||'')+'</td>'
+       + '<td style="padding:6px 8px;color:var(--tx2)">'+content+'</td>'
+       + '</tr>';
+  });
+  h += '</tbody></table></div>';
+  body.innerHTML = h;
+}
+// 削除した案件をスナップショットから復元
+function _auditRestoreDeal(globalIdx){
+  var e = D.auditLog && D.auditLog[globalIdx];
+  if (!e || e.action !== 'delete' || !e.snapshot) { alert('復元データがありません'); return; }
+  var deal; try { deal = JSON.parse(e.snapshot); } catch(err){ alert('復元データの読み込みに失敗しました'); return; }
+  if (!deal || !deal.id) { alert('復元データが不正です'); return; }
+  if ((D.deals||[]).some(function(d){ return d.id === deal.id; })) { alert('同じIDの案件が既に存在します（復元済みの可能性）'); return; }
+  if (!confirm('案件「'+(deal.name||'(無名)')+'」を復元しますか？')) return;
+  if (typeof _autoBackup === 'function') _autoBackup('before_audit_restore');
+  if (!D.deals) D.deals = [];
+  D.deals.unshift(deal);
+  _auditPush({ action:'add', entityType:'deal', entityId:deal.id, entityName:(deal.name||'(無名)'), note:'操作ログから復元' });
+  save();
+  if (typeof renderDeals === 'function') renderDeals();
+  renderAuditLog();
+  if (typeof _showToast === 'function') _showToast('↩ 案件を復元しました', 'ok', 3000);
+}
+// 操作ログ CSV 出力
+function exportAuditLogCsv(){
+  if (!D.auditLog || !D.auditLog.length) { alert('ログがありません'); return; }
+  var amap = { add:'追加', edit:'編集', delete:'削除' };
+  var rows = [['日時','操作者','操作','対象','項目','変更前','変更後','備考']];
+  D.auditLog.slice().reverse().forEach(function(e){
+    rows.push([e.ts||'', e.user||'', amap[e.action]||e.action||'', e.entityName||'', e.fieldLabel||e.field||'', e.oldVal||'', e.newVal||'', e.note||(e.action==='delete'?'削除(復元可)':'')]);
+  });
+  var csv = rows.map(function(r){ return r.map(function(c){ c=String(c); return '"'+c.replace(/"/g,'""')+'"'; }).join(','); }).join('\r\n');
+  var blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = '操作ログ_'+_auditFmtTs(Date.now()).replace(/[: ]/g,'-')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
 function addDeal(){
   const people=ap();if(!people.length){alert('先に担当者名を登録してください');return}
   const id=uid();
@@ -7337,6 +7532,7 @@ function addDeal(){
   else if(cdSp===HANBAI_TAB){spId=people[0].id;category='販売店';}
   else{spId=people[Math.min(cdSp,people.length-1)].id;category='直販';}
   D.deals.push({id,spId,name:'',pref:'',deliveryMonth:'',activationMonth:'',originMonth,sales:'',cost:'',memo:'',category,visits:[]});
+  if(typeof _auditDealAdd==='function')_auditDealAdd(D.deals[D.deals.length-1],'クイック追加');
   save();renderDeals();
   setTimeout(()=>{
     setDealView('list');
@@ -7584,6 +7780,8 @@ function delVisit(dealId,idx){
 
 function delDeal(id){
   if(!confirm('この案件を削除しますか？'))return;
+  var _del=(D.deals||[]).find(d=>d.id===id);
+  if(_del && typeof _auditDealDelete==='function')_auditDealDelete(_del);
   D.deals=D.deals.filter(d=>d.id!==id);save();renderDeals();
 }
 
@@ -10987,6 +11185,7 @@ function cloneDeal(id) {
     deliveryMonth: '', activationMonth: '', nextAction: ''
   });
   D.deals.push(clone);
+  if(typeof _auditDealAdd==='function')_auditDealAdd(clone,'複製');
   save(); renderDeals();
   setTimeout(() => {
     setDealView('list');
@@ -13297,6 +13496,8 @@ function _refreshViewsAfterDealUpdate() {
 function updDeal(id, field, val) {
   const d = (D.deals||[]).find(x => x.id === id);
   if (!d) return;
+  // 操作ログ(編集): 変更前の値を記録(同一項目の連続入力は内部でまとめる)
+  if (typeof _auditDealEdit === 'function') _auditDealEdit(d, field, d[field], val);
 
   if (field === 'spId') {
     const people = ap();
@@ -14269,6 +14470,7 @@ function openAddDealAsSidepanel() {
   };
   if (!D.deals) D.deals = [];
   D.deals.unshift(newDeal);
+  if(typeof _auditDealAdd==='function')_auditDealAdd(newDeal);
   if (typeof save === 'function') save();
 
   // 新規案件のデフォルトタブを「基本情報」に設定(既存案件は'next'がデフォルト)
@@ -14482,6 +14684,7 @@ function doAddDeal() {
   };
   if (!D.deals) D.deals = [];
   D.deals.unshift(newDeal); // 先頭に追加
+  if(typeof _auditDealAdd==='function')_auditDealAdd(newDeal);
   save();
   document.getElementById('add-deal-modal').style.display = 'none';
 
