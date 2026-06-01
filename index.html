@@ -11212,7 +11212,8 @@ function renderStoryPanel() {
   var _dayCut = now.getDate();
   (D.deals || []).forEach(function(d){
     if (!scopeDealFilter(d)) return;
-    if (d.originMonth === _thisYm) actNew++;
+    // 新規件数: 販売店は除外(営業会議の新規軒数と同じ扱い。グループ薬局はscopeDealFilterで既に除外)
+    if (d.originMonth === _thisYm && d.category !== '販売店') actNew++;
     (d.visits || []).forEach(function(v){
       if (!v || !v.date) return;
       var ym = String(v.date).slice(0,7), at = v.actType || '';
