@@ -1953,6 +1953,49 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-ru-cell .val { font-size:20px; font-weight:900; color:var(--acc); }
 #tab-meeting .mt-ru-cell .val .u { font-size:11px; color:var(--tx3); margin-left:2px; font-weight:700; }
 #tab-meeting .dim { color:var(--tx3); }
+
+/* ════ 実績確認 2カラム合体(案3): 右=案件明細パネル ════ */
+.ac-2col{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(300px,.82fr);gap:16px;align-items:start}
+@media(max-width:1000px){.ac-2col{grid-template-columns:1fr}}
+.ac-detail{position:sticky;top:8px;background:var(--s1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;max-height:calc(100vh - 24px);overflow-y:auto}
+.acd-head{padding:11px 14px;background:linear-gradient(135deg,var(--acc),#4a6886);color:#fff}
+.acd-head .t{font-weight:900;font-size:15px}
+.acd-head .s{font-size:11px;opacity:.9;margin-top:2px}
+.acd-body{padding:10px 12px}
+.acd-kpis{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.acd-kpi{flex:1;min-width:84px;background:var(--s2);border:1px solid var(--bds);border-radius:8px;padding:8px 6px;text-align:center}
+.acd-kpi .v{font-size:17px;font-weight:900;color:var(--acc2)}
+.acd-kpi .l{font-size:10px;color:var(--tx3);margin-top:1px}
+.acd-grp{margin:12px 0 4px;font-size:12px;font-weight:800;color:var(--tx2);display:flex;align-items:baseline;gap:6px}
+.acd-grp .br{font-size:10px;font-weight:600;color:var(--tx3)}
+.acd-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.acd-tbl th{color:var(--tx3);font-weight:700;text-align:right;padding:3px 4px;border-bottom:1px solid var(--bds);white-space:nowrap}
+.acd-tbl th.l{text-align:left}
+.acd-tbl td{padding:4px 4px;border-bottom:1px solid var(--bds);text-align:right;vertical-align:middle}
+.acd-tbl td.l{text-align:left}
+.acd-tbl td.c{text-align:center}
+.acd-tbl .nm{font-weight:700;color:var(--tx)}
+.acd-tbl a.nm{color:var(--acc);text-decoration:none}
+.acd-tbl a.nm:hover{text-decoration:underline}
+.acd-tbl tr.acd-sub td{border-top:2px solid var(--bd);font-weight:800;color:var(--tx)}
+.acd-empty{padding:18px;text-align:center;color:var(--tx3);background:var(--s2);border:1px dashed var(--bd);border-radius:8px;font-size:12px}
+.acd-bg{display:inline-block;padding:1px 6px;border-radius:9px;font-size:9.5px;font-weight:700;white-space:nowrap}
+.acd-bg.v8{background:#e3edf6;color:#3d6286}
+.acd-bg.v8c{background:#f0e6da;color:#8a5a2e}
+.acd-bg.other{background:var(--s3);color:var(--tx3)}
+.acd-bg.new{background:#f6e1dc;color:#a8442f}
+.acd-bg.exist{background:#e9eee0;color:#5d6e3a}
+.acd-cf{display:inline-block;padding:1px 7px;border-radius:9px;font-size:9.5px;font-weight:800;white-space:nowrap}
+.acd-cf.kakutei{background:#f5d5cc;color:#7a3a2a}
+.acd-cf.a{background:#fde6c5;color:#7a5a2a}
+.acd-cf.b{background:#e0e9d3;color:#4a5a32}
+.acd-cf.c{background:var(--s3);color:var(--tx2)}
+.acd-note{font-size:10.5px;color:var(--tx3);margin-top:8px;line-height:1.5}
+.acd-tbl .dim{color:var(--tx3);font-size:10px}
+.at-row-click{cursor:pointer}
+.at-row-click:hover>td{background:rgba(90,123,158,.06)}
+.at-row-sel>td.mo{box-shadow:inset 3px 0 0 var(--acc)}
+.at-row-sel>td{background:rgba(90,123,158,.10)}
 </style>
 </head>
 <body>
@@ -2304,6 +2347,7 @@ body.has-sidepanel #home-deal-mode {
   <div class="ptabs" id="aptabs"></div>
   <div class="ptabs" id="aptabs-people" style="margin-top:4px;border-top:1px solid var(--bds);padding-top:6px"></div>
   <div id="actuals-summary" style="margin:14px 0 12px"></div>
+  <div id="actuals-2col" class="ac-2col">
   <div id="actuals-table-wrap">
   <div class="tw"><table style="font-size:13px">
     <thead id="athead">
@@ -2323,6 +2367,8 @@ body.has-sidepanel #home-deal-mode {
     <tbody id="atbody"></tbody>
   </table></div>
   </div><!-- /actuals-table-wrap -->
+  <div id="actuals-deal-panel" class="ac-detail"></div>
+  </div><!-- /actuals-2col -->
 </div>
 
 <!-- ════════════════ KPT REVIEW ════════════════ -->
@@ -5246,6 +5292,183 @@ function renderMeeting() {
   body.innerHTML = html;
 }
 
+// ════════════════════════════════════════════════════════════════
+// 案3: 実績確認 右カラム（案件明細パネル）
+//   左の予実表で月行をクリック → その月の案件を担当者別に表示。
+//   営業会議タブと同じ集計ロジック（_mt* ヘルパー）を流用。表示専用。
+//   ⚠ D.actuals / getActualValue 等は一切変更しない（数字を壊さない）。
+// ════════════════════════════════════════════════════════════════
+
+// 現在の実績確認スコープ(caSp)から対象担当者リストとラベルを解決する。
+// renderActualPtabs() のスコープ→担当者マッピングと同一ロジックで揃える。
+function _acdScopePeople() {
+  var people = (typeof ap === 'function') ? ap() : (D.people || []);
+  if (typeof initBranchMaster === 'function') initBranchMaster();
+  var branches = (D && D.branchMaster) || [];
+  if (caSp === -1) {
+    return { people: people, label: '全社', multi: true };
+  }
+  if (typeof caSp === 'string' && caSp.indexOf('region_') === 0) {
+    var rn = caSp.slice(7);
+    var rbn = branches.filter(function(b){ return (b.region || '西日本') === rn; })
+                      .map(function(b){ return b.name; });
+    return {
+      people: people.filter(function(p){ return rbn.indexOf(p.branch) >= 0; }),
+      label: rn + '全体',
+      multi: true
+    };
+  }
+  if (typeof caSp === 'string' && caSp.indexOf('branch_') === 0) {
+    var bn = caSp.slice(7);
+    return {
+      people: people.filter(function(p){ return p.branch === bn; }),
+      label: bn,
+      multi: true
+    };
+  }
+  if (typeof caSp === 'number' && caSp >= 0 && caSp < people.length) {
+    var pp = people[caSp];
+    return { people: [pp], label: (pp && pp.name) || '担当者', multi: false };
+  }
+  return { people: people, label: '全社', multi: true };
+}
+
+// 1案件 → .acd-tbl の <tr>。営業会議タブの行ロジックを千円単位で踏襲。
+function _acdDealRow(d) {
+  var conf = _mtConfInfo(d);
+  var cat  = (d.category || '直販');
+  var catS = (cat.length > 2) ? cat.slice(0,2) : cat;
+  var nm   = _esc(d.name || '(無名)');
+  var pt   = String(d.productType || '');
+  var dt   = String(d.dealType || '');
+  var isV8 = (pt === '調剤くんV8') || /V8Core/.test(pt);
+  var ptBadge;
+  if (pt === '調剤くんV8')        ptBadge = '<span class="acd-bg v8">V8</span>';
+  else if (/V8Core/.test(pt))      ptBadge = '<span class="acd-bg v8c">V8C</span>';
+  else if (pt)                     ptBadge = '<span class="acd-bg other">' + _esc(pt.slice(0,4)) + '</span>';
+  else                             ptBadge = '<span style="color:var(--tx3)">-</span>';
+  // 新規/既存バッジは V8系のみ（営業会議タブと同じ仕様）
+  var dtBadge = '';
+  if (isV8) {
+    if (/新規/.test(dt))           dtBadge = ' <span class="acd-bg new">新規</span>';
+    else if (/既存/.test(dt))      dtBadge = ' <span class="acd-bg exist">既存</span>';
+  }
+  var salesV  = parseFloat(d.sales) || 0;
+  var costV   = parseFloat(d.cost)  || 0;
+  var profitV = salesV - costV;
+  var nmLink  = '<a href="#" class="nm" onclick="event.preventDefault();_mtOpenDeal(\'' + _esc(d.id) + '\')" title="案件詳細を開く">' + nm + '</a>';
+  var cfgCnt  = d.configCount ? _esc(d.configCount) : '<span style="color:var(--tx3)">-</span>';
+  return '<tr>' +
+    '<td class="l">' + nmLink + '</td>' +
+    '<td class="c">' + _mtLastVisitDate(d) + '</td>' +
+    '<td class="c">' + _esc(catS) + '</td>' +
+    '<td class="l">' + ptBadge + dtBadge + '</td>' +
+    '<td class="c"><span class="acd-cf ' + conf.cls + '">' + conf.lbl + '</span></td>' +
+    '<td class="c">' + cfgCnt + '</td>' +
+    '<td>' + fmtN(Math.round(salesV)) + '</td>' +
+    '<td>' + fmtN(Math.round(profitV)) + '</td>' +
+    '</tr>';
+}
+
+// 右カラム本体: _caMonth の月の案件を担当者別に描画。
+function renderActualsDealPanel() {
+  var panel = document.getElementById('actuals-deal-panel');
+  if (!panel) return;
+  // 営業活動量モードでは案件明細パネルは非表示
+  if (typeof _actMainMode !== 'undefined' && _actMainMode === 'activity') {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+  panel.style.display = '';
+
+  // 月インデックスを 0..11 にクランプ
+  var mi = _caMonth;
+  if (typeof mi !== 'number' || isNaN(mi)) mi = 0;
+  if (mi < 0) mi = 0;
+  if (mi > 11) mi = 11;
+  _caMonth = mi;
+  var moLabels = ['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+
+  var scope = _acdScopePeople();
+  var ppl   = scope.people || [];
+  var mis   = [mi];
+
+  // KPI集計（確定=受注確定のみ。_mtGetMonthDeals はグループ薬局を除外）
+  var wonSales = 0, wonProfit = 0, newCnt = 0, exCnt = 0;
+  ppl.forEach(function(p){
+    if (!p) return;
+    _mtGetMonthDeals(p.id, mi).forEach(function(d){
+      if (_mtConfInfo(d).lbl === '確定') {
+        wonSales  += parseFloat(d.sales) || 0;
+        wonProfit += (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0);
+      }
+    });
+    newCnt += _mtCountNewDeals(p.id, mis);
+    exCnt  += _mtCountExistingDeals(p.id, mis);
+  });
+
+  var html = '';
+  html += '<div class="acd-head">';
+  html += '<div class="t">' + _esc(moLabels[mi]) + ' の案件</div>';
+  html += '<div class="s">' + _esc(scope.label) + ' ／ 案件管理から自動集計</div>';
+  html += '</div>';
+  html += '<div class="acd-body">';
+
+  // KPIカード
+  html += '<div class="acd-kpis">';
+  html += '<div class="acd-kpi"><div class="v">' + fmtN(Math.round(wonSales)) + '</div><div class="l">確定売上(千)</div></div>';
+  html += '<div class="acd-kpi"><div class="v">' + fmtN(Math.round(wonProfit)) + '</div><div class="l">確定粗利(千)</div></div>';
+  html += '<div class="acd-kpi"><div class="v">' + newCnt + '</div><div class="l">新規軒数</div></div>';
+  html += '<div class="acd-kpi"><div class="v">' + exCnt + '</div><div class="l">既存軒数</div></div>';
+  html += '</div>';
+
+  // 担当者ごとの案件テーブル
+  var anyDeal = false;
+  ppl.forEach(function(p){
+    if (!p) return;
+    var deals = _mtGetMonthDeals(p.id, mi);
+    if (!deals.length) return;
+    anyDeal = true;
+    if (scope.multi) {
+      html += '<div class="acd-grp">' + _esc(p.name || '担当者') +
+              (p.branch ? '<span class="br">' + _esc(p.branch) + '</span>' : '') +
+              '<span class="br" style="margin-left:auto">' + deals.length + '件</span></div>';
+    }
+    html += '<table class="acd-tbl">';
+    html += '<tr>' +
+      '<th class="l">ユーザー名</th>' +
+      '<th>訪問</th>' +
+      '<th>販</th>' +
+      '<th class="l">種別</th>' +
+      '<th>確度</th>' +
+      '<th>台数</th>' +
+      '<th>売上</th>' +
+      '<th>粗利</th>' +
+      '</tr>';
+    deals.forEach(function(d){ html += _acdDealRow(d); });
+    html += '</table>';
+  });
+
+  if (!anyDeal) {
+    html += '<div class="acd-empty">この月の案件はありません<br>' +
+            '<span style="font-size:10.5px">（案件管理に登録された案件が対象。グループ薬局は拠点集計のため除外）</span></div>';
+  }
+
+  html += '<div class="acd-note">※ 案件管理から自動集計（見込みA/B/Cも表示）。売上実績は Excel取込や手入力分も含むため、左の予実表の数値と一致しない場合があります。グループ薬局は個人実績から除外。単位：千円。</div>';
+  html += '</div>'; // /acd-body
+
+  panel.innerHTML = html;
+}
+
+// 左の予実表で選択中の月行をハイライト。
+function _highlightActualsMonthRow() {
+  for (var k = 0; k < 12; k++) {
+    var r = document.getElementById('at-mo-row-' + k);
+    if (r) r.classList.toggle('at-row-sel', k === _caMonth);
+  }
+}
+
 function renderKPT() {
   _kptBuildTermOptions();
   var term = _kptCurrentTerm();
@@ -5691,6 +5914,8 @@ let fy=new Date().getMonth()>=3?new Date().getFullYear():new Date().getFullYear(
 let D={};
 const OFFICE_TAB=-2,HANBAI_TAB=-3;
 let cbSp=0,cdSp=0,caSp=-1;
+// 実績確認タブ右カラム(案件明細)で選択中の月 index(0=4月)。初期は今月。
+let _caMonth=(function(){var n=new Date();return n.getMonth()>=3?n.getMonth()-3:n.getMonth()+9;})();
 
 function skey(){return'eigyo3_'+fy}
 
@@ -17226,11 +17451,21 @@ function renderActuals() {
     renderActivityActuals(tb);
     const titleEl = document.getElementById('actuals-title');
     if (titleEl) titleEl.textContent = '📞 営業活動量';
+    // 営業活動量モードでは右の案件明細パネルを隠し、表を全幅にする
+    var _c2a = document.getElementById('actuals-2col');
+    if (_c2a) _c2a.style.gridTemplateColumns = '1fr';
+    var _dpa = document.getElementById('actuals-deal-panel');
+    if (_dpa) _dpa.style.display = 'none';
     return;
   } else {
     // 売上タブに戻った時は年間サマリーを再表示
     var actSumEl2 = document.getElementById('actuals-summary');
     if (actSumEl2) actSumEl2.style.display = '';
+    // 売上モードでは右の案件明細パネル(2カラム)を復帰
+    var _c2s = document.getElementById('actuals-2col');
+    if (_c2s) _c2s.style.gridTemplateColumns = '';
+    var _dps = document.getElementById('actuals-deal-panel');
+    if (_dps) _dps.style.display = '';
   }
 
   // タイトル更新
@@ -17439,6 +17674,20 @@ function renderActuals() {
     tr.appendChild(tdSep);
     tr.appendChild(tdBP); tr.appendChild(tdAP); tr.appendChild(tdRP); tr.appendChild(tdDP);
     tb.appendChild(tr);
+
+    // ── 案3: 月行クリックで右カラム（案件明細パネル）を当月に切替 ──
+    // ▼展開ボタン等は stopPropagation 済み。念のためボタン/リンク上のクリックは無視。
+    tr.id = 'at-mo-row-' + i;
+    tr.classList.add('at-row-click');
+    if (i === _caMonth) tr.classList.add('at-row-sel');
+    (function(mi){
+      tr.addEventListener('click', function(ev){
+        if (ev.target.closest('button') || ev.target.closest('a')) return;
+        _caMonth = mi;
+        renderActualsDealPanel();
+        _highlightActualsMonthRow();
+      });
+    })(i);
 
     // 内訳行（パターンB: 横ミニバーチャート＋折りたたみ展開）
     if ((isAll || isBranch || isRegion) && actS > 0 && typeof _getBreakdownForMi === 'function') {
@@ -17734,6 +17983,10 @@ function renderActuals() {
   _renderAnnualSummary({
     label: isAll ? '全社' : (isRegion ? regionName + '全体' : (isBranch ? branchName : (sp ? sp.name : '')))
   });
+
+  // ── 案3: 右カラム（案件明細パネル）を当月で描画 ──
+  // 表示専用。万一パネル側で例外が出ても、左の予実表(本体)は壊さない。
+  try { renderActualsDealPanel(); } catch (e) { console.warn('renderActualsDealPanel failed', e); }
 }
 
 // 年間サマリーKPIカード（パターンA: 通期・上半期・下半期の3カード）
