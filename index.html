@@ -6666,6 +6666,9 @@ function getMaintVal(branchName, field, mi) {
 function _getBranchForGroupDeal(d) {
   if (!d) return 'office';
   var branches = getBranchMaster ? getBranchMaster() : [];
+  // ⭐ インポート等で拠点が明示されている場合は最優先
+  //   (既存案件は groupBranch を持たないので従来挙動のまま=不変)
+  if (d.groupBranch && branches.some(function(b){ return b.name === d.groupBranch; })) return d.groupBranch;
   // ① route フィールドにブランチ名が含まれるか
   if (d.route) {
     for (var i = 0; i < branches.length; i++) {
@@ -9671,6 +9674,25 @@ function _doConfirmImport(addedMasters){
         : `${fy+1}-${String(mi-8).padStart(2,'0')}`;
       var fuzzyPendingList = [];
 
+      // ── 同名薬局＋同担当の複数明細を合算(1薬局=1案件・金額満額) ──
+      // Excelで同じ薬局が「本体/LAN/工事」等で複数行に分かれている分を1案件にまとめる。
+      // これをしないと2行目以降が重複扱いで落ち、個人実績が拠点ソフト合計より少なくなる。
+      (function(){
+        var agg = {}, order = [];
+        (r.software.deals || []).forEach(function(d){
+          var key = normDealName(d.name) + '||' + String(d.rep || '');
+          if (!agg[key]) {
+            agg[key] = { name:d.name, sales:0, cost:0, profit:0, rep:d.rep, midCat:d.midCat,
+              productType:d.productType, notes:d.notes, sheet:d.sheet, noRep:d.noRep, dealType:d.dealType };
+            order.push(key);
+          }
+          agg[key].sales  += (parseFloat(d.sales)  || 0);
+          agg[key].cost   += (parseFloat(d.cost)   || 0);
+          agg[key].profit += (parseFloat(d.profit) || 0);
+        });
+        r.software.deals = order.map(function(k){ return agg[k]; });
+      })();
+
       // ── インポート先拠点(同姓複数候補のとき優先) ──
       // 例: 馬場(大)/福岡・馬場(健)/東京。ファイルの拠点に所属する候補を優先。
       // 拠点不明 or 拠点一致なしなら従来通り先頭候補(挙動不変)。
@@ -9813,6 +9835,8 @@ function _doConfirmImport(addedMasters){
         ? (fy + '-' + String(mi+4).padStart(2,'0'))
         : ((fy+1) + '-' + String(mi-8).padStart(2,'0'));
       var people2 = ap();
+      // インポート先拠点(group案件を office でなく拠点に正しく帰属させる)
+      var _gImpBranch = (typeof _detectImportBranch === 'function') ? _detectImportBranch(r.detectedBranch, _impFileName) : (r.detectedBranch || '');
 
       r.groupDeals.forEach(function(gd) {
         // 担当者マッチング（通常ソフトと同じ4段階）
@@ -9853,7 +9877,7 @@ function _doConfirmImport(addedMasters){
           // 新規登録
           var newGroupDeal = {
             id: uid(), spId: gSpId,
-            name: gd.name, pref: '',
+            name: gd.name, pref: '', groupBranch: _gImpBranch,
             deliveryMonth: moStr2, activationMonth: '',
             sales: String(gSales), cost: String(gCost),
             category: 'グループ薬局',
