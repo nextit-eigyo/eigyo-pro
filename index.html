@@ -5115,6 +5115,26 @@ function _mtPersonName(spId){
   return p ? (p.name||'(無名)') : spId;
 }
 function _mtSelectScope(scope){ _meetingState.scope = scope; renderMeeting(); }
+// 経過月(4月〜今月)に絞る。該当無し(下期など未到来)は元のレンジを返す
+function _mtElapsedMis(halfMis){
+  var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
+  var r = halfMis.filter(function(mi){ return mi <= curMi; });
+  return r.length ? r : halfMis;
+}
+// ログインユーザー別の既定スコープ(初回表示時のみ。以後はクリック選択を保持)
+//   上西=全社 / 渋谷=西日本 / 小川・馬場(健)=東日本 / その他=所属営業所
+function _mtDefaultScope(){
+  var pid = (typeof getMyPersonId==='function') ? getMyPersonId() : null;
+  var p = pid ? (D.people||[]).find(function(x){ return x.id===pid; }) : null;
+  if (!p) { var ppl = ap(); p = ppl && ppl[0]; }
+  if (!p) return 'all';
+  var nm = String(p.name||'');
+  if (/上西/.test(nm)) return 'all';
+  if (/渋谷/.test(nm)) return 'region_西日本';
+  if (/小川/.test(nm) || (/馬場/.test(nm) && /健/.test(nm))) return 'region_東日本';
+  if (p.branch) return 'branch_' + p.branch;
+  return 'all';
+}
 
 // ── スコープ選択タブ（実績確認と同じ2段）──
 function _mtScopeSelectorHtml(scope){
@@ -5214,7 +5234,7 @@ function _mtBranchMonthCardsHtml(scope, halfMis){
   var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
   var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
   var html = '<div class="mt-month-grid">';
-  halfMis.forEach(function(mi){
+  _mtElapsedMis(halfMis).forEach(function(mi){
     var bs=getBudgetValue(target,'s',mi), as=getActualValue(target,'s',mi);
     var bp=getBudgetValue(target,'p',mi), ap2=getActualValue(target,'p',mi);
     var sA=bs>0?(as/bs*100):0, pA=bp>0?(ap2/bp*100):0;
@@ -5287,7 +5307,7 @@ function _mtRegionBranchSectionsHtml(scope, halfMis){
   var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
   var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
   var html = '<div class="mt-rb-wrap">';
-  halfMis.forEach(function(mi){
+  _mtElapsedMis(halfMis).forEach(function(mi){
     var tbs=getBudgetValue(scopeTarget,'s',mi), tas=getActualValue(scopeTarget,'s',mi);
     var tbp=getBudgetValue(scopeTarget,'p',mi), tap=getActualValue(scopeTarget,'p',mi);
     var sA=tbs>0?(tas/tbs*100):0, pA=tbp>0?(tap/tbp*100):0;
@@ -5318,7 +5338,7 @@ function _mtScopeSumTableHtml(scope, halfMis){
   var h = '<table class="mt-sum"><tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th><th>既存軒数</th></tr>';
   h += '<tr class="hl-y"><td class="lbl">'+halfLbl+'計</td><td>'+_mtFmtNum(totActS)+'</td><td>'+_mtFmtNum(totBudS)+'</td><td class="'+_mtAchCls(totSAch)+'"><div>'+totSAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActS,totBudS)+'</td><td>'+_mtFmtNum(totActP)+'</td><td>'+_mtFmtNum(totBudP)+'</td><td class="'+_mtAchCls(totPAch)+'"><div>'+totPAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActP,totBudP)+'</td><td>'+_mtScopeNewCnt(scope,halfMis)+'軒</td><td>'+_mtScopeExistCnt(scope,halfMis)+'軒</td></tr>';
   var cBudS=0,cActS=0,cBudP=0,cActP=0;
-  halfMis.forEach(function(mi,idx){
+  _mtElapsedMis(halfMis).forEach(function(mi,idx){
     cBudS+=getBudgetValue(target,'s',mi); cActS+=getActualValue(target,'s',mi); cBudP+=getBudgetValue(target,'p',mi); cActP+=getActualValue(target,'p',mi);
     var sA=cBudS>0?(cActS/cBudS*100):0, pA=cBudP>0?(cActP/cBudP*100):0;
     var rangeLbl=(idx===0)?moLabels[halfMis[0]]:moLabels[halfMis[0]]+'〜'+moLabels[mi];
@@ -5338,7 +5358,7 @@ function renderMeeting() {
     return;
   }
   // スコープ(全社/営業部/営業所/担当者)。未設定なら現在のユーザー(担当者)。
-  var scope = (typeof _meetingState.scope !== 'undefined' && _meetingState.scope !== null && _meetingState.scope !== '') ? _meetingState.scope : _mtGetCurrentSpId();
+  var scope = (typeof _meetingState.scope !== 'undefined' && _meetingState.scope !== null && _meetingState.scope !== '') ? _meetingState.scope : _mtDefaultScope();
   var scopeIsPerson = _mtScopeIsPerson(scope);
   var selSpId = scopeIsPerson ? scope : _mtGetCurrentSpId();
   var sp = people.find(function(p){ return p.id === selSpId; });
