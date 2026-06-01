@@ -1968,21 +1968,24 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-brk i { color:var(--tx3); font-style:normal; }
 #tab-meeting .mt-scope-head { display:flex; align-items:baseline; gap:10px; margin:2px 0 2px; font-size:13px; font-weight:800; color:var(--tx); }
 #tab-meeting .mt-scope-head .sub { font-size:11px; color:var(--tx3); font-weight:500; }
-/* 拠点別 月次(全社/営業部) */
-#tab-meeting .mt-rb-wrap { display:flex; flex-direction:column; gap:12px; margin-top:4px; }
+/* 拠点別 月次(全社/営業部): 1行に3ヶ月並ぶグリッド + コンパクト5列 */
+#tab-meeting .mt-rb-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:12px; margin-top:4px; align-items:start; }
 #tab-meeting .mt-rb-card { background:var(--s1); border:1px solid var(--bd); border-radius:12px; overflow:hidden; }
-#tab-meeting .mt-rb-tbl { width:100%; border-collapse:collapse; font-size:12px; }
-#tab-meeting .mt-rb-tbl th { background:var(--s3); color:var(--tx2); font-weight:700; padding:5px 8px; border-bottom:1px solid var(--bds); text-align:right; white-space:nowrap; }
+#tab-meeting .mt-rb-tbl { width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed; }
+#tab-meeting .mt-rb-tbl th { background:var(--s3); color:var(--tx2); font-weight:700; padding:4px 6px; border-bottom:1px solid var(--bds); text-align:right; white-space:nowrap; }
 #tab-meeting .mt-rb-tbl th.l { text-align:left; }
-#tab-meeting .mt-rb-tbl td { padding:6px 8px; border-bottom:1px solid var(--bds); text-align:right; white-space:nowrap; vertical-align:middle; }
-#tab-meeting .mt-rb-tbl td.l { text-align:left; }
-#tab-meeting .mt-rb-tbl td > div { font-weight:700; line-height:1.2; }
+#tab-meeting .mt-rb-tbl th .hsub { font-size:9px; color:var(--tx3); font-weight:500; margin-left:2px; }
+#tab-meeting .mt-rb-tbl td { padding:5px 6px; border-bottom:1px solid var(--bds); text-align:right; white-space:nowrap; vertical-align:middle; }
+#tab-meeting .mt-rb-tbl td.l { text-align:left; overflow:hidden; text-overflow:ellipsis; }
+#tab-meeting .mt-rb-tbl td.num2 .v { font-weight:700; color:var(--tx); line-height:1.15; }
+#tab-meeting .mt-rb-tbl td.num2 .b { font-size:9px; color:var(--tx3); font-weight:500; line-height:1.15; }
+#tab-meeting .mt-rb-tbl td.good > div, #tab-meeting .mt-rb-tbl td.mid > div, #tab-meeting .mt-rb-tbl td.bad > div { font-weight:800; line-height:1.15; }
 #tab-meeting .mt-rb-tbl tr.tot td { background:#fffbf0; font-weight:900; border-bottom:1px solid var(--bd); }
 #tab-meeting .mt-rb-tbl tr.br { cursor:pointer; }
 #tab-meeting .mt-rb-tbl tr.br:hover td { background:#eef3f8; }
 #tab-meeting .mt-rb-tbl tr.br td.l .nm { font-weight:700; color:var(--acc); }
 #tab-meeting .mt-rb-tbl tr.br:last-child td { border-bottom:0; }
-#tab-meeting .mt-rb-tbl .go { color:var(--tx3); font-size:10px; margin-left:4px; }
+#tab-meeting .mt-rb-tbl .go { color:var(--tx3); font-size:9.5px; margin-left:3px; }
 #tab-meeting .mt-conf {
   display:inline-block; padding:1px 7px; border-radius:9px;
   font-size:10px; font-weight:700; white-space:nowrap;
@@ -5269,10 +5272,11 @@ function _mtScopeNewCnt(scope, mis){ var c=0; _mtScopePeople(scope).forEach(func
 function _mtScopeExistCnt(scope, mis){ var c=0; _mtScopePeople(scope).forEach(function(p){ c+=_mtCountExistingDeals(p.id, mis); }); return c; }
 // ── 拠点別 月次(全社/営業部): 各月に 拠点ごとの売上/粗利 目標・実績・達成率・差異。拠点クリックでドリル ──
 function _mtRbCells(as,bs,ap,bp){
+  // コンパクト5列用: 売上(実績/目標) | 達成率(+差異) | 粗利(実績/目標) | 達成率(+差異)
   var sA=bs>0?(as/bs*100):0, pA=bp>0?(ap/bp*100):0;
-  return '<td>'+_mtFmtNum(as)+'</td><td>'+_mtFmtNum(bs)+'</td>'
+  return '<td class="num2"><div class="v">'+_mtFmtNum(as)+'</div><div class="b">/ '+_mtFmtNum(bs)+'</div></td>'
     + '<td class="'+_mtAchCls(sA)+'"><div>'+sA.toFixed(1)+'%</div>'+_mtFmtDiff(as,bs)+'</td>'
-    + '<td>'+_mtFmtNum(ap)+'</td><td>'+_mtFmtNum(bp)+'</td>'
+    + '<td class="num2"><div class="v">'+_mtFmtNum(ap)+'</div><div class="b">/ '+_mtFmtNum(bp)+'</div></td>'
     + '<td class="'+_mtAchCls(pA)+'"><div>'+pA.toFixed(1)+'%</div>'+_mtFmtDiff(ap,bp)+'</td>';
 }
 function _mtRegionBranchSectionsHtml(scope, halfMis){
@@ -5288,7 +5292,7 @@ function _mtRegionBranchSectionsHtml(scope, halfMis){
     var sCls=_mtAchCls(sA), pCls=_mtAchCls(pA);
     html += '<div class="mt-rb-card"><div class="mt-mc-head"><span class="m">'+moLabels[mi]+(mi===curMi?' <span style="font-size:10px;color:var(--amb)">●今月</span>':'')+'</span>';
     html += '<span class="ach" style="color:'+(sCls==='good'?'#4a5a32':sCls==='mid'?'#7a5a2a':'var(--red)')+'">売上 '+sA.toFixed(1)+'% / 粗利 '+pA.toFixed(1)+'%</span></div>';
-    html += '<table class="mt-rb-tbl"><tr><th class="l">拠点</th><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th></tr>';
+    html += '<table class="mt-rb-tbl"><tr><th class="l">拠点</th><th>売上<span class="hsub">実/目</span></th><th>達成率</th><th>粗利<span class="hsub">実/目</span></th><th>達成率</th></tr>';
     html += '<tr class="tot"><td class="l">'+_esc(_mtScopeLabel(scope))+'</td>'+_mtRbCells(tas,tbs,tap,tbp)+'</tr>';
     branches.forEach(function(bn){
       var bs=getBudgetValue(bn,'s',mi), as=getActualValue(bn,'s',mi);
