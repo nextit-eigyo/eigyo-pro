@@ -1995,6 +1995,28 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-rb-tbl tr.tot td.l { font-size:14px; }
 #tab-meeting .mt-rb-tbl tr.br:last-child td { border-bottom:0; }
 #tab-meeting .mt-rb-tbl .go { color:var(--tx3); font-size:9.5px; margin-left:3px; }
+/* 営業所スコープ: 担当者×月 売上/粗利マトリクス */
+#tab-meeting .mt-mx-title { font-size:13px; font-weight:800; color:var(--tx); margin:18px 0 8px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+#tab-meeting .mt-mx-title .pp { color:var(--amb); }
+#tab-meeting .mt-mx-title .hint { font-size:10.5px; color:var(--tx3); font-weight:500; }
+#tab-meeting .mt-mx-wrap { overflow-x:auto; border:1px solid var(--bd); border-radius:10px; background:var(--s1); }
+#tab-meeting .mt-mx { border-collapse:collapse; width:100%; min-width:760px; font-size:13px; }
+#tab-meeting .mt-mx th, #tab-meeting .mt-mx td { padding:8px 12px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--bds); }
+#tab-meeting .mt-mx thead th { background:var(--s3); color:var(--tx2); font-weight:900; font-size:12px; }
+#tab-meeting .mt-mx th.nm, #tab-meeting .mt-mx td.nm { text-align:left; position:sticky; left:0; background:var(--s2); font-weight:900; z-index:1; }
+#tab-meeting .mt-mx thead th.nm { background:var(--s3); }
+#tab-meeting .mt-mx td .s { font-weight:900; color:var(--tx); font-variant-numeric:tabular-nums; }
+#tab-meeting .mt-mx td .p { font-size:11px; color:var(--amb); font-weight:700; font-variant-numeric:tabular-nums; margin-top:1px; }
+#tab-meeting .mt-mx td .s .dim, #tab-meeting .mt-mx td .p .dim { color:var(--tx3); font-weight:500; }
+#tab-meeting .mt-mx tr.mem { cursor:pointer; }
+#tab-meeting .mt-mx tr.mem:hover td { background:#f3eee3; }
+#tab-meeting .mt-mx tr.mem:hover td.nm { background:#ece4d3; }
+#tab-meeting .mt-mx .go { color:var(--tx3); font-size:9.5px; margin-left:3px; }
+#tab-meeting .mt-mx col.totcol { background:#faf6ee; }
+#tab-meeting .mt-mx td.tot .s { color:var(--acc); }
+#tab-meeting .mt-mx tfoot td { background:#f6efe0; font-weight:900; border-top:2px solid var(--bd); }
+#tab-meeting .mt-mx tfoot td .p { color:#a87a2e; }
+
 /* 営業所スコープ: 担当者別スコアカード */
 #tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
 #tab-meeting .mt-mem-title .hint { font-size:10.5px; color:var(--tx3); font-weight:500; }
@@ -5399,6 +5421,43 @@ function _mtMemberScorecardHtml(scope, halfMis){
     + rows + totRow + '</table>';
 }
 
+// ── 営業所スコープ: 担当者 × 月 の売上/粗利マトリクス ──
+//   スコアカード(半期合計)の下に、各月×各担当者の売上・粗利(実績)を一覧表示。
+//   getActualValue(個人スコープ=D.actuals直接=グループ薬局除外)を使うのでスコアカードと数字が一致。
+function _mtMemberMonthlyMatrixHtml(scope, halfMis){
+  var members = _mtScopePeople(scope);
+  if (!members.length) return '';
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  var head = '<th class="nm" style="text-align:left">担当者</th>';
+  halfMis.forEach(function(mi){ head += '<th>'+ML[mi]+'</th>'; });
+  head += '<th class="totcol">'+halfLbl+'計</th>';
+  var monS={}, monP={}; halfMis.forEach(function(mi){ monS[mi]=0; monP[mi]=0; });
+  var gS=0, gP=0, rows='';
+  members.forEach(function(p){
+    var tgt={type:'person', id:p.id};
+    var rS=0, rP=0, cells='';
+    halfMis.forEach(function(mi){
+      var s=getActualValue(tgt,'s',mi)||0, pp=getActualValue(tgt,'p',mi)||0;
+      rS+=s; rP+=pp; monS[mi]+=s; monP[mi]+=pp;
+      cells += '<td><div class="s">'+_mtFmtNum(s)+'</div><div class="p">'+_mtFmtNum(pp)+'</div></td>';
+    });
+    gS+=rS; gP+=rP;
+    var pidJs=String(p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    rows += '<tr class="mem" title="クリックで'+_esc(p.name||'')+'へ" onclick="_mtSelectScope(\''+pidJs+'\')">'
+      + '<td class="nm">'+_esc(p.name||'(無名)')+' <span class="go">▸</span></td>'
+      + cells
+      + '<td class="tot"><div class="s">'+_mtFmtNum(rS)+'</div><div class="p">'+_mtFmtNum(rP)+'</div></td></tr>';
+  });
+  var foot='<td class="nm">月計</td>';
+  halfMis.forEach(function(mi){ foot += '<td><div class="s">'+_mtFmtNum(monS[mi])+'</div><div class="p">'+_mtFmtNum(monP[mi])+'</div></td>'; });
+  foot += '<td class="tot"><div class="s">'+_mtFmtNum(gS)+'</div><div class="p">'+_mtFmtNum(gP)+'</div></td>';
+  var colg='<col>'; halfMis.forEach(function(){ colg+='<col>'; }); colg+='<col class="totcol">';
+  return '<div class="mt-mx-title">🗓 月別 売上／<span class="pp">粗利</span>（'+halfLbl+'・担当者別）<span class="hint">上＝売上 ／ 下＝粗利（千円・実績）／ 行クリックで個人ビュー</span></div>'
+    + '<div class="mt-mx-wrap"><table class="mt-mx"><colgroup>'+colg+'</colgroup>'
+    + '<thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody>'
+    + '<tfoot><tr>'+foot+'</tr></tfoot></table></div>';
+}
+
 function renderMeeting() {
   var body = document.getElementById('meeting-body');
   if (!body) return;
@@ -5460,6 +5519,8 @@ function renderMeeting() {
         // 営業所: 所属担当者の予算・実績・達成率スコアカード(案件縦積みは廃止。
         //   担当者行クリックで個人ビュー=案件が見られる)
         html += _mtMemberScorecardHtml(scope, halfMis);
+        // その下に 担当者×月 の売上/粗利マトリクス(各月の各担当者の売上を一覧)
+        html += _mtMemberMonthlyMatrixHtml(scope, halfMis);
       } else {
         // 全社/営業部: 拠点ごとの数字を月別に(案件は出さない。拠点名クリックでドリル)
         html += _mtRegionBranchSectionsHtml(scope, halfMis);
