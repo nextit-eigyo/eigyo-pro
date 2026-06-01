@@ -1969,7 +1969,9 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-scope-head { display:flex; align-items:baseline; gap:10px; margin:2px 0 2px; font-size:13px; font-weight:800; color:var(--tx); }
 #tab-meeting .mt-scope-head .sub { font-size:11px; color:var(--tx3); font-weight:500; }
 /* 拠点別 月次(全社/営業部): 1行に3ヶ月並ぶグリッド + コンパクト5列 */
-#tab-meeting .mt-rb-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:12px; margin-top:4px; align-items:start; }
+#tab-meeting .mt-rb-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:4px; align-items:start; }
+@media(max-width:1180px){ #tab-meeting .mt-rb-wrap { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px){ #tab-meeting .mt-rb-wrap { grid-template-columns:1fr; } }
 #tab-meeting .mt-rb-card { background:var(--s1); border:1px solid var(--bd); border-radius:12px; overflow:hidden; }
 #tab-meeting .mt-rb-tbl { width:100%; border-collapse:collapse; font-size:11px; table-layout:fixed; }
 #tab-meeting .mt-rb-tbl th { background:var(--s3); color:var(--tx2); font-weight:700; padding:4px 6px; border-bottom:1px solid var(--bds); text-align:right; white-space:nowrap; }
