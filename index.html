@@ -1968,6 +1968,21 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-brk i { color:var(--tx3); font-style:normal; }
 #tab-meeting .mt-scope-head { display:flex; align-items:baseline; gap:10px; margin:2px 0 2px; font-size:13px; font-weight:800; color:var(--tx); }
 #tab-meeting .mt-scope-head .sub { font-size:11px; color:var(--tx3); font-weight:500; }
+/* 拠点別 月次(全社/営業部) */
+#tab-meeting .mt-rb-wrap { display:flex; flex-direction:column; gap:12px; margin-top:4px; }
+#tab-meeting .mt-rb-card { background:var(--s1); border:1px solid var(--bd); border-radius:12px; overflow:hidden; }
+#tab-meeting .mt-rb-tbl { width:100%; border-collapse:collapse; font-size:12px; }
+#tab-meeting .mt-rb-tbl th { background:var(--s3); color:var(--tx2); font-weight:700; padding:5px 8px; border-bottom:1px solid var(--bds); text-align:right; white-space:nowrap; }
+#tab-meeting .mt-rb-tbl th.l { text-align:left; }
+#tab-meeting .mt-rb-tbl td { padding:6px 8px; border-bottom:1px solid var(--bds); text-align:right; white-space:nowrap; vertical-align:middle; }
+#tab-meeting .mt-rb-tbl td.l { text-align:left; }
+#tab-meeting .mt-rb-tbl td > div { font-weight:700; line-height:1.2; }
+#tab-meeting .mt-rb-tbl tr.tot td { background:#fffbf0; font-weight:900; border-bottom:1px solid var(--bd); }
+#tab-meeting .mt-rb-tbl tr.br { cursor:pointer; }
+#tab-meeting .mt-rb-tbl tr.br:hover td { background:#eef3f8; }
+#tab-meeting .mt-rb-tbl tr.br td.l .nm { font-weight:700; color:var(--acc); }
+#tab-meeting .mt-rb-tbl tr.br:last-child td { border-bottom:0; }
+#tab-meeting .mt-rb-tbl .go { color:var(--tx3); font-size:10px; margin-left:4px; }
 #tab-meeting .mt-conf {
   display:inline-block; padding:1px 7px; border-radius:9px;
   font-size:10px; font-weight:700; white-space:nowrap;
@@ -5242,6 +5257,71 @@ function _mtBranchMonthCardsHtml(scope, halfMis){
   html += '</div>';
   return html;
 }
+// スコープ配下の拠点名一覧
+function _mtScopeBranches(scope){
+  var all = (typeof getBranchMaster==='function' ? getBranchMaster() : (D.branchMaster||[]));
+  if (scope === 'all') return all.map(function(b){ return b.name; });
+  if (typeof scope==='string' && scope.indexOf('region_')===0){ var rn=scope.slice(7); return all.filter(function(b){ return (b.region||'西日本')===rn; }).map(function(b){ return b.name; }); }
+  if (typeof scope==='string' && scope.indexOf('branch_')===0) return [scope.slice(7)];
+  return [];
+}
+function _mtScopeNewCnt(scope, mis){ var c=0; _mtScopePeople(scope).forEach(function(p){ c+=_mtCountNewDeals(p.id, mis); }); return c; }
+function _mtScopeExistCnt(scope, mis){ var c=0; _mtScopePeople(scope).forEach(function(p){ c+=_mtCountExistingDeals(p.id, mis); }); return c; }
+// ── 拠点別 月次(全社/営業部): 各月に 拠点ごとの売上/粗利 目標・実績・達成率・差異。拠点クリックでドリル ──
+function _mtRbCells(as,bs,ap,bp){
+  var sA=bs>0?(as/bs*100):0, pA=bp>0?(ap/bp*100):0;
+  return '<td>'+_mtFmtNum(as)+'</td><td>'+_mtFmtNum(bs)+'</td>'
+    + '<td class="'+_mtAchCls(sA)+'"><div>'+sA.toFixed(1)+'%</div>'+_mtFmtDiff(as,bs)+'</td>'
+    + '<td>'+_mtFmtNum(ap)+'</td><td>'+_mtFmtNum(bp)+'</td>'
+    + '<td class="'+_mtAchCls(pA)+'"><div>'+pA.toFixed(1)+'%</div>'+_mtFmtDiff(ap,bp)+'</td>';
+}
+function _mtRegionBranchSectionsHtml(scope, halfMis){
+  var scopeTarget = _mtScopeTarget(scope);
+  var branches = _mtScopeBranches(scope);
+  var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+  var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
+  var html = '<div class="mt-rb-wrap">';
+  halfMis.forEach(function(mi){
+    var tbs=getBudgetValue(scopeTarget,'s',mi), tas=getActualValue(scopeTarget,'s',mi);
+    var tbp=getBudgetValue(scopeTarget,'p',mi), tap=getActualValue(scopeTarget,'p',mi);
+    var sA=tbs>0?(tas/tbs*100):0, pA=tbp>0?(tap/tbp*100):0;
+    var sCls=_mtAchCls(sA), pCls=_mtAchCls(pA);
+    html += '<div class="mt-rb-card"><div class="mt-mc-head"><span class="m">'+moLabels[mi]+(mi===curMi?' <span style="font-size:10px;color:var(--amb)">●今月</span>':'')+'</span>';
+    html += '<span class="ach" style="color:'+(sCls==='good'?'#4a5a32':sCls==='mid'?'#7a5a2a':'var(--red)')+'">売上 '+sA.toFixed(1)+'% / 粗利 '+pA.toFixed(1)+'%</span></div>';
+    html += '<table class="mt-rb-tbl"><tr><th class="l">拠点</th><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th></tr>';
+    html += '<tr class="tot"><td class="l">'+_esc(_mtScopeLabel(scope))+'</td>'+_mtRbCells(tas,tbs,tap,tbp)+'</tr>';
+    branches.forEach(function(bn){
+      var bs=getBudgetValue(bn,'s',mi), as=getActualValue(bn,'s',mi);
+      var bp=getBudgetValue(bn,'p',mi), ap=getActualValue(bn,'p',mi);
+      var bnJs = String(bn).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      html += '<tr class="br" onclick="_mtSelectScope(\'branch_'+bnJs+'\')"><td class="l"><span class="nm">'+_esc(bn)+'</span> <span class="go">▸ 開く</span></td>'+_mtRbCells(as,bs,ap,bp)+'</tr>';
+    });
+    html += '</table></div>';
+  });
+  html += '</div>';
+  return html;
+}
+// ── 経過月 累計テーブル（スコープ版・個人ビューと同形式）──
+function _mtScopeSumTableHtml(scope, halfMis){
+  var target = _mtScopeTarget(scope);
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+  var totBudS=0,totActS=0,totBudP=0,totActP=0;
+  halfMis.forEach(function(mi){ totBudS+=getBudgetValue(target,'s',mi); totActS+=getActualValue(target,'s',mi); totBudP+=getBudgetValue(target,'p',mi); totActP+=getActualValue(target,'p',mi); });
+  var totSAch=totBudS>0?(totActS/totBudS*100):0, totPAch=totBudP>0?(totActP/totBudP*100):0;
+  var h = '<table class="mt-sum"><tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th><th>既存軒数</th></tr>';
+  h += '<tr class="hl-y"><td class="lbl">'+halfLbl+'計</td><td>'+_mtFmtNum(totActS)+'</td><td>'+_mtFmtNum(totBudS)+'</td><td class="'+_mtAchCls(totSAch)+'"><div>'+totSAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActS,totBudS)+'</td><td>'+_mtFmtNum(totActP)+'</td><td>'+_mtFmtNum(totBudP)+'</td><td class="'+_mtAchCls(totPAch)+'"><div>'+totPAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActP,totBudP)+'</td><td>'+_mtScopeNewCnt(scope,halfMis)+'軒</td><td>'+_mtScopeExistCnt(scope,halfMis)+'軒</td></tr>';
+  var cBudS=0,cActS=0,cBudP=0,cActP=0;
+  halfMis.forEach(function(mi,idx){
+    cBudS+=getBudgetValue(target,'s',mi); cActS+=getActualValue(target,'s',mi); cBudP+=getBudgetValue(target,'p',mi); cActP+=getActualValue(target,'p',mi);
+    var sA=cBudS>0?(cActS/cBudS*100):0, pA=cBudP>0?(cActP/cBudP*100):0;
+    var rangeLbl=(idx===0)?moLabels[halfMis[0]]:moLabels[halfMis[0]]+'〜'+moLabels[mi];
+    var slice=halfMis.slice(0,idx+1);
+    h += '<tr><td class="lbl">'+rangeLbl+'</td><td>'+_mtFmtNum(cActS)+'</td><td>'+_mtFmtNum(cBudS)+'</td><td class="'+_mtAchCls(sA)+'"><div>'+sA.toFixed(1)+'%</div>'+_mtFmtDiff(cActS,cBudS)+'</td><td>'+_mtFmtNum(cActP)+'</td><td>'+_mtFmtNum(cBudP)+'</td><td class="'+_mtAchCls(pA)+'"><div>'+pA.toFixed(1)+'%</div>'+_mtFmtDiff(cActP,cBudP)+'</td><td>'+_mtScopeNewCnt(scope,slice)+'軒</td><td>'+_mtScopeExistCnt(scope,slice)+'軒</td></tr>';
+  });
+  h += '</table>';
+  return h;
+}
 
 function renderMeeting() {
   var body = document.getElementById('meeting-body');
@@ -5299,9 +5379,16 @@ function renderMeeting() {
     html += '<div class="mt-scope-head">'+_esc(_mtScopeLabel(scope))+'<span class="sub">'+fy+'年度 年間サマリー</span></div>';
     html += _mtSummaryCardsHtml(scope);
     if (!scopeIsPerson) {
-      // 営業所/営業部/全社: 内訳チップ + ②月別カード(全担当者の案件・担当者列つき)
       html += _mtBreakdownHtml(scope);
-      html += _mtBranchMonthCardsHtml(scope, halfMis);
+      if (typeof scope === 'string' && scope.indexOf('branch_') === 0) {
+        // 営業所: ②月別カード(全担当者の案件・担当者列つき)
+        html += _mtBranchMonthCardsHtml(scope, halfMis);
+      } else {
+        // 全社/営業部: 拠点ごとの数字を月別に(案件は出さない。拠点名クリックでドリル)
+        html += _mtRegionBranchSectionsHtml(scope, halfMis);
+      }
+      // 経過月 累計テーブル(個人ビューと同形式)
+      html += _mtScopeSumTableHtml(scope, halfMis);
       body.innerHTML = html;
       return;
     }
