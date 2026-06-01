@@ -1995,6 +1995,13 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-rb-tbl tr.tot td.l { font-size:14px; }
 #tab-meeting .mt-rb-tbl tr.br:last-child td { border-bottom:0; }
 #tab-meeting .mt-rb-tbl .go { color:var(--tx3); font-size:9.5px; margin-left:3px; }
+/* 営業所スコープ: 担当者別スコアカード */
+#tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+#tab-meeting .mt-mem-title .hint { font-size:10.5px; color:var(--tx3); font-weight:500; }
+#tab-meeting .mt-mem-tbl tr.mem { cursor:pointer; }
+#tab-meeting .mt-mem-tbl tr.mem:hover td { background:#eef3f8; }
+#tab-meeting .mt-mem-tbl tr.mem td.lbl .nm { color:var(--acc); font-weight:700; }
+#tab-meeting .mt-mem-tbl .go { color:var(--tx3); font-size:9.5px; margin-left:3px; }
 #tab-meeting .mt-conf {
   display:inline-block; padding:1px 7px; border-radius:9px;
   font-size:10px; font-weight:700; white-space:nowrap;
@@ -5356,6 +5363,41 @@ function _mtScopeSumTableHtml(scope, halfMis){
   h += '</table>';
   return h;
 }
+// ── 営業所スコープ: 所属担当者の予算・実績・達成率スコアカード ──
+//   案件の縦積みの代わりに、各担当者の売上/粗利の予算・実績・達成率・差異＋軒数を表示。
+//   行クリックでその担当者の個人ビュー(案件)へドリル。getActualValue/getBudgetValueを読むだけ。
+function _mtMemberScorecardHtml(scope, halfMis){
+  var members = _mtScopePeople(scope);
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  if (!members.length) return '<p class="mt-empty">この営業所に担当者がいません</p>';
+  var rows='';
+  var tAs=0,tBs=0,tAp=0,tBp=0,tNew=0,tEx=0;
+  members.forEach(function(p){
+    var tgt = { type:'person', id:p.id };
+    var bs=0,as=0,bp=0,ap=0;
+    halfMis.forEach(function(mi){
+      bs+=getBudgetValue(tgt,'s',mi); as+=getActualValue(tgt,'s',mi);
+      bp+=getBudgetValue(tgt,'p',mi); ap+=getActualValue(tgt,'p',mi);
+    });
+    var sA=bs>0?(as/bs*100):0, pA=bp>0?(ap/bp*100):0;
+    var nw=_mtCountNewDeals(p.id,halfMis), ex=_mtCountExistingDeals(p.id,halfMis);
+    tAs+=as;tBs+=bs;tAp+=ap;tBp+=bp;tNew+=nw;tEx+=ex;
+    var pidJs=String(p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    rows += '<tr class="mem" title="クリックで'+_esc(p.name||'')+'へ" onclick="_mtSelectScope(\''+pidJs+'\')">'
+      + '<td class="lbl"><span class="nm">'+_esc(p.name||'(無名)')+'</span> <span class="go">▸</span></td>'
+      + '<td>'+_mtFmtNum(as)+'</td><td>'+_mtFmtNum(bs)+'</td><td class="'+_mtAchCls(sA)+'"><div>'+sA.toFixed(1)+'%</div>'+_mtFmtDiff(as,bs)+'</td>'
+      + '<td>'+_mtFmtNum(ap)+'</td><td>'+_mtFmtNum(bp)+'</td><td class="'+_mtAchCls(pA)+'"><div>'+pA.toFixed(1)+'%</div>'+_mtFmtDiff(ap,bp)+'</td>'
+      + '<td>'+nw+'軒</td><td>'+ex+'軒</td></tr>';
+  });
+  var tsA=tBs>0?(tAs/tBs*100):0, tpA=tBp>0?(tAp/tBp*100):0;
+  var totRow = '<tr class="hl-y"><td class="lbl">担当者計</td>'
+    + '<td>'+_mtFmtNum(tAs)+'</td><td>'+_mtFmtNum(tBs)+'</td><td class="'+_mtAchCls(tsA)+'"><div>'+tsA.toFixed(1)+'%</div>'+_mtFmtDiff(tAs,tBs)+'</td>'
+    + '<td>'+_mtFmtNum(tAp)+'</td><td>'+_mtFmtNum(tBp)+'</td><td class="'+_mtAchCls(tpA)+'"><div>'+tpA.toFixed(1)+'%</div>'+_mtFmtDiff(tAp,tBp)+'</td>'
+    + '<td>'+tNew+'軒</td><td>'+tEx+'軒</td></tr>';
+  return '<div class="mt-mem-title">👥 '+_esc(_mtScopeLabel(scope))+' 担当者別（'+halfLbl+'：予算・実績・達成率）<span class="hint">行クリックで個人ビューへ</span></div>'
+    + '<table class="mt-sum mt-mem-tbl"><tr><th class="lbl" style="text-align:left">担当者</th><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒</th><th>既存軒</th></tr>'
+    + rows + totRow + '</table>';
+}
 
 function renderMeeting() {
   var body = document.getElementById('meeting-body');
@@ -5415,8 +5457,9 @@ function renderMeeting() {
     if (!scopeIsPerson) {
       html += _mtBreakdownHtml(scope);
       if (typeof scope === 'string' && scope.indexOf('branch_') === 0) {
-        // 営業所: ②月別カード(全担当者の案件・担当者列つき)
-        html += _mtBranchMonthCardsHtml(scope, halfMis);
+        // 営業所: 所属担当者の予算・実績・達成率スコアカード(案件縦積みは廃止。
+        //   担当者行クリックで個人ビュー=案件が見られる)
+        html += _mtMemberScorecardHtml(scope, halfMis);
       } else {
         // 全社/営業部: 拠点ごとの数字を月別に(案件は出さない。拠点名クリックでドリル)
         html += _mtRegionBranchSectionsHtml(scope, halfMis);
