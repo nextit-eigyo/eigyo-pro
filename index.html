@@ -5124,16 +5124,17 @@ function _mtElapsedMis(halfMis){
 // ログインユーザー別の既定スコープ(初回表示時のみ。以後はクリック選択を保持)
 //   上西=全社 / 渋谷=西日本 / 小川・馬場(健)=東日本 / その他=所属営業所
 function _mtDefaultScope(){
+  // ログイン名(管理者等で担当者レコードが無い場合も拾えるよう currentUserRole も参照)
+  var loginName = '';
+  try { if (typeof currentUserRole !== 'undefined' && currentUserRole) loginName = String(currentUserRole.name || currentUserRole.loginId || ''); } catch(e){}
   var pid = (typeof getMyPersonId==='function') ? getMyPersonId() : null;
   var p = pid ? (D.people||[]).find(function(x){ return x.id===pid; }) : null;
-  if (!p) { var ppl = ap(); p = ppl && ppl[0]; }
-  if (!p) return 'all';
-  var nm = String(p.name||'');
-  if (/上西/.test(nm)) return 'all';
-  if (/渋谷/.test(nm)) return 'region_西日本';
-  if (/小川/.test(nm) || (/馬場/.test(nm) && /健/.test(nm))) return 'region_東日本';
-  if (p.branch) return 'branch_' + p.branch;
-  return 'all';
+  var nm = loginName + ' ' + (p ? String(p.name||'') : '');
+  if (/上西/.test(nm)) return 'all';                                                // 上西=全社
+  if (/渋谷/.test(nm)) return 'region_西日本';                                        // 渋谷=西日本
+  if (/小川/.test(nm) || (/馬場/.test(nm) && /健/.test(nm))) return 'region_東日本';  // 小川・馬場(健)=東日本
+  if (p && p.branch) return 'branch_' + p.branch;                                    // その他=所属営業所
+  return 'all';                                                                      // 担当者レコード無し(管理者等)=全社
 }
 
 // ── スコープ選択タブ（実績確認と同じ2段）──
