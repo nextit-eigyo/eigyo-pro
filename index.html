@@ -5328,7 +5328,7 @@ function _mtRegionBranchSectionsHtml(scope, halfMis){
       var bs=getBudgetValue(bn,'s',mi), as=getActualValue(bn,'s',mi);
       var bp=getBudgetValue(bn,'p',mi), ap=getActualValue(bn,'p',mi);
       var bnJs = String(bn).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      html += '<tr class="br" onclick="_mtSelectScope(\'branch_'+bnJs+'\')"><td class="l"><span class="nm">'+_esc(bn)+'</span> <span class="go">▸ 開く</span></td>'+_mtRbCells(as,bs,ap,bp)+'</tr>';
+      html += '<tr class="br" title="クリックで'+_esc(bn)+'へ" onclick="_mtSelectScope(\'branch_'+bnJs+'\')"><td class="l"><span class="nm">'+_esc(bn)+'</span> <span class="go">▸</span></td>'+_mtRbCells(as,bs,ap,bp)+'</tr>';
     });
     html += '</table></div>';
   });
