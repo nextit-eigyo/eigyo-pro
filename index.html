@@ -9671,18 +9671,33 @@ function _doConfirmImport(addedMasters){
         : `${fy+1}-${String(mi-8).padStart(2,'0')}`;
       var fuzzyPendingList = [];
 
+      // ── インポート先拠点(同姓複数候補のとき優先) ──
+      // 例: 馬場(大)/福岡・馬場(健)/東京。ファイルの拠点に所属する候補を優先。
+      // 拠点不明 or 拠点一致なしなら従来通り先頭候補(挙動不変)。
+      var _impBranch = (typeof _detectImportBranch === 'function')
+        ? _detectImportBranch(r.detectedBranch, _impFileName)
+        : (r.detectedBranch || '');
+      function _pickRepCandidate(cands){
+        if (!cands || !cands.length) return null;
+        if (_impBranch) {
+          var inBr = cands.find(function(p){ return p.branch === _impBranch; });
+          if (inBr) return inBr;
+        }
+        return cands[0];
+      }
+
       r.software.deals.forEach(impDeal => {
         // 修正A: 担当者マッチング強化（完全一致→部分一致→逆部分一致→姓一致）
         let spId = null;
         if (impDeal.rep) {
           var mp1 = people.find(function(p){ return p.name && p.name.trim() === impDeal.rep.trim(); });
-          var mp2 = !mp1 && people.find(function(p){ return p.name && p.name.includes(impDeal.rep); });
-          var mp3 = !mp1 && !mp2 && people.find(function(p){ return p.name && impDeal.rep.includes(p.name); });
+          var mp2 = !mp1 && _pickRepCandidate(people.filter(function(p){ return p.name && p.name.includes(impDeal.rep); }));
+          var mp3 = !mp1 && !mp2 && _pickRepCandidate(people.filter(function(p){ return p.name && impDeal.rep.includes(p.name); }));
           var repSei = impDeal.rep.replace(/[\s\u3000].*/, '');
-          var mp4 = !mp1 && !mp2 && !mp3 && people.find(function(p){
+          var mp4 = !mp1 && !mp2 && !mp3 && _pickRepCandidate(people.filter(function(p){
             var ps = p.name ? p.name.replace(/[\s\u3000].*/, '') : '';
             return ps && repSei && ps === repSei;
-          });
+          }));
           var mpFinal = mp1 || mp2 || mp3 || mp4;
           if (mpFinal) spId = mpFinal.id;
         }
