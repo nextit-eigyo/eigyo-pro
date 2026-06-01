@@ -1933,6 +1933,41 @@ body.has-sidepanel #home-deal-mode {
   text-align:center; color:var(--tx3); font-size:11px; padding:8px;
   background:var(--s2); border:1px dashed var(--bd); border-radius:6px; margin:0;
 }
+/* ── 営業会議 スコープ対応(Phase1): 選択タブ / 年間サマリー / 内訳 ── */
+#tab-meeting .mt-scope-wrap { margin:6px 0 12px; }
+#tab-meeting .mt-scope-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+#tab-meeting .mt-scope-row.r2 { margin-top:8px; padding-top:8px; border-top:1px solid var(--bds); }
+#tab-meeting .mt-sc { border:1px solid var(--bd); background:var(--s1); color:var(--tx2); padding:6px 13px; border-radius:99px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; }
+#tab-meeting .mt-sc:hover { border-color:var(--acc); color:var(--acc); }
+#tab-meeting .mt-sc.on { background:var(--acc); border-color:var(--acc); color:#fff; }
+#tab-meeting .mt-sc.rg { font-size:12.5px; opacity:.95; }
+#tab-meeting .mt-sc.rg.on { background:var(--acc2); border-color:var(--acc2); }
+#tab-meeting .mt-sc.pe .br { font-size:9.5px; opacity:.7; margin-left:3px; }
+#tab-meeting .mt-sc-sep { width:1px; height:20px; background:var(--bd); margin:0 3px; flex-shrink:0; }
+#tab-meeting .mt-sumwrap { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:6px 0 10px; }
+@media(max-width:900px){ #tab-meeting .mt-sumwrap { grid-template-columns:1fr; } }
+#tab-meeting .mt-sumcard { background:var(--s2); border:1px solid var(--bds); border-radius:12px; padding:12px 14px; }
+#tab-meeting .mt-sumcard.future { opacity:.75; }
+#tab-meeting .mt-sh { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+#tab-meeting .mt-sh .t { font-weight:900; font-size:13px; color:var(--tx); }
+#tab-meeting .mt-sh .e { font-size:11px; color:var(--tx3); }
+#tab-meeting .mt-sl { margin:6px 0; }
+#tab-meeting .mt-sl .lab { display:flex; justify-content:space-between; font-size:11px; color:var(--tx2); margin-bottom:2px; }
+#tab-meeting .mt-sl .lab b { color:var(--tx); font-weight:900; font-size:13px; }
+#tab-meeting .mt-sl .lab .bud { color:var(--tx3); font-weight:600; }
+#tab-meeting .mt-sbar { height:7px; background:var(--s4); border-radius:4px; overflow:hidden; }
+#tab-meeting .mt-sbar>i { display:block; height:100%; border-radius:4px; }
+#tab-meeting .mt-sbar.s>i { background:var(--acc); }
+#tab-meeting .mt-sbar.p>i { background:var(--grn); }
+#tab-meeting .mt-sf { display:flex; justify-content:space-between; font-size:10.5px; color:var(--tx3); margin-top:3px; }
+#tab-meeting .mt-brk { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; margin:0 0 12px; padding:8px 10px; background:var(--s2); border:1px dashed var(--bd); border-radius:8px; font-size:11.5px; color:var(--tx2); }
+#tab-meeting .mt-brk .lh { font-weight:800; color:var(--tx); }
+#tab-meeting .mt-chip { background:var(--s1); border:1px solid var(--bds); border-radius:99px; padding:2px 9px; }
+#tab-meeting .mt-chip b { color:var(--acc2); font-weight:900; }
+#tab-meeting .mt-chip.soft b { color:var(--acc); }
+#tab-meeting .mt-brk i { color:var(--tx3); font-style:normal; }
+#tab-meeting .mt-scope-head { display:flex; align-items:baseline; gap:10px; margin:2px 0 2px; font-size:13px; font-weight:800; color:var(--tx); }
+#tab-meeting .mt-scope-head .sub { font-size:11px; color:var(--tx3); font-weight:500; }
 #tab-meeting .mt-conf {
   display:inline-block; padding:1px 7px; border-radius:9px;
   font-size:10px; font-weight:700; white-space:nowrap;
@@ -5009,6 +5044,205 @@ function _mtPharmacyCounts() {
   return c;
 }
 
+// ════════════════════════════════════════════════════════════════
+// 営業会議 スコープ対応（全社/営業部/営業所/担当者）— Phase1
+//   _meetingState.scope: 'all' | 'region_<名>' | 'branch_<名>' | <担当者id>
+//   既存の予実集計(getActualValue/getBudgetValue/_getBreakdownForMi)を
+//   読むだけ。数字ロジックには一切触れない（表示専用）。
+// ════════════════════════════════════════════════════════════════
+function _mtScopeIsPerson(scope){
+  return (D.people||[]).some(function(p){ return p.id === scope; });
+}
+// getActualValue / getBudgetValue 用の target に変換
+function _mtScopeTarget(scope){
+  if (scope === 'all') return 'all';
+  if (typeof scope === 'string' && scope.indexOf('region_') === 0) return '__region__' + scope.slice(7);
+  if (typeof scope === 'string' && scope.indexOf('branch_') === 0) return scope.slice(7);
+  return { type:'person', id: scope };
+}
+// _getBreakdownForMi 用 (branchName | '__region__X' | null=全社)
+function _mtScopeBranchParam(scope){
+  if (scope === 'all') return null;
+  if (typeof scope === 'string' && scope.indexOf('region_') === 0) return '__region__' + scope.slice(7);
+  if (typeof scope === 'string' && scope.indexOf('branch_') === 0) return scope.slice(7);
+  return null;
+}
+function _mtScopePeople(scope){
+  var people = ap();
+  if (scope === 'all') return people;
+  var brsAll = (typeof getBranchMaster==='function' ? getBranchMaster() : (D.branchMaster||[]));
+  if (typeof scope === 'string' && scope.indexOf('region_') === 0){
+    var rn = scope.slice(7);
+    var brs = brsAll.filter(function(b){ return (b.region||'西日本')===rn; }).map(function(b){ return b.name; });
+    return people.filter(function(p){ return brs.indexOf(p.branch)>=0; });
+  }
+  if (typeof scope === 'string' && scope.indexOf('branch_') === 0){
+    var bn = scope.slice(7);
+    return people.filter(function(p){ return p.branch===bn; });
+  }
+  var sp = people.find(function(p){ return p.id===scope; });
+  return sp ? [sp] : [];
+}
+function _mtScopeLabel(scope){
+  if (scope === 'all') return '全社';
+  if (typeof scope==='string' && scope.indexOf('region_')===0) return scope.slice(7)+'全体';
+  if (typeof scope==='string' && scope.indexOf('branch_')===0) return scope.slice(7);
+  var sp = (ap()||[]).find(function(p){ return p.id===scope; });
+  return sp ? (sp.name||'担当者') : '';
+}
+function _mtPersonName(spId){
+  var p=(D.people||[]).find(function(x){ return x.id===spId; });
+  return p ? (p.name||'(無名)') : spId;
+}
+function _mtSelectScope(scope){ _meetingState.scope = scope; renderMeeting(); }
+
+// ── スコープ選択タブ（実績確認と同じ2段）──
+function _mtScopeSelectorHtml(scope){
+  var people = ap();
+  var branches = (typeof getBranchMaster==='function' ? getBranchMaster() : (D.branchMaster||[]));
+  var html = '<div class="mt-scope-wrap"><div class="mt-scope-row">';
+  html += '<button class="mt-sc'+(scope==='all'?' on':'')+'" onclick="_mtSelectScope(\'all\')">🌐 全社</button>';
+  var regions = {};
+  branches.forEach(function(b){ var r=b.region||'西日本'; (regions[r]=regions[r]||[]).push(b); });
+  Object.keys(regions).sort().forEach(function(r){
+    html += '<span class="mt-sc-sep"></span>';
+    var rk = 'region_'+r;
+    html += '<button class="mt-sc rg'+(scope===rk?' on':'')+'" onclick="_mtSelectScope(\''+rk+'\')">'+_esc(r)+'全体</button>';
+    regions[r].forEach(function(b){
+      var bk = 'branch_'+b.name;
+      html += '<button class="mt-sc'+(scope===bk?' on':'')+'" style="border-left:3px solid '+(b.color||'#8890b8')+'" onclick="_mtSelectScope(\''+bk+'\')">'+_esc(b.name)+'</button>';
+    });
+  });
+  html += '</div><div class="mt-scope-row r2">';
+  var pool;
+  if (scope==='all') pool = people;
+  else if (typeof scope==='string' && (scope.indexOf('region_')===0 || scope.indexOf('branch_')===0)) pool = _mtScopePeople(scope);
+  else { var sp=people.find(function(p){ return p.id===scope; }); pool = (sp&&sp.branch)?people.filter(function(p){ return p.branch===sp.branch; }):people; }
+  pool.forEach(function(p){
+    html += '<button class="mt-sc pe'+(scope===p.id?' on':'')+'" onclick="_mtSelectScope(\''+p.id+'\')">'+_esc(p.name||'(無名)')+(p.branch?'<span class="br">'+_esc(p.branch)+'</span>':'')+'</button>';
+  });
+  if (!pool.length) html += '<span style="font-size:11px;color:var(--tx3)">この営業所に担当者なし</span>';
+  html += '</div></div>';
+  return html;
+}
+
+// ── 期間集計（スコープ × 月レンジ）──
+function _mtPeriodTotals(scope, mis){
+  var target = _mtScopeTarget(scope);
+  var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
+  var o={bs:0,as:0,bp:0,ap:0,done:0,tot:mis.length};
+  mis.forEach(function(mi){
+    o.bs += getBudgetValue(target,'s',mi); o.as += getActualValue(target,'s',mi);
+    o.bp += getBudgetValue(target,'p',mi); o.ap += getActualValue(target,'p',mi);
+    if (mi <= curMi && (getActualValue(target,'s',mi)>0 || getActualValue(target,'p',mi)>0)) o.done++;
+  });
+  return o;
+}
+// ── 年間サマリー 3カード ──
+function _mtSummaryCardsHtml(scope){
+  var H1=[0,1,2,3,4,5], H2=[6,7,8,9,10,11], FY12=[0,1,2,3,4,5,6,7,8,9,10,11];
+  function card(t,o,future){
+    var rs = o.bs>0?Math.round(o.as/o.bs*100):0, rp = o.bp>0?Math.round(o.ap/o.bp*100):0;
+    var remS=Math.max(0,o.bs-o.as), remP=Math.max(0,o.bp-o.ap);
+    var e = future?'未開始':('経過 '+o.done+'/'+o.tot+'ヶ月');
+    return '<div class="mt-sumcard'+(future?' future':'')+'">'
+      + '<div class="mt-sh"><span class="t">'+t+'</span><span class="e">'+e+'</span></div>'
+      + '<div class="mt-sl"><div class="lab"><span>売上</span><span><b>'+(future?'—':fmtN(Math.round(o.as)))+'</b> <span class="bud">/ '+fmtN(Math.round(o.bs))+'千</span></span></div>'
+      + '<div class="mt-sbar s"><i style="width:'+Math.min(100,rs)+'%"></i></div>'
+      + '<div class="mt-sf"><span>進捗 '+(future?'—':rs+'%')+'</span><span>残り '+fmtN(Math.round(remS))+'千</span></div></div>'
+      + '<div class="mt-sl"><div class="lab"><span>粗利</span><span><b>'+(future?'—':fmtN(Math.round(o.ap)))+'</b> <span class="bud">/ '+fmtN(Math.round(o.bp))+'千</span></span></div>'
+      + '<div class="mt-sbar p"><i style="width:'+Math.min(100,rp)+'%"></i></div>'
+      + '<div class="mt-sf"><span>進捗 '+(future?'—':rp+'%')+'</span><span>残り '+fmtN(Math.round(remP))+'千</span></div></div>'
+      + '</div>';
+  }
+  var h2 = _mtPeriodTotals(scope,H2);
+  return '<div class="mt-sumwrap">'
+    + card('通期（4〜3月）', _mtPeriodTotals(scope,FY12), false)
+    + card('上半期（4〜9月）', _mtPeriodTotals(scope,H1), false)
+    + card('下半期（10〜3月）', h2, (h2.as<=0 && h2.ap<=0))
+    + '</div>';
+}
+// ── Q3: 売上内訳チップ（保守/HW/消耗品/その他）──
+function _mtBreakdownHtml(scope){
+  if (typeof _getBreakdownForMi !== 'function') return '';
+  var bp = _mtScopeBranchParam(scope);
+  var H1=[0,1,2,3,4,5];
+  var sys=0,hw=0,mt=0,cs=0,ot=0;
+  H1.forEach(function(mi){
+    var b = _getBreakdownForMi(bp,'s',mi) || {};
+    sys+=b.system||0; hw+=b.hardware||0; mt+=b.maintenance||0; cs+=b.consumables||0; ot+=b.other||0;
+  });
+  function chip(lbl,v,cls){ if(v<=0) return ''; return '<span class="mt-chip'+(cls?' '+cls:'')+'">'+lbl+' <b>'+fmtN(Math.round(v))+'</b></span>'; }
+  var chips = chip('ソフト',sys,'soft')+chip('保守料',mt)+chip('HW',hw)+chip('消耗品',cs)+chip('その他',ot);
+  if (!chips) return '';
+  return '<div class="mt-brk"><span class="lh">売上内訳（上期実績）:</span>'+chips+'<i>千円 ／ 拠点公式＝実績確認の予実と一致</i></div>';
+}
+// ── スコープ内・当月の全案件（担当者横断・グループ薬局は個人実績外なので除外）──
+function _mtScopeMonthDeals(scope, mi){
+  var ppl = _mtScopePeople(scope);
+  var arr = [];
+  ppl.forEach(function(p){ _mtGetMonthDeals(p.id, mi).forEach(function(d){ arr.push(d); }); });
+  arr.sort(function(a,b){
+    if (a.spId !== b.spId) return (String(a.spId) < String(b.spId)) ? -1 : 1;
+    return (parseFloat(b.sales)||0)-(parseFloat(a.sales)||0);
+  });
+  return arr;
+}
+// ── ②添付の月別カード（営業所/営業部の全案件を月ごと・担当者列つき）──
+function _mtBranchMonthCardsHtml(scope, halfMis){
+  var target = _mtScopeTarget(scope);
+  var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+  var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
+  var html = '<div class="mt-month-grid">';
+  halfMis.forEach(function(mi){
+    var bs=getBudgetValue(target,'s',mi), as=getActualValue(target,'s',mi);
+    var bp=getBudgetValue(target,'p',mi), ap2=getActualValue(target,'p',mi);
+    var sA=bs>0?(as/bs*100):0, pA=bp>0?(ap2/bp*100):0;
+    var sCls=_mtAchCls(sA), pCls=_mtAchCls(pA);
+    var sDiff=bs>0?Math.round(as-bs):0, pDiff=bp>0?Math.round(ap2-bp):0;
+    function hd(d){ if(!d) return ''; return d>0?' <span style="color:#4a5a32;font-size:12px">(▲+'+d.toLocaleString()+')</span>':' <span style="color:var(--red);font-size:12px">(▼'+Math.abs(d).toLocaleString()+')</span>'; }
+    html += '<div class="mt-month-card">';
+    html += '<div class="mt-mc-head"><span class="m">'+moLabels[mi]+(mi===curMi?' <span style="font-size:10px;color:var(--amb)">●今月</span>':'')+'</span>';
+    html += '<span class="ach" style="color:'+(sCls==='good'?'#4a5a32':sCls==='mid'?'#7a5a2a':'var(--red)')+'">売上 '+sA.toFixed(1)+'%'+hd(sDiff)+' / 粗利 '+pA.toFixed(1)+'%'+hd(pDiff)+'</span></div>';
+    html += '<table class="mt-mc-tbl"><tr><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th></tr>';
+    html += '<tr class="hl-y"><td>'+_mtFmtNum(as)+'</td><td>'+_mtFmtNum(bs)+'</td><td class="'+sCls+'"><div>'+sA.toFixed(1)+'%</div>'+_mtFmtDiff(as,bs)+'</td>';
+    html += '<td>'+_mtFmtNum(ap2)+'</td><td>'+_mtFmtNum(bp)+'</td><td class="'+pCls+'"><div>'+pA.toFixed(1)+'%</div>'+_mtFmtDiff(ap2,bp)+'</td></tr></table>';
+    var deals = _mtScopeMonthDeals(scope, mi);
+    if (deals.length){
+      html += '<table class="mt-deal-tbl">';
+      html += '<tr><th style="text-align:left;">ユーザー名</th><th style="width:62px">担当者</th><th style="width:38px">訪問</th><th style="width:34px">販</th><th style="width:92px">種別</th><th style="width:42px">確度</th><th style="width:34px">台数</th><th style="width:60px">売上</th><th style="width:60px">粗利</th></tr>';
+      deals.forEach(function(d){
+        var conf = _mtConfInfo(d);
+        var cat  = (d.category || '直販'); var catS=(cat.length>2)?cat.slice(0,2):cat;
+        var nm   = _esc(d.name || '(無名)');
+        var pt = String(d.productType || ''); var dt = String(d.dealType || '');
+        var isV8 = (pt === '調剤くんV8') || /V8Core/.test(pt);
+        var ptBadge='';
+        if (pt === '調剤くんV8') ptBadge='<span class="mt-pt v8">V8</span>';
+        else if (/V8Core/.test(pt)) ptBadge='<span class="mt-pt v8c">V8C</span>';
+        else if (pt) ptBadge='<span class="mt-pt other">'+_esc(pt.slice(0,4))+'</span>';
+        else ptBadge='<span class="dim">-</span>';
+        var dtBadge='';
+        if (isV8){ if(/新規/.test(dt)) dtBadge='<span class="mt-dt new">新規</span>'; else if(/既存/.test(dt)) dtBadge='<span class="mt-dt exist">既存</span>'; }
+        var typeCell = ptBadge + (dtBadge?' '+dtBadge:'');
+        var salesV=parseFloat(d.sales)||0, costV=parseFloat(d.cost)||0, profitV=salesV-costV;
+        var nmLink = '<a href="#" class="mt-deal-link" onclick="event.preventDefault();_mtOpenDeal(\''+_esc(d.id)+'\')" title="案件詳細を開く">'+nm+'</a>';
+        html += '<tr><td>'+nmLink+'</td><td class="ctr" style="font-weight:700;color:var(--acc2);white-space:nowrap">'+_esc(_mtPersonName(d.spId))+'</td>';
+        html += '<td class="ctr">'+_mtLastVisitDate(d)+'</td><td class="ctr">'+_esc(catS)+'</td><td class="ctr">'+typeCell+'</td>';
+        html += '<td class="ctr"><span class="mt-conf '+conf.cls+'">'+conf.lbl+'</span></td>';
+        html += '<td class="ctr">'+(d.configCount?_esc(d.configCount):'<span class="dim">-</span>')+'</td>';
+        html += '<td class="num">'+_mtFmtNum(salesV*1000)+'</td><td class="num">'+_mtFmtNum(profitV*1000)+'</td></tr>';
+      });
+      html += '</table>';
+    } else {
+      html += '<p class="mt-empty">(この月の案件なし)</p>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 function renderMeeting() {
   var body = document.getElementById('meeting-body');
   if (!body) return;
@@ -5017,7 +5251,10 @@ function renderMeeting() {
     body.innerHTML = '<p style="padding:24px;text-align:center;color:var(--tx3)">担当者が未設定です。設定タブで担当者を登録してください。</p>';
     return;
   }
-  var selSpId = _mtGetCurrentSpId();
+  // スコープ(全社/営業部/営業所/担当者)。未設定なら現在のユーザー(担当者)。
+  var scope = (typeof _meetingState.scope !== 'undefined' && _meetingState.scope !== null && _meetingState.scope !== '') ? _meetingState.scope : _mtGetCurrentSpId();
+  var scopeIsPerson = _mtScopeIsPerson(scope);
+  var selSpId = scopeIsPerson ? scope : _mtGetCurrentSpId();
   var sp = people.find(function(p){ return p.id === selSpId; });
   if (!sp) {
     selSpId = people[0].id;
@@ -5055,70 +5292,29 @@ function renderMeeting() {
   html += '</div>';
   html += '</div>';
 
-  // ── 担当者選択(リージョン別グルーピング + 自分の所属リージョン優先表示) ─────────
-  // 拠点マスタから region 情報を取得し、担当者をリージョン別に分類
-  var branchMaster = (typeof getBranchMaster === 'function') ? getBranchMaster() : (D.branchMaster || []);
-  var branchRegion = {};
-  branchMaster.forEach(function(b) {
-    if (b && b.name) branchRegion[b.name] = b.region || '西日本';
-  });
-  var byRegion = { '西日本': [], '東日本': [], 'その他': [] };
-  people.forEach(function(p) {
-    var rgn = branchRegion[p.branch] || (p.branch ? '西日本' : 'その他');
-    if (!byRegion[rgn]) byRegion[rgn] = [];
-    byRegion[rgn].push(p);
-  });
-
-  // 自分の所属リージョンを判定 (ログインユーザーの拠点 → リージョン)
-  var myId = (typeof getMyPersonId === 'function') ? getMyPersonId() : null;
-  var myPerson = myId ? people.find(function(p){ return p.id === myId; }) : null;
-  var myRegion = myPerson ? (branchRegion[myPerson.branch] || '') : '';
-
-  // リージョン表示モード('mine' = 自分の所属のみ / 'all' = 全リージョン)
-  // 初期値は 'mine'(自分の所属リージョンのみ)
-  if (typeof _meetingState.regionMode === 'undefined') {
-    _meetingState.regionMode = myRegion ? 'mine' : 'all';
-  }
-  var regionMode = _meetingState.regionMode;
-
-  // 表示するリージョン一覧を決定
-  var visibleRegions;
-  if (regionMode === 'mine' && myRegion) {
-    visibleRegions = [myRegion]; // 自分の所属のみ
-  } else {
-    visibleRegions = ['西日本','東日本','その他']; // 全部
+  // ── スコープ選択(全社/営業部/営業所/担当者) + 年間サマリー + 内訳 ─────────
+  // 表示専用。万一新ビューで例外が出ても 営業会議タブ全体は壊さない。
+  try {
+    html += _mtScopeSelectorHtml(scope);
+    html += '<div class="mt-scope-head">'+_esc(_mtScopeLabel(scope))+'<span class="sub">'+fy+'年度 年間サマリー</span></div>';
+    html += _mtSummaryCardsHtml(scope);
+    if (!scopeIsPerson) {
+      // 営業所/営業部/全社: 内訳チップ + ②月別カード(全担当者の案件・担当者列つき)
+      html += _mtBreakdownHtml(scope);
+      html += _mtBranchMonthCardsHtml(scope, halfMis);
+      body.innerHTML = html;
+      return;
+    }
+  } catch (e) {
+    console.warn('renderMeeting scope view failed', e);
+    if (!scopeIsPerson) {
+      body.innerHTML = html + '<p style="padding:20px;text-align:center;color:var(--red)">表示エラーが発生しました。担当者を選び直してください。</p>';
+      return;
+    }
+    // 担当者スコープは下の従来ビューにフォールバック
   }
 
-  // 表示モード切替トグル(自分の所属リージョンがある場合のみ表示)
-  if (myRegion) {
-    html += '<div class="mt-region-toggle">';
-    html += '<button class="mt-rt'+(regionMode==='mine'?' active':'')+'" onclick="_mtSetRegionMode(\'mine\')">📍 '+_esc(myRegion)+'営業部のみ</button>';
-    html += '<button class="mt-rt'+(regionMode==='all'?' active':'')+'" onclick="_mtSetRegionMode(\'all\')">🌐 全リージョン</button>';
-    html += '</div>';
-  }
-
-  html += '<div class="mt-person-region-wrap">';
-  visibleRegions.forEach(function(rgn) {
-    var members = byRegion[rgn] || [];
-    if (!members.length) return;
-    html += '<div class="mt-region-block">';
-    html += '<div class="mt-region-label">';
-    if (rgn === 'その他') html += '👤 拠点未設定';
-    else html += '🗾 ' + rgn + '営業部';
-    html += ' <span class="cnt">'+members.length+'名</span></div>';
-    html += '<div class="mt-person-tabs">';
-    members.forEach(function(p) {
-      var act = (p.id === selSpId) ? ' active' : '';
-      html += '<button class="mt-pt'+act+'" onclick="_mtSelectPerson(\''+p.id+'\')">';
-      html += _esc(p.name||'(無名)');
-      if (p.branch) html += ' <span class="br">'+_esc(p.branch)+'</span>';
-      html += '</button>';
-    });
-    html += '</div>';
-    html += '</div>';
-  });
-  html += '</div>';
-
+  // ── 以下は担当者スコープ(個人ビュー: 月別カード+案件+累計) ─────────
   // ── 担当者ヘッダー ─────────
   html += '<div class="meeting-person-head">';
   html += '<span class="nm">'+_esc(sp.name||'')+'</span>';
