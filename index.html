@@ -9968,7 +9968,10 @@ function _doConfirmImport(addedMasters){
       var nb = stripCommonSuffix(normDealName(b));
       if (!na || !nb) return 0;
       if (na === nb) return 1.0;
-      if (na.includes(nb) || nb.includes(na)) return 0.9;
+      // ⚠️ 旧: 包含関係で一律0.9。これだと「白男川薬局加治木店(→白男川薬局加治木)」が
+      //   「白男川薬局(→白男川)」の near-dup と誤判定され、チェーン店の支店が要確認に回り
+      //   自動作成されなかった。包含ショートカットを廃止し、下の文字一致率で評価する
+      //   (店名が違えば一致率が下がり別案件として作成される)。
       // マルチセット比較: na の文字を1個ずつ消費していく
       var naMap = {};
       for (var i = 0; i < na.length; i++) naMap[na[i]] = (naMap[na[i]]||0) + 1;
@@ -10051,12 +10054,11 @@ function _doConfirmImport(addedMasters){
             && x.deliveryMonth === moStr
             && x.spId === spId;
         });
-        var partialMatch = !exactMatch && D.deals.find(function(x){
-          if (x.deliveryMonth !== moStr || x.spId !== spId) return false;
-          var nx = normDealName(x.name);
-          return nx && normImp && (nx.includes(normImp) || normImp.includes(nx));
-        });
-        var existingDeal = exactMatch || partialMatch;
+        // ⚠️ 旧: 部分一致(名前の包含)も重複扱いしていたが、これだと「白男川薬局加治木店」が
+        //   「白男川薬局」の重複と誤判定され、チェーン店の支店が丸ごと取りこぼされていた。
+        //   店舗ごとに別案件が正しいので、重複判定は normDealName(空白/全角を正規化済) の
+        //   「完全一致 + 同月 + 同担当者」のみとする。微妙な表記揺れは下のあいまい一致(要確認)で拾う。
+        var existingDeal = exactMatch;
 
         if (existingDeal) {
           let changed = false;
