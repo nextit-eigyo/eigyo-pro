@@ -18917,12 +18917,21 @@ function checkImportMasters(r, onConfirm) {
   function addSection(title, items, type) {
     if (!items.length) return;
     var sec = document.createElement('div');
+    // タイトル行: 見出し + 全選択/全解除トグル
     var ttl = document.createElement('div');
-    ttl.style.cssText = 'font-size:12px;font-weight:700;margin-bottom:8px;color:' + (type==='rep' ? 'var(--acc)' : 'var(--grn)');
-    ttl.textContent = title + ' (' + items.length + '件)';
+    ttl.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:8px';
+    var ttlText = document.createElement('span');
+    ttlText.style.cssText = 'font-size:12px;font-weight:700;color:' + (type==='rep' ? 'var(--acc)' : 'var(--grn)');
+    ttlText.textContent = title + ' (' + items.length + '件)';
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.style.cssText = 'margin-left:auto;font-size:11px;font-weight:700;border:1px solid var(--bd);background:#fff;border-radius:6px;padding:3px 12px;cursor:pointer;color:var(--tx2);white-space:nowrap';
+    toggle.textContent = '全解除';
+    ttl.appendChild(ttlText); ttl.appendChild(toggle);
     sec.appendChild(ttl);
     var box = document.createElement('div');
     box.style.cssText = 'background:var(--s3);border-radius:8px;padding:10px;margin-bottom:14px';
+    var secChks = [];
     items.forEach(function(item) {
       var row = document.createElement('label');
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 4px;cursor:pointer;border-bottom:1px solid var(--bds)';
@@ -18937,8 +18946,15 @@ function checkImportMasters(r, onConfirm) {
       hint.textContent = type==='rep' ? '担当者マスタに追加' : '販売店マスタに追加';
       row.appendChild(chk); row.appendChild(txt); row.appendChild(hint);
       box.appendChild(row);
+      secChks.push(chk);
       checkboxes.push({ chk: chk, item: item, type: type });
     });
+    // 全選択/全解除トグル: いずれか未チェックなら全チェック、全チェックなら全解除
+    toggle.onclick = function() {
+      var allChecked = secChks.every(function(c){ return c.checked; });
+      secChks.forEach(function(c){ c.checked = !allChecked; });
+      toggle.textContent = allChecked ? '全選択' : '全解除';
+    };
     sec.appendChild(box);
     modal.appendChild(sec);
   }
