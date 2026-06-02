@@ -9474,7 +9474,13 @@ function parseSheet(rows,sheetName,result){
     else if(num===4)productType='ハードウェア';
     if(num===1||num===2||num===5){
       result.software.s+=salesV;result.software.p+=profitV;
-      if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,sheet:sheetName,noRep:!rep});
+      // 種別判定(全拠点共通): B列(集計用中区分)に「→」を含めばバージョンアップ=既存、無ければV8新規。
+      //   例: (V7→V8)_LAN / (with→V8)_STD / core→V8 → 既存(バージョンアップ)
+      //       (V8)STD / 新規(V8)_LAN → 新規。V8ソフト行のみ判定(非V8は従来どおり)。
+      var _dt = (productType==='調剤くんV8')
+        ? (/→|⇒/.test(midCat) ? '既存（バージョンアップ）' : '新規（他社入替）')
+        : '';
+      if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,sheet:sheetName,noRep:!rep,dealType:_dt});
     }else if(num===4){
       // ⭐ HW(4_周辺機器)も担当者あり行は個人実績化(馬場さん要望)
       if (cust && salesV > 0 && rep) {
@@ -10050,6 +10056,12 @@ function _doConfirmImport(addedMasters){
             changed = true;
           }
           if (!existingDeal.deliveryMonth) { existingDeal.deliveryMonth = moStr; changed = true; }
+          // ⭐ 種別(dealType): B列(集計用中区分)ルールで再分類した値に更新する。
+          //   従来は dealType を更新せず、誤って全件「新規」のまま残っていた。
+          //   V8ソフト行(impDeal.dealType が設定される行)のみ対象。再インポートで既存案件も正しく振り分け。
+          if (impDeal.dealType && existingDeal.dealType !== impDeal.dealType) {
+            existingDeal.dealType = impDeal.dealType; changed = true;
+          }
           if (changed) updatedDeals++; else skippedDeals++;
 
         } else {
