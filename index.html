@@ -2383,7 +2383,7 @@ body.has-sidepanel #home-deal-mode {
       <div style="height:1px;background:var(--bds);margin:8px 0"></div>
       <div class="mrow">
         <div class="ff"><label>都道府県</label><select id="adm-pref" class="fs"><option value="">選択</option></select></div>
-        <div class="ff"><label>区分</label><select id="adm-cat" class="fs"><option value="直販">直販</option><option value="グループ薬局">グループ薬局</option><option value="販売店">販売店</option></select></div>
+        <div class="ff"><label>区分</label><select id="adm-cat" class="fs" onchange="if(typeof onAdmCatChange==='function')onAdmCatChange()"><option value="直販">直販</option><option value="グループ薬局">グループ薬局</option><option value="販売店">販売店</option></select></div>
       </div>
       <div class="mrow">
         <div class="ff"><label>商品種別</label><select id="adm-prod" class="fs"></select></div>
@@ -15566,6 +15566,27 @@ function openConfigDiagram(dealId) {
   }, 80);
 }
 
+// ⭐ 区分=グループ薬局を選んだら、ステータスの初期値を「受注」にする(ユーザー要望)。
+//   案件追加モーダルは通常「受注」を除外しているが、グループ薬局のみ受注を選べるようにする。
+function onAdmCatChange(){
+  try {
+    var cat = document.getElementById('adm-cat');
+    var st  = document.getElementById('adm-status');
+    if (!cat || !st) return;
+    if (cat.value === 'グループ薬局') {
+      var has = Array.prototype.some.call(st.options, function(o){ return o.value === '受注'; });
+      if (!has) {
+        var o = document.createElement('option');
+        o.value = '受注'; o.textContent = '受注（確定実績として計上）';
+        st.insertBefore(o, st.firstChild);
+      }
+      st.value = '受注';
+    } else if (st.value === '受注') {
+      st.value = '電話連絡';
+    }
+  } catch(e) { console.error('onAdmCatChange', e); }
+}
+
 function doAddDeal() {
   const name = (document.getElementById('adm-name')||{}).value?.trim()||'';
   if (!name) {
@@ -15605,6 +15626,12 @@ function doAddDeal() {
       actType:'電話', status, reaction:'', reason:'', memo
     }] : []
   };
+  // ⭐ グループ薬局は受注確定(本部一括契約)が前提のため、確度5(受注)を初期値にする(ユーザー要望)。
+  //   確度は後で案件カードから変更可。売上は未入力なので即時の実績計上は無い(売上入力時に計上)。
+  if (cat === 'グループ薬局') {
+    newDeal.probability = 5;
+    newDeal.phase = '受注';
+  }
   if (!D.deals) D.deals = [];
   D.deals.unshift(newDeal); // 先頭に追加
   if(typeof _auditDealAdd==='function')_auditDealAdd(newDeal);
