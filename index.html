@@ -2044,6 +2044,20 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx2 tr.cnt td { background:#f4f6ee; color:var(--tx2); font-size:12.5px; font-weight:800; padding:6px 12px; }
 #tab-meeting .mt-mx2 tr.cnt td.nm { background:#ece9dc; }
 #tab-meeting .mt-mx2 tr.cnt td.totcol, #tab-meeting .mt-mx2 td.totcol { background:#faf6ee; }
+/* 担当者別マトリクス 予算/残り視覚化版(mt-mx-bud): 実績/予算・達成率・進捗バー・あと○○ */
+#tab-meeting .mt-mx-bud td { vertical-align:top; padding:7px 9px; }
+#tab-meeting .mt-mx-bud td .p { margin-top:5px; padding-top:5px; border-top:1px dotted var(--bd); }
+#tab-meeting .mt-mx-bud .r1 { white-space:nowrap; line-height:1.3; }
+#tab-meeting .mt-mx-bud .r1 .bud { font-size:12px; color:var(--tx3); font-weight:600; margin:0 4px 0 1px; }
+#tab-meeting .mt-mx-bud .r2 { display:flex; align-items:center; gap:6px; margin-top:3px; }
+#tab-meeting .mt-mx-bud .mbar { flex:1; min-width:26px; height:7px; background:var(--s3); border-radius:4px; overflow:hidden; }
+#tab-meeting .mt-mx-bud .mbar > i { display:block; height:100%; border-radius:4px; }
+#tab-meeting .mt-mx-bud .mbar.good > i { background:var(--grn); }
+#tab-meeting .mt-mx-bud .mbar.mid > i { background:var(--amb); }
+#tab-meeting .mt-mx-bud .mbar.bad > i { background:var(--red); }
+#tab-meeting .mt-mx-bud .rem { font-size:11.5px; font-weight:800; color:var(--red); white-space:nowrap; }
+#tab-meeting .mt-mx-bud .rem.done { color:#4a7a32; }
+#tab-meeting .mt-mx-bud .rem.none { color:var(--tx3); font-weight:600; font-size:11px; }
 
 /* 営業所スコープ: 担当者別スコアカード */
 #tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -5536,15 +5550,23 @@ function _mtMemberMonthByPersonHtml(scope, halfMis){
   var members = _mtScopePeople(scope);
   if (!members.length) return '';
   var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
-  function achSpan(act,bud){ if(!(bud>0)) return ''; var r=Math.round(act/bud*100); var c=r>=100?'good':r>=80?'mid':'bad'; return '<span class="ach '+c+'">'+r+'%</span>'; }
-  function _pn(n){ return (Math.round(n)||0).toLocaleString(); }
+  // 1メトリクス(売上 or 粗利): 実績／予算・達成率・残り(あと○○で達成)を進捗バーで視覚化
+  function metric(klass, act, bud){
+    var has = bud>0;
+    var pct = has ? Math.round(act/bud*100) : 0;
+    var fill = Math.max(0, Math.min(100, pct));
+    var c = pct>=100?'good':pct>=80?'mid':'bad';
+    var rem;
+    if (!has) rem = '<span class="rem none">予算未設定</span>';
+    else if (act>=bud) rem = '<span class="rem done">✓達成 +'+(Math.round(act-bud)).toLocaleString()+'</span>';
+    else rem = '<span class="rem">あと '+(Math.round(bud-act)).toLocaleString()+'</span>';
+    return '<div class="'+klass+'">'
+      + '<div class="r1"><b class="v">'+_mtFmtNum(act)+'</b><span class="bud">/'+(has?_mtFmtNum(bud):'—')+'</span>'+(has?'<span class="ach '+c+'">'+pct+'%</span>':'')+'</div>'
+      + '<div class="r2"><span class="mbar '+c+'"><i style="width:'+fill+'%"></i></span>'+rem+'</div></div>';
+  }
   function cell(sa,sb,pa,pb,cls,dim){
-    var sr=sb>0?(Math.round(sa/sb*100)+'%'):'—', pr=pb>0?(Math.round(pa/pb*100)+'%'):'—';
-    var tip='売上 実績'+_pn(sa)+' / 目標'+_pn(sb)+' '+sr+'  ｜  粗利 実績'+_pn(pa)+' / 目標'+_pn(pb)+' '+pr+'（千円）';
     var cc=(cls||'')+(dim?' dim':'');
-    return '<td'+(cc.trim()?' class="'+cc.trim()+'"':'')+' title="'+tip+'">'
-      + '<div class="s"><b class="v">'+_mtFmtNum(sa)+'</b>'+achSpan(sa,sb)+'</div>'
-      + '<div class="p"><b class="v">'+_mtFmtNum(pa)+'</b>'+achSpan(pa,pb)+'</div></td>';
+    return '<td'+(cc.trim()?' class="'+cc.trim()+'"':'')+'>'+metric('s',sa,sb)+metric('p',pa,pb)+'</td>';
   }
   // 担当者ごとの上期通算と0実績判定
   var mem = members.map(function(p){
@@ -5558,38 +5580,34 @@ function _mtMemberMonthByPersonHtml(scope, halfMis){
     var pidJs=String(m.p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     head += '<th class="memh'+(m.zero?' dim':'')+'" title="クリックで'+_esc(m.p.name||'')+'へ" onclick="_mtSelectScope(\''+pidJs+'\')">'+_esc(m.p.name||'(無名)')+' <span class="go">▸</span></th>';
   });
-  head += '<th class="totcol">'+_esc(_mtScopeLabel(scope))+'計</th>';
-  // 各月の行
+  // 各月の行(営業所計の列は削除=担当者列のみ)
   var per={}; mem.forEach(function(m){ per[m.p.id]={sa:0,sb:0,pa:0,pb:0}; });
-  var gSa=0,gSb=0,gPa=0,gPb=0, rows='';
+  var rows='';
   halfMis.forEach(function(mi){
-    var rSa=0,rSb=0,rPa=0,rPb=0, cells='';
+    var cells='';
     mem.forEach(function(m){
       var sa=getActualValue(m.tgt,'s',mi)||0, sb=getBudgetValue(m.tgt,'s',mi)||0;
       var pa=getActualValue(m.tgt,'p',mi)||0, pb=getBudgetValue(m.tgt,'p',mi)||0;
-      rSa+=sa;rSb+=sb;rPa+=pa;rPb+=pb;
       var t=per[m.p.id]; t.sa+=sa;t.sb+=sb;t.pa+=pa;t.pb+=pb;
       cells += cell(sa,sb,pa,pb,'',m.zero);
     });
-    gSa+=rSa;gSb+=rSb;gPa+=rPa;gPb+=rPb;
-    rows += '<tr><td class="nm">'+ML[mi]+'</td>'+cells+cell(rSa,rSb,rPa,rPb,'tot')+'</tr>';
+    rows += '<tr><td class="nm">'+ML[mi]+'</td>'+cells+'</tr>';
   });
-  // 上期計 行
+  // 上期計 行(担当者ごとの予算/実績/残り)
   var totCells=''; mem.forEach(function(m){ var t=per[m.p.id]; totCells += cell(t.sa,t.sb,t.pa,t.pb,'tot',m.zero); });
-  var totRow='<tr class="totrow"><td class="nm">'+halfLbl+'計</td>'+totCells+cell(gSa,gSb,gPa,gPb,'tot')+'</tr>';
+  var totRow='<tr class="totrow"><td class="nm">'+halfLbl+'計</td>'+totCells+'</tr>';
   // 新規軒/既存軒 行(スコアカードから統合)
-  var nc='', ec='', tN=0, tE=0;
+  var nc='', ec='';
   mem.forEach(function(m){
     var nw=_mtCountNewDeals(m.p.id,halfMis), ex=_mtCountExistingDeals(m.p.id,halfMis);
-    tN+=nw; tE+=ex;
     nc += '<td'+(m.zero?' class="dim"':'')+'>'+nw+'軒</td>';
     ec += '<td'+(m.zero?' class="dim"':'')+'>'+ex+'軒</td>';
   });
-  var cntRows='<tr class="cnt"><td class="nm">新規軒</td>'+nc+'<td class="totcol">'+tN+'軒</td></tr>'
-            +'<tr class="cnt"><td class="nm">既存軒</td>'+ec+'<td class="totcol">'+tE+'軒</td></tr>';
-  var colg='<col>'; mem.forEach(function(){ colg+='<col>'; }); colg+='<col class="totcol">';
-  return '<div class="mt-mx-title">🗓 '+_esc(_mtScopeLabel(scope))+' 担当者別 月別実績（'+halfLbl+'・縦＝月／横＝担当者）<span class="hint">各セル 上＝売上／下＝<span class="pp">粗利</span>の実績＋達成率（千円・目標はマウスで表示）／ 担当者名クリックで個人ビュー／ 「'+_esc(_mtScopeLabel(scope))+'計」は担当者実績の合計（保守料・HW・グループ薬局は含まない）</span></div>'
-    + '<div class="mt-mx-wrap"><table class="mt-mx mt-mx2"><colgroup>'+colg+'</colgroup>'
+  var cntRows='<tr class="cnt"><td class="nm">新規軒</td>'+nc+'</tr>'
+            +'<tr class="cnt"><td class="nm">既存軒</td>'+ec+'</tr>';
+  var colg='<col>'; mem.forEach(function(){ colg+='<col>'; });
+  return '<div class="mt-mx-title">🗓 '+_esc(_mtScopeLabel(scope))+' 担当者別 月別実績（'+halfLbl+'・縦＝月／横＝担当者）<span class="hint">各セル 上＝売上／下＝<span class="pp">粗利</span>。実績／予算・達成率と「あと○○で達成」を表示／ 担当者名クリックで個人ビュー</span></div>'
+    + '<div class="mt-mx-wrap"><table class="mt-mx mt-mx2 mt-mx-bud"><colgroup>'+colg+'</colgroup>'
     + '<thead><tr>'+head+'</tr></thead><tbody>'+rows+totRow+cntRows+'</tbody></table></div>';
 }
 
