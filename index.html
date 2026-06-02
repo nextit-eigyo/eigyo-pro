@@ -2017,7 +2017,7 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx tfoot td { background:#f6efe0; font-weight:900; border-top:2px solid var(--bd); }
 #tab-meeting .mt-mx tfoot td .p { color:#a87a2e; }
 /* 月別マトリクス: 実績/目標 達成率つき・文字を大きく(馬場さん要望) */
-#tab-meeting .mt-mx2 { font-size:14px; min-width:1120px; }
+#tab-meeting .mt-mx2 { font-size:14px; min-width:880px; }
 #tab-meeting .mt-mx2 th, #tab-meeting .mt-mx2 td { padding:9px 12px; }
 #tab-meeting .mt-mx2 thead th { font-size:13px; }
 #tab-meeting .mt-mx2 td .s { font-weight:700; line-height:1.3; }
@@ -2025,10 +2025,10 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx2 td .p { font-size:13px; line-height:1.3; margin-top:2px; }
 #tab-meeting .mt-mx2 td .p .v { font-size:14px; font-weight:900; color:var(--amb); }
 #tab-meeting .mt-mx2 td .bud { font-size:11px; color:var(--tx3); font-weight:600; margin-left:1px; }
-#tab-meeting .mt-mx2 td .ach { font-size:11.5px; font-weight:800; margin-left:3px; }
-#tab-meeting .mt-mx2 td .ach.good { color:var(--grn); }
-#tab-meeting .mt-mx2 td .ach.mid { color:var(--amb); }
-#tab-meeting .mt-mx2 td .ach.bad { color:var(--red); }
+#tab-meeting .mt-mx2 td .ach { display:inline-block; font-size:11px; font-weight:800; margin-left:6px; padding:1px 6px; border-radius:9px; vertical-align:middle; }
+#tab-meeting .mt-mx2 td .ach.good { background:rgba(122,142,90,.16); color:#4a5a32; }
+#tab-meeting .mt-mx2 td .ach.mid { background:rgba(200,152,86,.18); color:#7a5a2a; }
+#tab-meeting .mt-mx2 td .ach.bad { background:rgba(168,90,74,.14); color:#a85a4a; }
 #tab-meeting .mt-mx2 .mt-mx-title .bud, #tab-meeting .mt-mx-title .bud { color:var(--tx3); font-weight:500; }
 
 /* 営業所スコープ: 担当者別スコアカード */
@@ -5445,12 +5445,15 @@ function _mtMemberMonthlyMatrixHtml(scope, halfMis){
   var head = '<th class="nm" style="text-align:left">担当者</th>';
   halfMis.forEach(function(mi){ head += '<th>'+ML[mi]+'</th>'; });
   head += '<th class="totcol">'+halfLbl+'計</th>';
-  // 各セル: 上=売上(実績/目標 達成率), 下=粗利(実績/目標 達成率)
-  function achSpan(act,bud){ if(!(bud>0)) return ''; var r=Math.round(act/bud*100); var c=r>=100?'good':r>=80?'mid':'bad'; return ' <span class="ach '+c+'">'+r+'%</span>'; }
+  // 各セル: 上=売上、下=粗利。実績(大)＋達成率バッジ。目標はtitle(ホバー)で表示し羅列を回避。
+  function achSpan(act,bud){ if(!(bud>0)) return ''; var r=Math.round(act/bud*100); var c=r>=100?'good':r>=80?'mid':'bad'; return '<span class="ach '+c+'">'+r+'%</span>'; }
+  function _pn(n){ return (Math.round(n)||0).toLocaleString(); }
   function cell(sa,sb,pa,pb,cls){
-    return '<td'+(cls?' class="'+cls+'"':'')+'>'
-      + '<div class="s"><b class="v">'+_mtFmtNum(sa)+'</b><span class="bud">/'+_mtFmtNum(sb)+'</span>'+achSpan(sa,sb)+'</div>'
-      + '<div class="p"><b class="v">'+_mtFmtNum(pa)+'</b><span class="bud">/'+_mtFmtNum(pb)+'</span>'+achSpan(pa,pb)+'</div>'
+    var sr=sb>0?(Math.round(sa/sb*100)+'%'):'—', pr=pb>0?(Math.round(pa/pb*100)+'%'):'—';
+    var tip='売上 実績'+_pn(sa)+' / 目標'+_pn(sb)+' '+sr+'  ｜  粗利 実績'+_pn(pa)+' / 目標'+_pn(pb)+' '+pr+'（千円）';
+    return '<td'+(cls?' class="'+cls+'"':'')+' title="'+tip+'">'
+      + '<div class="s"><b class="v">'+_mtFmtNum(sa)+'</b>'+achSpan(sa,sb)+'</div>'
+      + '<div class="p"><b class="v">'+_mtFmtNum(pa)+'</b>'+achSpan(pa,pb)+'</div>'
       + '</td>';
   }
   var monSa={},monSb={},monPa={},monPb={}; halfMis.forEach(function(mi){ monSa[mi]=0;monSb[mi]=0;monPa[mi]=0;monPb[mi]=0; });
@@ -5475,7 +5478,7 @@ function _mtMemberMonthlyMatrixHtml(scope, halfMis){
   halfMis.forEach(function(mi){ foot += cell(monSa[mi],monSb[mi],monPa[mi],monPb[mi]); });
   foot += cell(gSa,gSb,gPa,gPb,'tot');
   var colg='<col>'; halfMis.forEach(function(){ colg+='<col>'; }); colg+='<col class="totcol">';
-  return '<div class="mt-mx-title">🗓 月別 売上／<span class="pp">粗利</span>（'+halfLbl+'・担当者別）<span class="hint">各セル 上＝売上／下＝粗利、実績<span class="bud">/目標</span> 達成率（千円）／ 行クリックで個人ビュー</span></div>'
+  return '<div class="mt-mx-title">🗓 月別 売上／<span class="pp">粗利</span>（'+halfLbl+'・担当者別）<span class="hint">各セル 上＝売上／下＝粗利の実績＋達成率（千円・目標はマウスを乗せると表示）／ 行クリックで個人ビュー</span></div>'
     + '<div class="mt-mx-wrap"><table class="mt-mx mt-mx2"><colgroup>'+colg+'</colgroup>'
     + '<thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody>'
     + '<tfoot><tr>'+foot+'</tr></tfoot></table></div>';
