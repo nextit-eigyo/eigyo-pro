@@ -2061,6 +2061,12 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx-bud td.nm { vertical-align:middle; }
 #tab-meeting .mt-mx-bud .mlbl { font-size:11px; color:var(--tx2); font-weight:700; flex-shrink:0; }
 
+/* 営業所スコープ: 担当者ごとの月別予実(案B) */
+#tab-meeting .mt-mem-block { margin:8px 0 18px; }
+#tab-meeting .mt-mem-name { font-size:14px; font-weight:900; color:var(--acc); margin:0 0 6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:8px; background:var(--s3); }
+#tab-meeting .mt-mem-name:hover { background:#e7ddca; }
+#tab-meeting .mt-mem-name .go { color:var(--tx3); font-size:11px; }
+
 /* 営業所スコープ: 担当者別スコアカード */
 #tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
 #tab-meeting .mt-mem-title .hint { font-size:10.5px; color:var(--tx3); font-weight:500; }
@@ -5414,8 +5420,9 @@ function _mtRegionBranchSectionsHtml(scope, halfMis){
 // ── スコープ単位の「月別予実」テーブル(実績確認 Table0 相当を営業会議に統合) ──
 //   各月の 売上/粗利 の 予算・実績・達成率・差異 をスコープ合計で表示。
 //   getActualValue/getBudgetValue を読むだけ(集計ロジックは変更しない=数字は実績確認と一致)。
-function _mtMonthlyTableHtml(scope, halfMis){
-  var target = _mtScopeTarget(scope);
+// 月別予実テーブルのコア(target指定で売上/粗利の予算・実績・達成率・差異を月別に)。
+//   スコープ合計でも担当者単体でも同じ見た目になるよう共通化(案B=担当者ごとに同形式)。
+function _mtMonthlyTableCore(target, halfMis){
   var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
   var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
   function pct(a,b){ return b>0 ? (a/b*100).toFixed(1)+'%' : '—'; }
@@ -5433,9 +5440,29 @@ function _mtMonthlyTableHtml(scope, halfMis){
   rows += '<tr class="hl-y"><td class="lbl">'+halfLbl+'計</td>'
     + '<td>'+_mtFmtNum(tBS)+'</td><td>'+_mtFmtNum(tAS)+'</td><td class="'+_mtAchCls(tsA)+'"><div>'+pct(tAS,tBS)+'</div>'+_mtFmtDiff(tAS,tBS)+'</td>'
     + '<td>'+_mtFmtNum(tBP)+'</td><td>'+_mtFmtNum(tAP)+'</td><td class="'+_mtAchCls(tpA)+'"><div>'+pct(tAP,tBP)+'</div>'+_mtFmtDiff(tAP,tBP)+'</td></tr>';
-  return '<div class="mt-mem-title">📊 '+_esc(_mtScopeLabel(scope))+' 月別予実（'+halfLbl+'）<span class="hint">各月の売上・粗利の予算/実績/達成率/差異</span></div>'
-    + '<table class="mt-sum"><tr><th class="lbl">月</th><th>売上予算</th><th>売上実績</th><th>達成率</th><th>粗利予算</th><th>粗利実績</th><th>達成率</th></tr>'
+  return '<table class="mt-sum"><tr><th class="lbl">月</th><th>売上予算</th><th>売上実績</th><th>達成率</th><th>粗利予算</th><th>粗利実績</th><th>達成率</th></tr>'
     + rows + '</table>';
+}
+function _mtMonthlyTableHtml(scope, halfMis){
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  return '<div class="mt-mem-title">📊 '+_esc(_mtScopeLabel(scope))+' 月別予実（'+halfLbl+'）<span class="hint">各月の売上・粗利の予算/実績/達成率/差異</span></div>'
+    + _mtMonthlyTableCore(_mtScopeTarget(scope), halfMis);
+}
+// 案B: 営業所スコープで「担当者ごとに月別予実テーブル」を縦に並べる(月別予実と完全に同じ形式で統一)。
+//   担当者名クリックで個人ビューへドリル。getActualValue/getBudgetValue(個人=D.actuals/D.budgets直接)で数字一致。
+function _mtMemberMonthlyTablesHtml(scope, halfMis){
+  var members = _mtScopePeople(scope);
+  if (!members.length) return '<p class="mt-empty">この営業所に担当者がいません</p>';
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  var html = '<div class="mt-mem-title">👥 '+_esc(_mtScopeLabel(scope))+' 担当者別 月別予実（'+halfLbl+'）<span class="hint">担当者名クリックで個人ビューへ</span></div>';
+  members.forEach(function(p){
+    var pidJs=String(p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html += '<div class="mt-mem-block">'
+      + '<div class="mt-mem-name" title="クリックで'+_esc(p.name||'')+'の個人ビューへ" onclick="_mtSelectScope(\''+pidJs+'\')">👤 '+_esc(p.name||'(無名)')+' <span class="go">▸</span></div>'
+      + _mtMonthlyTableCore({type:'person', id:p.id}, halfMis)
+      + '</div>';
+  });
+  return html;
 }
 
 function _mtScopeSumTableHtml(scope, halfMis){
@@ -5673,8 +5700,8 @@ function renderMeeting() {
       // ① 月別予実(スコープ合計)を年間サマリー直下に配置(全スコープ共通)
       html += _mtMonthlyTableHtml(scope, halfMis);
       if (typeof scope === 'string' && scope.indexOf('branch_') === 0) {
-        // ② 営業所: 担当者別 月別実績(縦=月／横=担当者)。スコアカードの新規/既存軒も統合(別表は廃止)
-        html += _mtMemberMonthByPersonHtml(scope, halfMis);
+        // ② 営業所: 担当者ごとに月別予実テーブル(案B=月別予実と完全に同じ形式で統一)
+        html += _mtMemberMonthlyTablesHtml(scope, halfMis);
       } else {
         // ② 全社/営業部: 拠点ごとの数字を月別に(案件は出さない。拠点名クリックでドリル)
         html += _mtRegionBranchSectionsHtml(scope, halfMis);
