@@ -1349,14 +1349,14 @@ body.has-sidepanel #home-deal-mode {
   display:flex; align-items:baseline; justify-content:flex-end; gap:5px; flex-wrap:wrap;
 }
 .dt-amount-cell .sales {
-  font-size:16px; font-weight:800; color:var(--tx);
+  font-size:19px; font-weight:800; color:var(--tx);
   font-variant-numeric:tabular-nums;
 }
 .dt-amount-cell .sales .u {
   font-size:11px; color:var(--tx3); margin-left:1px;
 }
 .dt-amount-cell .profit {
-  font-size:12px; color:#4a5a32; font-weight:700;
+  font-size:14px; color:#4a5a32; font-weight:700;
 }
 .dt-amount-cell .month {
   font-size:11px; color:var(--tx3); margin-top:2px;
@@ -1870,6 +1870,8 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-diff.over  { color:#4a5a32; }
 #tab-meeting .mt-diff.under { color:var(--red); }
 #tab-meeting .mt-diff.zero  { color:var(--tx3); }
+/* ⭐ ダッシュボード(数字タブ)のインライン数字を拡大(50代の視認性) */
+#tab-dashboard span strong { font-size:16px; }
 #tab-meeting .mt-month-grid {
   display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:14px;
 }
@@ -1960,7 +1962,7 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-sh .e { font-size:11px; color:var(--tx3); }
 #tab-meeting .mt-sl { margin:6px 0; }
 #tab-meeting .mt-sl .lab { display:flex; justify-content:space-between; font-size:11px; color:var(--tx2); margin-bottom:2px; }
-#tab-meeting .mt-sl .lab b { color:var(--tx); font-weight:900; font-size:13px; }
+#tab-meeting .mt-sl .lab b { color:var(--tx); font-weight:900; font-size:18px; }
 #tab-meeting .mt-sl .lab .bud { color:var(--tx3); font-weight:600; }
 #tab-meeting .mt-sbar { height:7px; background:var(--s4); border-radius:4px; overflow:hidden; }
 #tab-meeting .mt-sbar>i { display:block; height:100%; border-radius:4px; }
