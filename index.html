@@ -2061,11 +2061,16 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx-bud td.nm { vertical-align:middle; }
 #tab-meeting .mt-mx-bud .mlbl { font-size:11px; color:var(--tx2); font-weight:700; flex-shrink:0; }
 
-/* 営業所スコープ: 担当者ごとの月別予実(案B) */
+/* 営業所スコープ: 担当者ごとの月別予実(案B・ボタン切替) */
 #tab-meeting .mt-mem-block { margin:8px 0 18px; }
-#tab-meeting .mt-mem-name { font-size:14px; font-weight:900; color:var(--acc); margin:0 0 6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:8px; background:var(--s3); }
+#tab-meeting .mt-mem-name { font-size:13px; font-weight:700; color:var(--acc); margin:0 0 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:8px; background:var(--s3); }
 #tab-meeting .mt-mem-name:hover { background:#e7ddca; }
 #tab-meeting .mt-mem-name .go { color:var(--tx3); font-size:11px; }
+/* 担当者切替ボタンバー */
+#tab-meeting .mt-memtab-bar { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 14px; }
+#tab-meeting .mt-memtab-btn { font-size:13px; font-weight:700; color:var(--tx2); background:#fff; border:1.5px solid var(--bd); border-radius:9px; padding:7px 16px; cursor:pointer; transition:all .12s; white-space:nowrap; }
+#tab-meeting .mt-memtab-btn:hover { border-color:var(--acc); color:var(--acc); }
+#tab-meeting .mt-memtab-btn.active { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:900; box-shadow:0 3px 8px rgba(58,90,126,.22); }
 
 /* 営業所スコープ: 担当者別スコアカード */
 #tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -5454,15 +5459,31 @@ function _mtMemberMonthlyTablesHtml(scope, halfMis){
   var members = _mtScopePeople(scope);
   if (!members.length) return '<p class="mt-empty">この営業所に担当者がいません</p>';
   var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
-  var html = '<div class="mt-mem-title">👥 '+_esc(_mtScopeLabel(scope))+' 担当者別 月別予実（'+halfLbl+'）<span class="hint">担当者名クリックで個人ビューへ</span></div>';
-  members.forEach(function(p){
+  var html = '<div class="mt-mem-title">👥 '+_esc(_mtScopeLabel(scope))+' 担当者別 月別予実（'+halfLbl+'）<span class="hint">担当者ボタンで切替</span></div>';
+  // 担当者ボタン(タブ)。クリックでその担当者の表に切替(縦スクロール廃止)。
+  html += '<div class="mt-memtab-bar">';
+  members.forEach(function(p, i){
+    html += '<button type="button" class="mt-memtab-btn'+(i===0?' active':'')+'" data-idx="'+i+'" onclick="_mtMemTab('+i+')">👤 '+_esc(p.name||'(無名)')+'</button>';
+  });
+  html += '</div>';
+  // 各担当者のパネル(先頭のみ表示、他は非表示)
+  members.forEach(function(p, i){
     var pidJs=String(p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    html += '<div class="mt-mem-block">'
-      + '<div class="mt-mem-name" title="クリックで'+_esc(p.name||'')+'の個人ビューへ" onclick="_mtSelectScope(\''+pidJs+'\')">👤 '+_esc(p.name||'(無名)')+' <span class="go">▸</span></div>'
+    html += '<div class="mt-memtab-panel" data-idx="'+i+'"'+(i===0?'':' style="display:none"')+'>'
+      + '<div class="mt-mem-name" title="クリックで'+_esc(p.name||'')+'の案件(個人ビュー)へ" onclick="_mtSelectScope(\''+pidJs+'\')">👤 '+_esc(p.name||'(無名)')+' の案件(個人ビュー)へ <span class="go">▸</span></div>'
       + _mtMonthlyTableCore({type:'person', id:p.id}, halfMis)
       + '</div>';
   });
   return html;
+}
+// 担当者ボタン切替: 選択した担当者のパネルのみ表示
+function _mtMemTab(idx){
+  document.querySelectorAll('.mt-memtab-panel').forEach(function(el){
+    el.style.display = (parseInt(el.dataset.idx,10) === idx) ? '' : 'none';
+  });
+  document.querySelectorAll('.mt-memtab-btn').forEach(function(b){
+    b.classList.toggle('active', parseInt(b.dataset.idx,10) === idx);
+  });
 }
 
 function _mtScopeSumTableHtml(scope, halfMis){
