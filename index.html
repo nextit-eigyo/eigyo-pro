@@ -9365,7 +9365,7 @@ function parseImportFile(file) {
 
 function parseSheet(rows,sheetName,result){
   let hdr=-1;
-  const cm={big:-1,mid:-1,cust:-1,sales:-1,cost:-1,profit:-1,rep:-1,notes:-1};
+  const cm={big:-1,mid:-1,cust:-1,sales:-1,cost:-1,profit:-1,rep:-1,notes:-1,bill:-1};
 
   // ── 営業所名を先頭数行から検出 ──────────────────────────────
   // 注: 販売店シートでは代理店名(例「西東京ユースウェア」「東町薬局」)が
@@ -9415,6 +9415,7 @@ function parseSheet(rows,sheetName,result){
       if(v==='粗利')cm.profit=c;
       if(v.includes('営業')&&(v.includes('担当')||v.length<=5))cm.rep=c;
       if(v==='備考')cm.notes=c;
+      if(v.includes('請求先'))cm.bill=c; // R列: 同名薬局でも請求先が違えば別薬局として扱う
     }
     if(hdr>=0)break;
   }
@@ -9427,6 +9428,7 @@ function parseSheet(rows,sheetName,result){
   if(cm.profit<0)cm.profit=12;
   if(cm.rep<0)cm.rep=7;
   if(cm.notes<0)cm.notes=24;
+  if(cm.bill<0)cm.bill=17; // R列(請求先)既定: A=0起点で17
   // 販売店列の検出（ヘッダー行で「販売店」を探す、デフォルトcol3）
   cm.hanbai=-1;
   const hdrRow2=rows[hdr]||[];
@@ -9483,6 +9485,7 @@ function parseSheet(rows,sheetName,result){
     const rep=String(row[cm.rep]||'').trim();
     const hanbai=cm.hanbai>=0&&cm.hanbai<row.length?String(row[cm.hanbai]||'').trim():'';
     const notes=cm.notes<row.length?String(row[cm.notes]||'').trim():'';
+    const bill=(cm.bill>=0&&cm.bill<row.length)?String(row[cm.bill]||'').trim():''; // R列:請求先(同名薬局の別法人判定用)
     // 新規担当者・販売店の収集
     if(rep&&!result.foundReps.includes(rep))result.foundReps.push(rep);
     if(hanbai&&hanbai!=='販売店共通'&&!result.foundHanbai.includes(hanbai))result.foundHanbai.push(hanbai);
@@ -9503,7 +9506,7 @@ function parseSheet(rows,sheetName,result){
       var _dt = (productType==='調剤くんV8')
         ? ((/Vup|→|⇒/.test(bigCat) || /→|⇒/.test(midCat)) ? '既存（バージョンアップ）' : '新規（他社入替）')
         : '';
-      if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,sheet:sheetName,noRep:!rep,dealType:_dt});
+      if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,bill,sheet:sheetName,noRep:!rep,dealType:_dt});
     }else if(num===4){
       // ⭐ HW(4_周辺機器)も担当者あり行は個人実績化(馬場さん要望)
       if (cust && salesV > 0 && rep) {
@@ -9511,7 +9514,7 @@ function parseSheet(rows,sheetName,result){
           name: cust, sales: salesV, cost: costV, profit: profitV,
           rep: rep, midCat: midCat,
           productType: 'ハードウェア',
-          notes: notes, sheet: sheetName, noRep: false,
+          notes: notes, bill: bill, sheet: sheetName, noRep: false,
           dealType: '既存（バージョンアップ）'
         });
         result.software.s += salesV; result.software.p += profitV;
@@ -9557,7 +9560,7 @@ function parseSheet(rows,sheetName,result){
           name: cust, sales: salesV, cost: costV, profit: profitV,
           rep: rep, midCat: midCat,
           productType: 'その他システム', // V8新規/Vupではない別カテゴリ
-          notes: notes, sheet: sheetName, noRep: false,
+          notes: notes, bill: bill, sheet: sheetName, noRep: false,
           dealType: '既存（バージョンアップ）' // 8_その他はシステム本体ではないので既存扱い
         });
         // softwareの合計にも加算(branchSoftActualsに含まれるようにするため)
@@ -9577,7 +9580,7 @@ function parseSheet(rows,sheetName,result){
           if (!result.groupDeals) result.groupDeals = [];
           result.groupDeals.push({
             name: cust, sales: salesV, cost: costV, profit: profitV,
-            rep: rep, midCat: midCat, notes: notes, sheet: sheetName
+            rep: rep, midCat: midCat, notes: notes, bill: bill, sheet: sheetName
           });
           result.software.s += salesV; result.software.p += profitV;
         } else {
@@ -9721,6 +9724,7 @@ function _showFuzzyMatchDialog(pendingList, onComplete) {
         category: item.impDeal.sheet === '販売店' ? '販売店' : '直販',
         dealType: item.impDeal.dealType || '新規（他社入替）',
         productType: item.impDeal.productType || '調剤くんV8',
+        bill: item.impDeal.bill || '', // 請求先(同名薬局の別法人判定用)
         productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
         nextAction: '',
         probability: 5, phase: '受注', // Excelインポート由来は確度5(確定実績)
@@ -9997,10 +10001,11 @@ function _doConfirmImport(addedMasters){
       (function(){
         var agg = {}, order = [];
         (r.software.deals || []).forEach(function(d){
-          var key = normDealName(d.name) + '||' + String(d.rep || '');
+          // 集約キーに請求先(bill)も含める: 同名薬局でも請求先が違えば別法人=別案件として分ける
+          var key = normDealName(d.name) + '||' + String(d.rep || '') + '||' + String(d.bill || '');
           if (!agg[key]) {
             agg[key] = { name:d.name, sales:0, cost:0, profit:0, rep:d.rep, midCat:d.midCat,
-              productType:d.productType, notes:d.notes, sheet:d.sheet, noRep:d.noRep, dealType:d.dealType };
+              productType:d.productType, notes:d.notes, bill:d.bill, sheet:d.sheet, noRep:d.noRep, dealType:d.dealType };
             order.push(key);
           }
           agg[key].sales  += (parseFloat(d.sales)  || 0);
@@ -10052,7 +10057,9 @@ function _doConfirmImport(addedMasters){
         var exactMatch = D.deals.find(function(x){
           return x.name && normDealName(x.name) === normImp
             && x.deliveryMonth === moStr
-            && x.spId === spId;
+            && x.spId === spId
+            // 同名薬局でも請求先(R列)が違えば別薬局 → 請求先も一致して初めて同一案件とみなす
+            && String(x.bill||'') === String(impDeal.bill||'');
         });
         // ⚠️ 旧: 部分一致(名前の包含)も重複扱いしていたが、これだと「白男川薬局加治木店」が
         //   「白男川薬局」の重複と誤判定され、チェーン店の支店が丸ごと取りこぼされていた。
@@ -10096,6 +10103,8 @@ function _doConfirmImport(addedMasters){
             if (!x.name) return;
             // fuzzy一致も同月+同担当者のみ対象(別月案件は独立して扱う)
             if (x.deliveryMonth !== moStr || x.spId !== spId) return;
+            // 同名でも請求先(R列)が違えば別薬局 → fuzzy対象から除外し新規作成させる
+            if (String(x.bill||'') !== String(impDeal.bill||'')) return;
             var sc = fuzzyScore(impDeal.name, x.name);
             if (sc > bestScore) { bestScore = sc; bestMatch = x; }
           });
@@ -10118,6 +10127,7 @@ function _doConfirmImport(addedMasters){
               category: impDeal.sheet === '販売店' ? '販売店' : '直販',
               dealType: impDeal.dealType || '新規（他社入替）', // 8_その他など既存扱いの場合に対応
               productType: impDeal.productType || '調剤くんV8',
+              bill: impDeal.bill || '', // 請求先(同名薬局の別法人判定用)
               productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
               nextAction: isNoRep ? '⚠️ 担当者を設定してください' : '',
               probability: 5, phase: '受注', // Excelインポート由来は確度5(確定実績)
