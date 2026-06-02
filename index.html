@@ -2058,6 +2058,8 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx-bud .rem { font-size:11.5px; font-weight:800; color:var(--red); white-space:nowrap; }
 #tab-meeting .mt-mx-bud .rem.done { color:#4a7a32; }
 #tab-meeting .mt-mx-bud .rem.none { color:var(--tx3); font-weight:600; font-size:11px; }
+#tab-meeting .mt-mx-bud td.nm { vertical-align:middle; }
+#tab-meeting .mt-mx-bud .mlbl { font-size:11px; color:var(--tx2); font-weight:700; flex-shrink:0; }
 
 /* 営業所スコープ: 担当者別スコアカード */
 #tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -5432,7 +5434,7 @@ function _mtMonthlyTableHtml(scope, halfMis){
     + '<td>'+_mtFmtNum(tBS)+'</td><td>'+_mtFmtNum(tAS)+'</td><td class="'+_mtAchCls(tsA)+'"><div>'+pct(tAS,tBS)+'</div>'+_mtFmtDiff(tAS,tBS)+'</td>'
     + '<td>'+_mtFmtNum(tBP)+'</td><td>'+_mtFmtNum(tAP)+'</td><td class="'+_mtAchCls(tpA)+'"><div>'+pct(tAP,tBP)+'</div>'+_mtFmtDiff(tAP,tBP)+'</td></tr>';
   return '<div class="mt-mem-title">📊 '+_esc(_mtScopeLabel(scope))+' 月別予実（'+halfLbl+'）<span class="hint">各月の売上・粗利の予算/実績/達成率/差異</span></div>'
-    + '<table class="mt-sum"><tr><th class="lbl" style="text-align:left">月</th><th>売上予算</th><th>売上実績</th><th>達成率</th><th>粗利予算</th><th>粗利実績</th><th>達成率</th></tr>'
+    + '<table class="mt-sum"><tr><th class="lbl">月</th><th>売上予算</th><th>売上実績</th><th>達成率</th><th>粗利予算</th><th>粗利実績</th><th>達成率</th></tr>'
     + rows + '</table>';
 }
 
@@ -5551,7 +5553,7 @@ function _mtMemberMonthByPersonHtml(scope, halfMis){
   if (!members.length) return '';
   var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
   // 1メトリクス(売上 or 粗利): 実績／予算・達成率・残り(あと○○で達成)を進捗バーで視覚化
-  function metric(klass, act, bud){
+  function metric(klass, label, act, bud){
     var has = bud>0;
     var pct = has ? Math.round(act/bud*100) : 0;
     var fill = Math.max(0, Math.min(100, pct));
@@ -5562,11 +5564,11 @@ function _mtMemberMonthByPersonHtml(scope, halfMis){
     else rem = '<span class="rem">あと '+(Math.round(bud-act)).toLocaleString()+'</span>';
     return '<div class="'+klass+'">'
       + '<div class="r1"><b class="v">'+_mtFmtNum(act)+'</b><span class="bud">/'+(has?_mtFmtNum(bud):'—')+'</span>'+(has?'<span class="ach '+c+'">'+pct+'%</span>':'')+'</div>'
-      + '<div class="r2"><span class="mbar '+c+'"><i style="width:'+fill+'%"></i></span>'+rem+'</div></div>';
+      + '<div class="r2"><span class="mlbl">'+label+'</span><span class="mbar '+c+'"><i style="width:'+fill+'%"></i></span>'+rem+'</div></div>';
   }
   function cell(sa,sb,pa,pb,cls,dim){
     var cc=(cls||'')+(dim?' dim':'');
-    return '<td'+(cc.trim()?' class="'+cc.trim()+'"':'')+'>'+metric('s',sa,sb)+metric('p',pa,pb)+'</td>';
+    return '<td'+(cc.trim()?' class="'+cc.trim()+'"':'')+'>'+metric('s','売上',sa,sb)+metric('p','粗利',pa,pb)+'</td>';
   }
   // 担当者ごとの上期通算と0実績判定
   var mem = members.map(function(p){
