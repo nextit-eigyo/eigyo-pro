@@ -2030,6 +2030,15 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx2 td .ach.mid { background:rgba(200,152,86,.18); color:#7a5a2a; }
 #tab-meeting .mt-mx2 td .ach.bad { background:rgba(168,90,74,.14); color:#a85a4a; }
 #tab-meeting .mt-mx2 .mt-mx-title .bud, #tab-meeting .mt-mx-title .bud { color:var(--tx3); font-weight:500; }
+/* 転置マトリクス(月×担当者): 担当者ヘッダークリック・0実績淡色・上期計行・軒数行 */
+#tab-meeting .mt-mx2 th.memh { cursor:pointer; }
+#tab-meeting .mt-mx2 th.memh:hover { background:var(--s2); color:var(--acc); }
+#tab-meeting .mt-mx2 td.dim, #tab-meeting .mt-mx2 th.dim { opacity:.4; }
+#tab-meeting .mt-mx2 tr.totrow td { background:#f6efe0; font-weight:900; border-top:2px solid var(--bd); }
+#tab-meeting .mt-mx2 tr.totrow td.tot .s .v { color:var(--acc); }
+#tab-meeting .mt-mx2 tr.cnt td { background:#f4f6ee; color:var(--tx2); font-size:12.5px; font-weight:800; padding:6px 12px; }
+#tab-meeting .mt-mx2 tr.cnt td.nm { background:#ece9dc; }
+#tab-meeting .mt-mx2 tr.cnt td.totcol, #tab-meeting .mt-mx2 td.totcol { background:#faf6ee; }
 
 /* 営業所スコープ: 担当者別スコアカード */
 #tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -5415,7 +5424,8 @@ function _mtScopeSumTableHtml(scope, halfMis){
   var totBudS=0,totActS=0,totBudP=0,totActP=0;
   halfMis.forEach(function(mi){ totBudS+=getBudgetValue(target,'s',mi); totActS+=getActualValue(target,'s',mi); totBudP+=getBudgetValue(target,'p',mi); totActP+=getActualValue(target,'p',mi); });
   var totSAch=totBudS>0?(totActS/totBudS*100):0, totPAch=totBudP>0?(totActP/totBudP*100):0;
-  var h = '<table class="mt-sum"><tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th><th>既存軒数</th></tr>';
+  var h = '<div class="mt-mem-title">📈 '+_esc(_mtScopeLabel(scope))+' 経過月 累計（'+halfLbl+'・今日までの進捗）<span class="hint">4月→4〜5月→…と今日まで累積／最上段の'+halfLbl+'計は半期合計</span></div>';
+  h += '<table class="mt-sum"><tr><th></th><th>売上実績</th><th>売上目標</th><th>達成率</th><th>粗利実績</th><th>粗利目標</th><th>達成率</th><th>新規軒数</th><th>既存軒数</th></tr>';
   h += '<tr class="hl-y"><td class="lbl">'+halfLbl+'計</td><td>'+_mtFmtNum(totActS)+'</td><td>'+_mtFmtNum(totBudS)+'</td><td class="'+_mtAchCls(totSAch)+'"><div>'+totSAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActS,totBudS)+'</td><td>'+_mtFmtNum(totActP)+'</td><td>'+_mtFmtNum(totBudP)+'</td><td class="'+_mtAchCls(totPAch)+'"><div>'+totPAch.toFixed(1)+'%</div>'+_mtFmtDiff(totActP,totBudP)+'</td><td>'+_mtScopeNewCnt(scope,halfMis)+'軒</td><td>'+_mtScopeExistCnt(scope,halfMis)+'軒</td></tr>';
   var cBudS=0,cActS=0,cBudP=0,cActP=0;
   _mtElapsedMis(halfMis).forEach(function(mi,idx){
@@ -5513,6 +5523,71 @@ function _mtMemberMonthlyMatrixHtml(scope, halfMis){
     + '<tfoot><tr>'+foot+'</tr></tfoot></table></div>';
 }
 
+// ── 営業所スコープ: 月 × 担当者 マトリクス(転置版) ──
+//   ご要望: 縦=月・横=担当者。各セル 上=売上/下=粗利の実績+達成率。
+//   スコアカードの新規/既存軒を下部行に統合。0実績の担当者列は淡色化。担当者ヘッダークリックで個人ビューへドリル。
+//   getActualValue(個人スコープ=D.actuals直接=グループ薬局除外)を使う。「○○計」は担当者実績の合計(保守料/HW/グループ薬局は含まない)。
+function _mtMemberMonthByPersonHtml(scope, halfMis){
+  var members = _mtScopePeople(scope);
+  if (!members.length) return '';
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  function achSpan(act,bud){ if(!(bud>0)) return ''; var r=Math.round(act/bud*100); var c=r>=100?'good':r>=80?'mid':'bad'; return '<span class="ach '+c+'">'+r+'%</span>'; }
+  function _pn(n){ return (Math.round(n)||0).toLocaleString(); }
+  function cell(sa,sb,pa,pb,cls,dim){
+    var sr=sb>0?(Math.round(sa/sb*100)+'%'):'—', pr=pb>0?(Math.round(pa/pb*100)+'%'):'—';
+    var tip='売上 実績'+_pn(sa)+' / 目標'+_pn(sb)+' '+sr+'  ｜  粗利 実績'+_pn(pa)+' / 目標'+_pn(pb)+' '+pr+'（千円）';
+    var cc=(cls||'')+(dim?' dim':'');
+    return '<td'+(cc.trim()?' class="'+cc.trim()+'"':'')+' title="'+tip+'">'
+      + '<div class="s"><b class="v">'+_mtFmtNum(sa)+'</b>'+achSpan(sa,sb)+'</div>'
+      + '<div class="p"><b class="v">'+_mtFmtNum(pa)+'</b>'+achSpan(pa,pb)+'</div></td>';
+  }
+  // 担当者ごとの上期通算と0実績判定
+  var mem = members.map(function(p){
+    var tgt={type:'person', id:p.id};
+    var tot=0; halfMis.forEach(function(mi){ tot+=getActualValue(tgt,'s',mi)||0; });
+    return {p:p, tgt:tgt, zero:(tot===0)};
+  });
+  // ヘッダー(担当者名はクリックでドリル)
+  var head='<th class="nm" style="text-align:left">月</th>';
+  mem.forEach(function(m){
+    var pidJs=String(m.p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    head += '<th class="memh'+(m.zero?' dim':'')+'" title="クリックで'+_esc(m.p.name||'')+'へ" onclick="_mtSelectScope(\''+pidJs+'\')">'+_esc(m.p.name||'(無名)')+' <span class="go">▸</span></th>';
+  });
+  head += '<th class="totcol">'+_esc(_mtScopeLabel(scope))+'計</th>';
+  // 各月の行
+  var per={}; mem.forEach(function(m){ per[m.p.id]={sa:0,sb:0,pa:0,pb:0}; });
+  var gSa=0,gSb=0,gPa=0,gPb=0, rows='';
+  halfMis.forEach(function(mi){
+    var rSa=0,rSb=0,rPa=0,rPb=0, cells='';
+    mem.forEach(function(m){
+      var sa=getActualValue(m.tgt,'s',mi)||0, sb=getBudgetValue(m.tgt,'s',mi)||0;
+      var pa=getActualValue(m.tgt,'p',mi)||0, pb=getBudgetValue(m.tgt,'p',mi)||0;
+      rSa+=sa;rSb+=sb;rPa+=pa;rPb+=pb;
+      var t=per[m.p.id]; t.sa+=sa;t.sb+=sb;t.pa+=pa;t.pb+=pb;
+      cells += cell(sa,sb,pa,pb,'',m.zero);
+    });
+    gSa+=rSa;gSb+=rSb;gPa+=rPa;gPb+=rPb;
+    rows += '<tr><td class="nm">'+ML[mi]+'</td>'+cells+cell(rSa,rSb,rPa,rPb,'tot')+'</tr>';
+  });
+  // 上期計 行
+  var totCells=''; mem.forEach(function(m){ var t=per[m.p.id]; totCells += cell(t.sa,t.sb,t.pa,t.pb,'tot',m.zero); });
+  var totRow='<tr class="totrow"><td class="nm">'+halfLbl+'計</td>'+totCells+cell(gSa,gSb,gPa,gPb,'tot')+'</tr>';
+  // 新規軒/既存軒 行(スコアカードから統合)
+  var nc='', ec='', tN=0, tE=0;
+  mem.forEach(function(m){
+    var nw=_mtCountNewDeals(m.p.id,halfMis), ex=_mtCountExistingDeals(m.p.id,halfMis);
+    tN+=nw; tE+=ex;
+    nc += '<td'+(m.zero?' class="dim"':'')+'>'+nw+'軒</td>';
+    ec += '<td'+(m.zero?' class="dim"':'')+'>'+ex+'軒</td>';
+  });
+  var cntRows='<tr class="cnt"><td class="nm">新規軒</td>'+nc+'<td class="totcol">'+tN+'軒</td></tr>'
+            +'<tr class="cnt"><td class="nm">既存軒</td>'+ec+'<td class="totcol">'+tE+'軒</td></tr>';
+  var colg='<col>'; mem.forEach(function(){ colg+='<col>'; }); colg+='<col class="totcol">';
+  return '<div class="mt-mx-title">🗓 '+_esc(_mtScopeLabel(scope))+' 担当者別 月別実績（'+halfLbl+'・縦＝月／横＝担当者）<span class="hint">各セル 上＝売上／下＝<span class="pp">粗利</span>の実績＋達成率（千円・目標はマウスで表示）／ 担当者名クリックで個人ビュー／ 「'+_esc(_mtScopeLabel(scope))+'計」は担当者実績の合計（保守料・HW・グループ薬局は含まない）</span></div>'
+    + '<div class="mt-mx-wrap"><table class="mt-mx mt-mx2"><colgroup>'+colg+'</colgroup>'
+    + '<thead><tr>'+head+'</tr></thead><tbody>'+rows+totRow+cntRows+'</tbody></table></div>';
+}
+
 function renderMeeting() {
   var body = document.getElementById('meeting-body');
   if (!body) return;
@@ -5570,19 +5645,16 @@ function renderMeeting() {
     html += _mtSummaryCardsHtml(scope);
     if (!scopeIsPerson) {
       html += _mtBreakdownHtml(scope);
+      // ① 月別予実(スコープ合計)を年間サマリー直下に配置(全スコープ共通)
+      html += _mtMonthlyTableHtml(scope, halfMis);
       if (typeof scope === 'string' && scope.indexOf('branch_') === 0) {
-        // 営業所: 所属担当者の予算・実績・達成率スコアカード(案件縦積みは廃止。
-        //   担当者行クリックで個人ビュー=案件が見られる)
-        html += _mtMemberScorecardHtml(scope, halfMis);
-        // その下に 担当者×月 の売上/粗利マトリクス(各月の各担当者の売上を一覧)
-        html += _mtMemberMonthlyMatrixHtml(scope, halfMis);
+        // ② 営業所: 担当者別 月別実績(縦=月／横=担当者)。スコアカードの新規/既存軒も統合(別表は廃止)
+        html += _mtMemberMonthByPersonHtml(scope, halfMis);
       } else {
-        // 全社/営業部: 拠点ごとの数字を月別に(案件は出さない。拠点名クリックでドリル)
+        // ② 全社/営業部: 拠点ごとの数字を月別に(案件は出さない。拠点名クリックでドリル)
         html += _mtRegionBranchSectionsHtml(scope, halfMis);
       }
-      // スコープ単位の月別予実テーブル(実績確認 Table0 を統合)
-      html += _mtMonthlyTableHtml(scope, halfMis);
-      // 経過月 累計テーブル(個人ビューと同形式)
+      // ③ 経過月 累計テーブル(今日までの進捗。タイトルは関数内で付与)
       html += _mtScopeSumTableHtml(scope, halfMis);
       body.innerHTML = html;
       return;
