@@ -9474,11 +9474,13 @@ function parseSheet(rows,sheetName,result){
     else if(num===4)productType='ハードウェア';
     if(num===1||num===2||num===5){
       result.software.s+=salesV;result.software.p+=profitV;
-      // 種別判定(全拠点共通): B列(集計用中区分)に「→」を含めばバージョンアップ=既存、無ければV8新規。
-      //   例: (V7→V8)_LAN / (with→V8)_STD / core→V8 → 既存(バージョンアップ)
-      //       (V8)STD / 新規(V8)_LAN → 新規。V8ソフト行のみ判定(非V8は従来どおり)。
+      // 種別判定(全拠点共通・V8ソフト行のみ):
+      //   ・A列(大区分)が「Vup」(例:2_システム販売Vup) → 既存（バージョンアップ）
+      //   ・B列(中区分)に「→」を含む(例:(V7→V8)/(with→V8)/core→V8) → 既存（バージョンアップ）
+      //   ・上記以外(1_システム販売新規 / (V8)STD 等) → 新規（他社入替）
+      //   大区分(Vup)と中区分(→)の両方を見て確実に振り分ける。
       var _dt = (productType==='調剤くんV8')
-        ? (/→|⇒/.test(midCat) ? '既存（バージョンアップ）' : '新規（他社入替）')
+        ? ((/Vup|→|⇒/.test(bigCat) || /→|⇒/.test(midCat)) ? '既存（バージョンアップ）' : '新規（他社入替）')
         : '';
       if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,sheet:sheetName,noRep:!rep,dealType:_dt});
     }else if(num===4){
