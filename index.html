@@ -2174,8 +2174,8 @@ body.has-sidepanel #home-deal-mode {
     <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
     <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
     <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()">🎯 案件</button>
-    <button id="subtab-actuals" class="sub-tab" onclick="showTab('actuals',this)">📊 実績確認</button>
     <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
+    <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')">📞 営業活動量</button>
     <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
     <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
     <button id="tab-reportmenu-btn" class="sub-tab" onclick="toggleReportMenu(this)" style="gap:6px">📊 レポート <span style="font-size:11px;opacity:.6">▼</span></button>
@@ -2328,11 +2328,13 @@ body.has-sidepanel #home-deal-mode {
   <div id="won-list"></div>
   </div><!-- /home-deal-mode -->
 
-  <!-- ストーリーパネル(👤自分タブの数字モードでのみ表示) -->
-  <div id="story-panel" style="display:none"></div>
-
-  <!-- 数字モードのコンテンツ（tab-dashboardからコピー） -->
-  <div id="home-num-mode" style="display:none"></div>
+  <!-- 数字モードのコンテンツ（tab-dashboardからコピー）。
+       ⭐ ストーリーパネルを home-num-mode の中に内包し、数字モードに構造的固定。
+       これにより案件モード/実績確認/営業会議など他画面では(home-num-modeごと隠れるため)絶対に出ない。 -->
+  <div id="home-num-mode" style="display:none">
+    <!-- ストーリーパネル(数字モードでのみ表示) -->
+    <div id="story-panel" style="display:none"></div>
+  </div>
 </div>
 
 <!-- 案件追加モーダル -->
@@ -2424,7 +2426,7 @@ body.has-sidepanel #home-deal-mode {
 
 <div id="tab-actuals" class="sec">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-    <div class="ptitle" style="margin:0">📈 実績確認</div>
+    <div class="ptitle" style="margin:0">📞 営業活動量</div>
     <div style="display:flex;align-items:center;gap:6px">
       <span id="actuals-size-ctrl" style="display:flex;align-items:center;gap:6px">
         <span style="font-size:11px;color:var(--tx3)">文字サイズ：</span>
@@ -2437,8 +2439,8 @@ body.has-sidepanel #home-deal-mode {
     </div>
   </div>
 
-  <!-- 大項目タブ（売上 / 営業活動量） -->
-  <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:2px solid var(--bds)">
+  <!-- 大項目タブ（売上 / 営業活動量）→ このタブは営業活動量専用化したため非表示。売上の実績確認は営業会議へ統合。 -->
+  <div id="act-main-toggle" style="display:none;gap:4px;margin-bottom:12px;border-bottom:2px solid var(--bds)">
     <button id="act-main-tab-sales"    onclick="setActMainTab('sales')"
       style="padding:8px 20px;font-size:13px;font-weight:700;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:var(--tx3);margin-bottom:-2px">
       💰 売上
@@ -5379,6 +5381,33 @@ function _mtRegionBranchSectionsHtml(scope, halfMis){
   return html;
 }
 // ── 経過月 累計テーブル（スコープ版・個人ビューと同形式）──
+// ── スコープ単位の「月別予実」テーブル(実績確認 Table0 相当を営業会議に統合) ──
+//   各月の 売上/粗利 の 予算・実績・達成率・差異 をスコープ合計で表示。
+//   getActualValue/getBudgetValue を読むだけ(集計ロジックは変更しない=数字は実績確認と一致)。
+function _mtMonthlyTableHtml(scope, halfMis){
+  var target = _mtScopeTarget(scope);
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+  function pct(a,b){ return b>0 ? (a/b*100).toFixed(1)+'%' : '—'; }
+  var tBS=0,tAS=0,tBP=0,tAP=0, rows='';
+  halfMis.forEach(function(mi){
+    var bs=getBudgetValue(target,'s',mi), as=getActualValue(target,'s',mi);
+    var bp=getBudgetValue(target,'p',mi), ap=getActualValue(target,'p',mi);
+    tBS+=bs;tAS+=as;tBP+=bp;tAP+=ap;
+    var sA=bs>0?(as/bs*100):0, pA=bp>0?(ap/bp*100):0;
+    rows += '<tr><td class="lbl">'+moLabels[mi]+'</td>'
+      + '<td>'+_mtFmtNum(bs)+'</td><td>'+_mtFmtNum(as)+'</td><td class="'+_mtAchCls(sA)+'"><div>'+pct(as,bs)+'</div>'+_mtFmtDiff(as,bs)+'</td>'
+      + '<td>'+_mtFmtNum(bp)+'</td><td>'+_mtFmtNum(ap)+'</td><td class="'+_mtAchCls(pA)+'"><div>'+pct(ap,bp)+'</div>'+_mtFmtDiff(ap,bp)+'</td></tr>';
+  });
+  var tsA=tBS>0?(tAS/tBS*100):0, tpA=tBP>0?(tAP/tBP*100):0;
+  rows += '<tr class="hl-y"><td class="lbl">'+halfLbl+'計</td>'
+    + '<td>'+_mtFmtNum(tBS)+'</td><td>'+_mtFmtNum(tAS)+'</td><td class="'+_mtAchCls(tsA)+'"><div>'+pct(tAS,tBS)+'</div>'+_mtFmtDiff(tAS,tBS)+'</td>'
+    + '<td>'+_mtFmtNum(tBP)+'</td><td>'+_mtFmtNum(tAP)+'</td><td class="'+_mtAchCls(tpA)+'"><div>'+pct(tAP,tBP)+'</div>'+_mtFmtDiff(tAP,tBP)+'</td></tr>';
+  return '<div class="mt-mem-title">📊 '+_esc(_mtScopeLabel(scope))+' 月別予実（'+halfLbl+'）<span class="hint">各月の売上・粗利の予算/実績/達成率/差異</span></div>'
+    + '<table class="mt-sum"><tr><th class="lbl" style="text-align:left">月</th><th>売上予算</th><th>売上実績</th><th>達成率</th><th>粗利予算</th><th>粗利実績</th><th>達成率</th></tr>'
+    + rows + '</table>';
+}
+
 function _mtScopeSumTableHtml(scope, halfMis){
   var target = _mtScopeTarget(scope);
   var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
@@ -5551,6 +5580,8 @@ function renderMeeting() {
         // 全社/営業部: 拠点ごとの数字を月別に(案件は出さない。拠点名クリックでドリル)
         html += _mtRegionBranchSectionsHtml(scope, halfMis);
       }
+      // スコープ単位の月別予実テーブル(実績確認 Table0 を統合)
+      html += _mtMonthlyTableHtml(scope, halfMis);
       // 経過月 累計テーブル(個人ビューと同形式)
       html += _mtScopeSumTableHtml(scope, halfMis);
       body.innerHTML = html;
@@ -10107,9 +10138,9 @@ function _doConfirmImport(addedMasters){
     const ib = document.getElementById('imp-btn');
     if(ib){ ib.disabled = true; ib.textContent = '✅ インポート完了'; }
 
-    // 2秒後に実績確認タブへ自動移動
+    // 2秒後に営業会議タブへ自動移動(売上の実績確認は営業会議に統合済み)
     setTimeout(() => {
-      showTab('actuals', document.getElementById('tab-actuals-btn'));
+      showTab('meeting', document.getElementById('subtab-meeting'));
       alert('✅ ' + ML[mi] + 'の実績を反映しました！\n\n' + log.join('\n') + '\n\n【表示の仕様について】\n・営業所カード・西日本全体 → Excel確定値（保守料含む）\n・担当者別実績テーブル → 案件登録値（保守料含まず）\n・月中に案件を追加しても、担当者テーブルにはリアルタイム反映されます\n・営業所カードは次回インポートで更新されます');
     }, 500);
 
@@ -11411,7 +11442,7 @@ function _syncTopGroupUI(name) {
   document.querySelectorAll('#main-tabs .sub-tab').forEach(function(b){ b.classList.remove('active'); });
 
   var subBtnMap = {
-    actuals: 'subtab-actuals',
+    actuals: 'subtab-activity',
     meeting: 'subtab-meeting',
     tasks: 'subtab-tasks',
     referral: 'subtab-referral',
@@ -17732,7 +17763,7 @@ function _getBreakdownForMi(branch, field, mi) {
 // ── 実績確認 大項目タブ切り替え ───────────────────────────────
 // 実績確認の「大項目」: 売上 or 営業活動量
 // caSp は担当者/拠点選択を保持(売上と営業活動量で共通利用)
-var _actMainMode = 'sales';
+var _actMainMode = 'activity'; // ⭐ tab-actualsは営業活動量専用化(売上の実績確認は営業会議へ統合)。既定をactivityに。
 
 function setActMainTab(tab) {
   _actMainMode = tab;
