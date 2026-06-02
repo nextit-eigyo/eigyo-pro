@@ -6772,7 +6772,7 @@ function initFY(){
     if(i===fy)o.selected=true;s.appendChild(o);
   }
 }
-function changeFY(){fy=parseInt(document.getElementById('fy-sel').value);load();cbSp=0;cdSp=0;caSp=-1;rebuildAll()}
+function changeFY(){fy=parseInt(document.getElementById('fy-sel').value);load();cbSp=0;cdSp=0;caSp=-1;_fbRepointForFy();rebuildAll()}
 
 // ===== SETUP =====
 
@@ -13246,6 +13246,22 @@ function fbDisconnect() {
   FB.mode = 'local'; FB.connected = false; FB.dbRef = null; FB.user = null;
   fbSetStatus('', '未接続');
   updateAllSyncUI();
+}
+
+// ── 年度切替時に Firebase 同期先を新年度ノード(data/eigyo3_<fy>)へ貼り替える ──
+//   changeFY は load() でローカルを年度別に読み替えるが、FB.dbRef はログイン時の年度のまま
+//   だった。そのまま別年度を編集・保存すると「旧年度ノードに別年度のデータを書き込む／旧年度の
+//   リスナーが D を上書きする」=年度をまたぐデータ破損の恐れ。これを防ぐため同期先を貼り替える。
+//   ※サインアウトはしない(認証は維持)。Firebase同期中(FB.dbRefあり)のみ動作。
+function _fbRepointForFy() {
+  try {
+    if (typeof firebase === 'undefined' || !FB || !FB.dbRef) return; // 同期中でなければ何もしない(ローカル/ファイル同期はskey()で年度別)
+    try { FB.dbRef.off(); } catch(e) {}                               // 旧年度ノードの全リスナー解除
+    try { firebase.database().ref('.info/connected').off(); } catch(e) {} // 接続監視リスナーも解除(重複防止)
+    FB.listeners = [];
+    fbStartSync();                                                    // 現在の fy で再同期開始
+    console.log('[EIGYO PRO] 年度切替: Firebase同期先を data/eigyo3_' + fy + ' に貼り替えました');
+  } catch(e) { console.warn('年度切替のFirebase貼り替え失敗:', e); }
 }
 
 // ── save() パッチ ────────────────────────────────────────────────
