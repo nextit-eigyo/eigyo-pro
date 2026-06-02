@@ -19051,7 +19051,13 @@ function applyDealToActuals(d, remove) {
   if (!_skipBranchSync && _br && _br !== 'office') {
     var _sign = remove ? -1 : 1;
     var _apply = function(obj){
-      if (!obj[_br]) obj[_br] = {s:Array(12).fill(''), p:Array(12).fill('')};
+      // ⭐ 恒久対策(2026-06 福岡8/9月消失バグ): Excelインポート済みの月だけ同期する。
+      //   未インポート月(値が空)に部分値を書き込むと、getActualValueのbranchActuals早期returnが
+      //   その月の保守料・個人実績など他の内訳を無視して数字を消してしまう。
+      //   → 拠点にbranchActualsが無い / その月が空 の場合は書き込まない(getActualValueは内訳合算で正しく出る)。
+      if (!obj[_br]) return;
+      var _cur = obj[_br].s[mi];
+      if (_cur === '' || _cur === null || typeof _cur === 'undefined') return;
       var ps = parseFloat(obj[_br].s[mi]) || 0;
       var pp = parseFloat(obj[_br].p[mi]) || 0;
       obj[_br].s[mi] = String(Math.round(Math.max(0, ps + _sign * sv)));
