@@ -10033,6 +10033,12 @@ function _doConfirmImport(addedMasters){
             exists.sales = String(gSales);
             exists.cost  = String(gCost);
           }
+          // ⭐ 二重計上 恒久対策: 旧案件(groupBranch未設定/無効)を再インポート時に拠点付与し、
+          //   office浮き→全社二重計上(2026-06 共創未来/くるみ事案)を防ぐ。有効な既存groupBranchは上書きしない。
+          if (_gImpBranch && typeof getBranchMaster === 'function' &&
+              (!exists.groupBranch || !getBranchMaster().some(function(b){ return b.name === exists.groupBranch; }))) {
+            exists.groupBranch = _gImpBranch;
+          }
           gSkipped++;
         } else {
           // 新規登録
@@ -10131,6 +10137,17 @@ function _doConfirmImport(addedMasters){
     }
 
     if(addedMasters && addedMasters.length) log.unshift('追加: '+addedMasters.join(', '));
+    // ⭐ 二重計上 恒久対策(検知): office に浮いたグループ薬局実績を検出。
+    //   D.groupActuals['office'] が非ゼロだと getActualValue('all') が別途加算し(7058行)、
+    //   同じ薬局が branchActuals にも含まれると「全社≠Σ拠点」の二重計上になる(2026-06 共創未来/くるみ事案の早期発見)。
+    try {
+      var _offSum = 0, _go = D.groupActuals && D.groupActuals['office'];
+      if (_go && _go.s) { for (var _oi=0; _oi<_go.s.length; _oi++){ _offSum += Math.abs(Math.round(parseFloat(_go.s[_oi])||0)); } }
+      if (_offSum > 0) {
+        console.warn('[import] ⚠ office未割当グループ薬局実績 '+_offSum+'千(全社二重計上の恐れ)。設定で拠点を確認してください。');
+        log.unshift('⚠ 拠点未割当グループ薬局 '+_offSum+'千あり(全社二重計上の恐れ・要確認)');
+      }
+    } catch(e) { console.error('office浮き検知エラー', e); }
     const successMsg = '✅ ' + ML[mi] + 'の実績を反映しました！  ' + log.join(' / ');
     if(ir){ ir.textContent = successMsg; ir.style.color = 'var(--grn)'; }
 
