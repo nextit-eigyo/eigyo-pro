@@ -2016,6 +2016,20 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-mx td.tot .s { color:var(--acc); }
 #tab-meeting .mt-mx tfoot td { background:#f6efe0; font-weight:900; border-top:2px solid var(--bd); }
 #tab-meeting .mt-mx tfoot td .p { color:#a87a2e; }
+/* 月別マトリクス: 実績/目標 達成率つき・文字を大きく(馬場さん要望) */
+#tab-meeting .mt-mx2 { font-size:14px; min-width:1120px; }
+#tab-meeting .mt-mx2 th, #tab-meeting .mt-mx2 td { padding:9px 12px; }
+#tab-meeting .mt-mx2 thead th { font-size:13px; }
+#tab-meeting .mt-mx2 td .s { font-weight:700; line-height:1.3; }
+#tab-meeting .mt-mx2 td .s .v { font-size:15.5px; font-weight:900; color:var(--tx); }
+#tab-meeting .mt-mx2 td .p { font-size:13px; line-height:1.3; margin-top:2px; }
+#tab-meeting .mt-mx2 td .p .v { font-size:14px; font-weight:900; color:var(--amb); }
+#tab-meeting .mt-mx2 td .bud { font-size:11px; color:var(--tx3); font-weight:600; margin-left:1px; }
+#tab-meeting .mt-mx2 td .ach { font-size:11.5px; font-weight:800; margin-left:3px; }
+#tab-meeting .mt-mx2 td .ach.good { color:var(--grn); }
+#tab-meeting .mt-mx2 td .ach.mid { color:var(--amb); }
+#tab-meeting .mt-mx2 td .ach.bad { color:var(--red); }
+#tab-meeting .mt-mx2 .mt-mx-title .bud, #tab-meeting .mt-mx-title .bud { color:var(--tx3); font-weight:500; }
 
 /* 営業所スコープ: 担当者別スコアカード */
 #tab-meeting .mt-mem-title { font-size:13px; font-weight:800; color:var(--tx); margin:16px 0 6px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -5431,29 +5445,38 @@ function _mtMemberMonthlyMatrixHtml(scope, halfMis){
   var head = '<th class="nm" style="text-align:left">担当者</th>';
   halfMis.forEach(function(mi){ head += '<th>'+ML[mi]+'</th>'; });
   head += '<th class="totcol">'+halfLbl+'計</th>';
-  var monS={}, monP={}; halfMis.forEach(function(mi){ monS[mi]=0; monP[mi]=0; });
-  var gS=0, gP=0, rows='';
+  // 各セル: 上=売上(実績/目標 達成率), 下=粗利(実績/目標 達成率)
+  function achSpan(act,bud){ if(!(bud>0)) return ''; var r=Math.round(act/bud*100); var c=r>=100?'good':r>=80?'mid':'bad'; return ' <span class="ach '+c+'">'+r+'%</span>'; }
+  function cell(sa,sb,pa,pb,cls){
+    return '<td'+(cls?' class="'+cls+'"':'')+'>'
+      + '<div class="s"><b class="v">'+_mtFmtNum(sa)+'</b><span class="bud">/'+_mtFmtNum(sb)+'</span>'+achSpan(sa,sb)+'</div>'
+      + '<div class="p"><b class="v">'+_mtFmtNum(pa)+'</b><span class="bud">/'+_mtFmtNum(pb)+'</span>'+achSpan(pa,pb)+'</div>'
+      + '</td>';
+  }
+  var monSa={},monSb={},monPa={},monPb={}; halfMis.forEach(function(mi){ monSa[mi]=0;monSb[mi]=0;monPa[mi]=0;monPb[mi]=0; });
+  var gSa=0,gSb=0,gPa=0,gPb=0, rows='';
   members.forEach(function(p){
     var tgt={type:'person', id:p.id};
-    var rS=0, rP=0, cells='';
+    var rSa=0,rSb=0,rPa=0,rPb=0, cells='';
     halfMis.forEach(function(mi){
-      var s=getActualValue(tgt,'s',mi)||0, pp=getActualValue(tgt,'p',mi)||0;
-      rS+=s; rP+=pp; monS[mi]+=s; monP[mi]+=pp;
-      cells += '<td><div class="s">'+_mtFmtNum(s)+'</div><div class="p">'+_mtFmtNum(pp)+'</div></td>';
+      var sa=getActualValue(tgt,'s',mi)||0, sb=getBudgetValue(tgt,'s',mi)||0;
+      var pa=getActualValue(tgt,'p',mi)||0, pb=getBudgetValue(tgt,'p',mi)||0;
+      rSa+=sa;rSb+=sb;rPa+=pa;rPb+=pb;
+      monSa[mi]+=sa;monSb[mi]+=sb;monPa[mi]+=pa;monPb[mi]+=pb;
+      cells += cell(sa,sb,pa,pb);
     });
-    gS+=rS; gP+=rP;
+    gSa+=rSa;gSb+=rSb;gPa+=rPa;gPb+=rPb;
     var pidJs=String(p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     rows += '<tr class="mem" title="クリックで'+_esc(p.name||'')+'へ" onclick="_mtSelectScope(\''+pidJs+'\')">'
       + '<td class="nm">'+_esc(p.name||'(無名)')+' <span class="go">▸</span></td>'
-      + cells
-      + '<td class="tot"><div class="s">'+_mtFmtNum(rS)+'</div><div class="p">'+_mtFmtNum(rP)+'</div></td></tr>';
+      + cells + cell(rSa,rSb,rPa,rPb,'tot') + '</tr>';
   });
   var foot='<td class="nm">月計</td>';
-  halfMis.forEach(function(mi){ foot += '<td><div class="s">'+_mtFmtNum(monS[mi])+'</div><div class="p">'+_mtFmtNum(monP[mi])+'</div></td>'; });
-  foot += '<td class="tot"><div class="s">'+_mtFmtNum(gS)+'</div><div class="p">'+_mtFmtNum(gP)+'</div></td>';
+  halfMis.forEach(function(mi){ foot += cell(monSa[mi],monSb[mi],monPa[mi],monPb[mi]); });
+  foot += cell(gSa,gSb,gPa,gPb,'tot');
   var colg='<col>'; halfMis.forEach(function(){ colg+='<col>'; }); colg+='<col class="totcol">';
-  return '<div class="mt-mx-title">🗓 月別 売上／<span class="pp">粗利</span>（'+halfLbl+'・担当者別）<span class="hint">上＝売上 ／ 下＝粗利（千円・実績）／ 行クリックで個人ビュー</span></div>'
-    + '<div class="mt-mx-wrap"><table class="mt-mx"><colgroup>'+colg+'</colgroup>'
+  return '<div class="mt-mx-title">🗓 月別 売上／<span class="pp">粗利</span>（'+halfLbl+'・担当者別）<span class="hint">各セル 上＝売上／下＝粗利、実績<span class="bud">/目標</span> 達成率（千円）／ 行クリックで個人ビュー</span></div>'
+    + '<div class="mt-mx-wrap"><table class="mt-mx mt-mx2"><colgroup>'+colg+'</colgroup>'
     + '<thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody>'
     + '<tfoot><tr>'+foot+'</tr></tfoot></table></div>';
 }
