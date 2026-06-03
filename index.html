@@ -2215,13 +2215,13 @@ body.has-sidepanel #home-deal-mode {
     <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
     <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 ダッシュボード</button>
     <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()">🎯 案件</button>
-    <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 実績確認</button>
+    <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 予実管理</button>
     <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)">📊 前年比較</button>
     <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')">📞 営業活動量</button>
     <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
     <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
     <button id="tab-reportmenu-btn" class="sub-tab" onclick="toggleReportMenu(this)" style="gap:6px">📊 レポート <span style="font-size:11px;opacity:.6">▼</span></button>
-    <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT</button>
+    <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT(振り返り)</button>
   </div>
   <div id="hdr-r">
     <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
@@ -2538,7 +2538,7 @@ body.has-sidepanel #home-deal-mode {
 <!-- ════════════════ MEETING (営業会議レポート) ════════════════ -->
 <div id="tab-meeting" class="sec">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-    <div class="ptitle" style="margin:0">📅 実績確認</div>
+    <div class="ptitle" style="margin:0">📅 予実管理</div>
     <div style="font-size:11px;color:var(--tx3)">案件管理から自動集計。手入力不要。</div>
   </div>
   <div id="meeting-body"></div>
