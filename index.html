@@ -7391,7 +7391,7 @@ function _yoyKpiCard(label, now, prev, unit, accent, onclickJs, expanded, rightH
   }
   var diffTxt = (diff >= 0 ? '+' : '') + _yoyFmt(diff) + unit;
   var bg = accent || 'linear-gradient(135deg,#fdfbf6,#f5ede0)';
-  var minW = rightHtml ? '350px' : '210px';
+  var minW = rightHtml ? '390px' : '210px';
   var border = (onclickJs && expanded) ? 'var(--acc)' : 'var(--bd)';
   var cur = onclickJs ? 'cursor:pointer;' : '';
   var attr = onclickJs ? ' onclick="' + onclickJs + '"' : '';
@@ -7401,7 +7401,7 @@ function _yoyKpiCard(label, now, prev, unit, accent, onclickJs, expanded, rightH
     + '<div style="font-size:34px;font-weight:900;color:var(--tx);line-height:1.12">' + _yoyFmt(now) + '<span style="font-size:15px;color:var(--tx3)">' + unit + '</span>' + badge + '</div>'
     + '<div style="font-size:13px;color:var(--tx2);margin-top:3px">前年同期 ' + _yoyFmt(prev) + unit + ' ／ 差 ' + diffTxt + '</div>'
     + '</div>';
-  var rightBlock = rightHtml ? '<div style="border-left:1px dashed var(--bd);padding-left:13px;min-width:148px">' + rightHtml + '</div>' : '';
+  var rightBlock = rightHtml ? '<div style="border-left:1px dashed var(--bd);padding-left:14px;min-width:168px">' + rightHtml + '</div>' : '';
   return '<div' + attr + ' style="flex:1;min-width:' + minW + ';background:' + bg + ';border:1.5px solid ' + border + ';border-radius:14px;padding:15px 19px;display:flex;gap:12px;' + cur + '">' + leftBlock + rightBlock + '</div>';
 }
 
@@ -7538,9 +7538,9 @@ function renderYoy() {
     if (!_pbData) return '';
     var rows = _pbData.map(function (pb) {
       var nm = pb.name.replace(/本社|営業所|事業所|支店/g, '');
-      return '<div style="font-size:15px;color:var(--tx2);display:flex;justify-content:space-between;gap:12px;line-height:1.8"><span>' + _esc(nm) + '</span><span><b style="color:var(--tx)">' + pb.now[bucket] + '</b><span style="color:var(--tx3);font-size:13px">/前' + pb.prev[bucket] + '</span></span></div>';
+      return '<div style="font-size:18px;color:var(--tx2);display:flex;justify-content:space-between;gap:12px;line-height:1.85"><span>' + _esc(nm) + '</span><span><b style="color:var(--tx)">' + pb.now[bucket] + '</b><span style="color:var(--tx3);font-size:15px">/前' + pb.prev[bucket] + '</span></span></div>';
     }).join('');
-    return '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:2px">拠点別(今/前)</div>' + rows;
+    return '<div style="font-size:13px;color:var(--tx3);font-weight:700;margin-bottom:3px">拠点別(今/前)</div>' + rows;
   }
 
   var html = tabsHtml;
@@ -7568,22 +7568,24 @@ function renderYoy() {
   }
 
   // ── 月別テーブル ──
-  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">📅 月別 前年比<span style="font-weight:400">　行をクリックでその月の受注案件（今年/前年）を表示</span></div>';
+  html += '<div style="font-size:13px;color:var(--tx3);font-weight:700;margin-bottom:6px">📅 月別 前年比<span style="font-weight:400">　行をクリックでその月の受注案件（今年/前年）を表示</span></div>';
+  // 系列別の背景色（売上=藍系 / 粗利=オリーブ系 / 軒数=クリーム系）
+  var C_S = '#eff5fb', C_Sh = '#dce8f4', C_P = '#f2f7ea', C_Ph = '#e4eed4', C_C = '#faf4e8', C_Ch = '#f0e6d2';
   html += '<div style="overflow-x:auto;border:1px solid var(--bd);border-radius:12px;background:#fff">';
-  html += '<table style="border-collapse:collapse;width:100%;font-size:15px;min-width:920px">';
-  var _th = 'padding:10px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:13px;border-bottom:1px solid var(--bds)';
-  var _thN = 'padding:10px 12px;text-align:right;background:#eef2f6;color:var(--tx2);font-weight:900;font-size:13px;border-bottom:1px solid var(--bds)';
+  html += '<table style="border-collapse:collapse;width:100%;font-size:17px;min-width:1000px">';
+  function _hc(bg) { return 'padding:11px 12px;text-align:right;background:' + bg + ';color:var(--tx2);font-weight:900;font-size:15px;border-bottom:2px solid var(--bds)'; }
   html += '<thead><tr>'
-    + '<th style="' + _th + ';text-align:left">月</th>'
-    + '<th style="' + _thN + '">新規軒数<br><span style="font-size:11px;font-weight:400">今/前</span></th>'
-    + '<th style="' + _thN + '">既存軒数<br><span style="font-size:11px;font-weight:400">今/前</span></th>'
-    + '<th style="' + _th + '">今年 売上</th>'
-    + '<th style="' + _th + '">前年 売上</th>'
-    + '<th style="' + _th + '">前年比</th>'
-    + '<th style="' + _th + '">今年 粗利</th>'
-    + '<th style="' + _th + '">前年 粗利</th>'
-    + '<th style="' + _th + '">前年比</th>'
+    + '<th style="padding:11px 12px;text-align:left;background:var(--s3);color:var(--tx2);font-weight:900;font-size:15px;border-bottom:2px solid var(--bds)">月</th>'
+    + '<th style="' + _hc(C_Sh) + '">今年 売上</th>'
+    + '<th style="' + _hc(C_Sh) + '">前年 売上</th>'
+    + '<th style="' + _hc(C_Sh) + '">前年比</th>'
+    + '<th style="' + _hc(C_Ph) + '">今年 粗利</th>'
+    + '<th style="' + _hc(C_Ph) + '">前年 粗利</th>'
+    + '<th style="' + _hc(C_Ph) + '">前年比</th>'
+    + '<th style="' + _hc(C_Ch) + '">新規軒数<br><span style="font-size:12px;font-weight:400">今/前</span></th>'
+    + '<th style="' + _hc(C_Ch) + '">既存軒数<br><span style="font-size:12px;font-weight:400">今/前</span></th>'
     + '</tr></thead><tbody>';
+  function _cell(bg, extra) { return 'padding:11px 12px;text-align:right;font-size:17px;border-bottom:1px solid var(--bds);background:' + bg + (extra || ''); }
   for (var mi = 0; mi < 12; mi++) {
     var future = (lastMi >= 0 && mi > lastMi && elapsed.length < 12);
     var sn = getActualValue(target, 's', mi), sp = _yoyPrevActual(target, 's', mi);
@@ -7593,47 +7595,46 @@ function renderYoy() {
     var moMark = isExp ? '▲ ' : '▾ ';
     var cmN = _yoyCountDeals(D, fy, key, [mi]);
     var cmP = _yoyCountDeals(prev, fy - 1, prevKey, [mi]);
-    function _cntCell(nv, pv, bg) {
+    function _cntCell(nv, pv) {
       var nowP = future ? '<span style="color:var(--tx3)">—</span>' : '<b style="color:var(--tx)">' + nv + '</b>';
-      return '<td style="padding:9px 12px;text-align:right;border-bottom:1px solid var(--bds);background:' + bg + '">' + nowP + '<span style="color:var(--tx3);font-size:12px">/' + pv + '</span></td>';
+      return '<td style="' + _cell(C_C) + '">' + nowP + '<span style="color:var(--tx3);font-size:13px">/' + pv + '</span></td>';
     }
-    var _td = 'padding:9px 12px;text-align:right;border-bottom:1px solid var(--bds)';
-    html += '<tr onclick="_yoyToggleMi(' + mi + ')" style="cursor:pointer;background:' + (isExp ? 'var(--s3)' : 'transparent') + '">'
-      + '<td style="padding:9px 12px;text-align:left;font-weight:900;background:var(--s2);border-bottom:1px solid var(--bds)"><span style="color:var(--acc);font-size:12px">' + moMark + '</span>' + ML[mi] + '</td>'
-      + _cntCell(cmN.neww, cmP.neww, '#f7fafc')
-      + _cntCell(cmN.exist, cmP.exist, '#f8faf4')
-      + '<td style="' + _td + ';font-weight:900;color:var(--tx)">' + (future ? dash : _yoyFmt(sn)) + '</td>'
-      + '<td style="' + _td + ';color:var(--tx3)">' + _yoyFmt(sp) + '</td>'
-      + '<td style="' + _td + '">' + (future ? dash : _yoyPctCell(sn, sp)) + '</td>'
-      + '<td style="' + _td + ';font-weight:900;color:var(--tx)">' + (future ? dash : _yoyFmt(pn)) + '</td>'
-      + '<td style="' + _td + ';color:var(--tx3)">' + _yoyFmt(pp) + '</td>'
-      + '<td style="' + _td + '">' + (future ? dash : _yoyPctCell(pn, pp)) + '</td>'
+    html += '<tr onclick="_yoyToggleMi(' + mi + ')" style="cursor:pointer">'
+      + '<td style="padding:11px 12px;text-align:left;font-size:17px;font-weight:900;background:' + (isExp ? 'var(--s3)' : 'var(--s2)') + ';border-bottom:1px solid var(--bds)"><span style="color:var(--acc);font-size:13px">' + moMark + '</span>' + ML[mi] + '</td>'
+      + '<td style="' + _cell(C_S, ';font-weight:900;color:var(--tx)') + '">' + (future ? dash : _yoyFmt(sn)) + '</td>'
+      + '<td style="' + _cell(C_S, ';color:var(--tx3)') + '">' + _yoyFmt(sp) + '</td>'
+      + '<td style="' + _cell(C_S) + '">' + (future ? dash : _yoyPctCell(sn, sp)) + '</td>'
+      + '<td style="' + _cell(C_P, ';font-weight:900;color:var(--tx)') + '">' + (future ? dash : _yoyFmt(pn)) + '</td>'
+      + '<td style="' + _cell(C_P, ';color:var(--tx3)') + '">' + _yoyFmt(pp) + '</td>'
+      + '<td style="' + _cell(C_P) + '">' + (future ? dash : _yoyPctCell(pn, pp)) + '</td>'
+      + _cntCell(cmN.neww, cmP.neww)
+      + _cntCell(cmN.exist, cmP.exist)
       + '</tr>';
     if (isExp) {
       var _mNow = _yoyMonthDealList(D, fy, key, mi);
       var _mPrev = _yoyMonthDealList(prev, fy - 1, prevKey, mi);
       html += '<tr><td colspan="9" style="padding:10px 16px;background:var(--s3);border-bottom:1px solid var(--bds)">'
-        + '<div style="font-weight:900;font-size:13px;margin-bottom:2px">' + ML[mi] + ' の受注案件（スコープ内）</div>'
+        + '<div style="font-weight:900;font-size:14px;margin-bottom:2px">' + ML[mi] + ' の受注案件（スコープ内）</div>'
         + _yoyDealListHtml('今年（' + fy + '年度）' + ML[mi], _mNow)
         + _yoyDealListHtml('前年（' + (fy - 1) + '年度）' + ML[mi], _mPrev)
-        + '<div style="font-size:11px;color:var(--tx3);margin-top:6px">※ 拠点/全社では、上の月別合計に保守料・HW・消耗品など案件以外も含むため、案件の売上計と一致しないことがあります（担当者スコープは概ね一致）。</div>'
+        + '<div style="font-size:12px;color:var(--tx3);margin-top:6px">※ 拠点/全社では月別合計に保守料・HW・消耗品など案件以外も含むため、案件売上計と一致しないことがあります（担当者スコープは概ね一致）。</div>'
         + '</td></tr>';
     }
   }
-  var _tt = 'padding:11px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)';
+  function _ttc(bg, extra) { return 'padding:13px 12px;text-align:right;font-weight:900;font-size:17px;background:' + bg + ';border-top:2px solid var(--bd)' + (extra || ''); }
   html += '<tr>'
-    + '<td style="padding:11px 12px;text-align:left;font-weight:900;background:var(--acc);color:#fff;border-top:2px solid var(--bd)">' + perLabel + '計</td>'
-    + '<td style="' + _tt + ';background:#e9eef4"><b>' + cNow.neww + '</b><span style="color:var(--tx3);font-size:12px">/' + cPrev.neww + '</span></td>'
-    + '<td style="' + _tt + ';background:#eef2e6"><b>' + cNow.exist + '</b><span style="color:var(--tx3);font-size:12px">/' + cPrev.exist + '</span></td>'
-    + '<td style="' + _tt + '">' + _yoyFmt(sNow) + '</td>'
-    + '<td style="' + _tt + ';color:var(--tx2)">' + _yoyFmt(sPrev) + '</td>'
-    + '<td style="' + _tt + '">' + _yoyPctCell(sNow, sPrev) + '</td>'
-    + '<td style="' + _tt + '">' + _yoyFmt(pNow) + '</td>'
-    + '<td style="' + _tt + ';color:var(--tx2)">' + _yoyFmt(pPrev) + '</td>'
-    + '<td style="' + _tt + '">' + _yoyPctCell(pNow, pPrev) + '</td>'
+    + '<td style="padding:13px 12px;text-align:left;font-weight:900;font-size:16px;background:var(--acc);color:#fff;border-top:2px solid var(--bd)">' + perLabel + '計</td>'
+    + '<td style="' + _ttc(C_Sh) + '">' + _yoyFmt(sNow) + '</td>'
+    + '<td style="' + _ttc(C_Sh, ';color:var(--tx2)') + '">' + _yoyFmt(sPrev) + '</td>'
+    + '<td style="' + _ttc(C_Sh) + '">' + _yoyPctCell(sNow, sPrev) + '</td>'
+    + '<td style="' + _ttc(C_Ph) + '">' + _yoyFmt(pNow) + '</td>'
+    + '<td style="' + _ttc(C_Ph, ';color:var(--tx2)') + '">' + _yoyFmt(pPrev) + '</td>'
+    + '<td style="' + _ttc(C_Ph) + '">' + _yoyPctCell(pNow, pPrev) + '</td>'
+    + '<td style="' + _ttc(C_Ch) + '"><b>' + cNow.neww + '</b><span style="color:var(--tx3);font-size:13px">/' + cPrev.neww + '</span></td>'
+    + '<td style="' + _ttc(C_Ch) + '"><b>' + cNow.exist + '</b><span style="color:var(--tx3);font-size:13px">/' + cPrev.exist + '</span></td>'
     + '</tr>';
   html += '</tbody></table></div>';
-  html += '<div style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.6">※ 金額は千円。前年=' + (fy - 1) + '年度／今年=' + fy + '年度。<br>※ 前年データは取り込み済みの拠点のみ正確です（未取込の拠点は前年0と表示されます）。</div>';
+  html += '<div style="font-size:12px;color:var(--tx3);margin-top:8px;line-height:1.7">※ 金額は千円。<span style="background:' + C_S + ';padding:1px 7px;border-radius:4px;color:var(--tx2)">売上系</span> <span style="background:' + C_P + ';padding:1px 7px;border-radius:4px;color:var(--tx2)">粗利系</span> <span style="background:' + C_C + ';padding:1px 7px;border-radius:4px;color:var(--tx2)">軒数</span> で色分け。前年=' + (fy - 1) + '年度／今年=' + fy + '年度。前年データは取込済み拠点のみ正確。</div>';
 
   body.innerHTML = html;
 }
