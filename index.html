@@ -51,7 +51,7 @@ input,select,textarea,button{font-family:inherit;font-size:14px}
   background:var(--s1);border-bottom:1px solid var(--bd);
   box-shadow:var(--sh);
   display:flex;align-items:center;gap:10px;
-  padding:0 20px;height:var(--nav);
+  padding:0 20px;min-height:var(--nav);
 }
 #logo{
   font-size:16px;font-weight:900;letter-spacing:-.5px;
@@ -60,7 +60,7 @@ input,select,textarea,button{font-family:inherit;font-size:14px}
 }
 #logo:hover{opacity:.65}
 #logo em{color:var(--acc);font-style:normal}
-.htabs{display:flex;gap:1px;flex:1;overflow-x:auto;min-width:0;padding:4px 0}
+.htabs{display:flex;gap:1px;flex:1;flex-wrap:wrap;min-width:0;padding:4px 0}
 .htabs::-webkit-scrollbar{display:none}
 .htab{
   background:none;border:none;color:var(--tx3);font-size:12px;font-weight:500;
@@ -944,10 +944,10 @@ tr:hover td{background:rgba(90,123,158,.02)}
 /* タブ: アンダーライン型(案B) — シャープでモダンな印象 */
 .sub-tab{
   background:transparent;border:none;border-bottom:2.5px solid transparent;
-  color:var(--tx2);font-family:inherit;font-size:15px;font-weight:700;
-  padding:13px 14px 10px;border-radius:0;cursor:pointer;
-  transition:color .12s,border-color .12s;display:inline-flex;align-items:center;gap:5px;
-  letter-spacing:.02em;white-space:nowrap;
+  color:var(--tx2);font-family:inherit;font-size:14px;font-weight:700;
+  padding:13px 9px 10px;border-radius:0;cursor:pointer;
+  transition:color .12s,border-color .12s;display:inline-flex;align-items:center;gap:4px;
+  letter-spacing:0;white-space:nowrap;
 }
 .sub-tab:hover{ color:var(--tx); border-bottom-color:var(--bd); }
 .sub-tab.active{
