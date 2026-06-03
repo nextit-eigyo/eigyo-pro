@@ -19771,9 +19771,11 @@ function autoFixIntegrity() {
     _showToast('✅ 不一致なし', 'ok', 2000);
     return;
   }
-  if (!confirm('⚠ ' + report.issues.length + '件の不一致を一括補正します。\n\nD.actuals と D.groupActuals が期待値で上書きされます。\nこの操作は取り消せません。実行しますか？')) {
+  if (!confirm('⚠ ' + report.issues.length + '件の不一致を一括補正します。\n\nD.actuals と D.groupActuals が期待値で上書きされます。\n直前に自動バックアップを取得します（復元可）。実行しますか？')) {
     return;
   }
+  // 🛡 危険操作の直前に必ず自動バックアップ（再発防止の絶対ルール）
+  if (typeof _autoBackup === 'function') _autoBackup('整合性自動補正');
   // 期待値で上書き
   if (!D.actuals) D.actuals = {};
   if (!D.groupActuals) D.groupActuals = {};
