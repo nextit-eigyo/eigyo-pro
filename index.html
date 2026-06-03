@@ -7321,6 +7321,11 @@ function _yoyDealMi(d, dsFy) {
   if (m >= 4) return (y === dsFy) ? m - 4 : -1;
   return (y === dsFy + 1) ? m + 8 : -1;
 }
+// V8系の受注か（軒数の対象。営業会議の新規/既存バッジと同じ仕様）
+function _yoyIsV8(d) {
+  var pt = String(d.productType || '');
+  return (pt === '調剤くんV8') || /V8Core/.test(pt);
+}
 // 案件の所属拠点（指定データセット内で解決）
 function _yoyBranchOfDeal(d, ds) {
   if (d.spId && d.spId !== 'office') {
@@ -7353,6 +7358,7 @@ function _yoyCountDeals(ds, dsFy, key, mis) {
     if (!_countsAsWon(d)) return;
     var cat = (d.category || '');
     if (cat === '販売店' || cat === 'グループ薬局') return; // 軒数は個別薬局のみ
+    if (!_yoyIsV8(d)) return;                               // V8システムの受注のみ（消耗品/医療扶助等を除外）
     var mi = _yoyDealMi(d, dsFy);
     if (mi < 0 || !miSet[mi]) return;
     if (!_yoyDealInScope(d, key, ds)) return;
@@ -7407,6 +7413,7 @@ function _yoyCountDealList(ds, dsFy, key, mis, which) {
   ds.deals.forEach(function (d) {
     if (!_countsAsWon(d)) return;
     var cat = (d.category || ''); if (cat === '販売店' || cat === 'グループ薬局') return;
+    if (!_yoyIsV8(d)) return; // V8システムの受注のみ
     var mi = _yoyDealMi(d, dsFy); if (mi < 0 || !miSet[mi]) return;
     if (!_yoyDealInScope(d, key, ds)) return;
     var dt = String(d.dealType || '');
@@ -7520,7 +7527,7 @@ function renderYoy() {
   html += _yoyKpiCard('売上', sNow, sPrev, '千');
   html += _yoyKpiCard('粗利', pNow, pPrev, '千');
   html += '</div>';
-  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">🏪 受注軒数 前年比（' + perLabel + '累計・販売店/グループ薬局除く）<span style="font-weight:400">　カードをクリックで内訳</span></div>';
+  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">🏪 受注軒数 前年比（' + perLabel + '累計・V8システムのみ／販売店・グループ薬局除く）<span style="font-weight:400">　カードをクリックで内訳</span></div>';
   html += '<div style="display:flex;gap:13px;flex-wrap:wrap;margin-bottom:10px">';
   html += _yoyKpiCard('新規軒数', cNow.neww, cPrev.neww, '件', 'linear-gradient(135deg,#fdfbf6,#eef2f6)', "_yoyToggleCount('neww')", _yoyExpandCount === 'neww');
   html += _yoyKpiCard('既存軒数（Vup等）', cNow.exist, cPrev.exist, '件', 'linear-gradient(135deg,#fdfbf6,#f0f2e8)', "_yoyToggleCount('exist')", _yoyExpandCount === 'exist');
@@ -7532,7 +7539,7 @@ function renderYoy() {
     var _nowL = _yoyCountDealList(D, fy, key, elapsed, _yoyExpandCount);
     var _prevL = _yoyCountDealList(prev, fy - 1, prevKey, elapsed, _yoyExpandCount);
     html += '<div style="background:var(--s2);border:1px solid var(--acc);border-radius:12px;padding:14px 16px;margin-bottom:18px">'
-      + '<div style="font-weight:900;font-size:13px;margin-bottom:2px">🏪 ' + _cLbl + ' の内訳（' + perLabel + '・販売店/グループ除く）</div>'
+      + '<div style="font-weight:900;font-size:13px;margin-bottom:2px">🏪 ' + _cLbl + ' の内訳（' + perLabel + '・V8システムのみ）</div>'
       + _yoyDealListHtml('今年（' + fy + '年度）', _nowL)
       + _yoyDealListHtml('前年（' + (fy - 1) + '年度）', _prevL)
       + '</div>';
