@@ -2543,6 +2543,15 @@ body.has-sidepanel #home-deal-mode {
   <div id="meeting-body"></div>
 </div>
 
+<!-- ════════════════ 前年比較 (YoY) ════════════════ -->
+<div id="tab-yoy" class="sec">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <div class="ptitle" style="margin:0">📊 前年比較</div>
+    <div style="font-size:11px;color:var(--tx3)">今年度 × 前年度を自動集計。スコープを切り替えて確認できます。</div>
+  </div>
+  <div id="yoy-body"></div>
+</div>
+
 <!-- ════════════════ REPORT ════════════════ -->
 <div id="tab-report" class="sec">
   <div class="ptitle">📝 振り返りシート</div>
@@ -6772,7 +6781,7 @@ function initFY(){
     if(i===fy)o.selected=true;s.appendChild(o);
   }
 }
-function changeFY(){fy=parseInt(document.getElementById('fy-sel').value);load();cbSp=0;cdSp=0;caSp=-1;_fbRepointForFy();rebuildAll()}
+function changeFY(){fy=parseInt(document.getElementById('fy-sel').value);load();cbSp=0;cdSp=0;caSp=-1;if(typeof _yoyClearPrevCache==='function')_yoyClearPrevCache();_fbRepointForFy();rebuildAll()}
 
 // ===== SETUP =====
 
@@ -7236,6 +7245,239 @@ function getActualValue(target, field, mi) {
   }
 
   return total;
+}
+
+// ════════════════════════════════════════════════════════
+// 📊 前年比較（YoY）ビュー
+// ════════════════════════════════════════════════════════
+// 設計:
+//  - 年度別データは localStorage('eigyo3_<fy>') に分離保存されている。
+//  - 今年=現在の fy(D)、前年=fy-1 を別途読み込み、既存 getActualValue を
+//    一時的に通して前年実績を算出（集計ロジックを完全共有＝数字がブレない）。
+//  - 軒数(新規/既存)は D.deals を計上月×スコープで件数カウント。販売店は除外。
+var _yoyScopeKey = 'all';
+var _yoyPrevCache = { fy: null, data: null };
+
+function _yoyLoadPrev() {
+  var py = fy - 1;
+  if (_yoyPrevCache.fy === py) return _yoyPrevCache.data;
+  var d = null;
+  try { var r = localStorage.getItem('eigyo3_' + py); if (r) d = JSON.parse(r); } catch (e) { d = null; }
+  _yoyPrevCache = { fy: py, data: d };
+  return d;
+}
+// 年度を切り替えたら前年キャッシュを破棄（changeFY から呼ぶ）
+function _yoyClearPrevCache() { _yoyPrevCache = { fy: null, data: null }; }
+
+// 前年実績（既存 getActualValue を D/fy 一時退避で再利用）
+function _yoyPrevActual(target, field, mi) {
+  var pd = _yoyLoadPrev();
+  if (!pd) return 0;
+  var savedD = D, savedFy = fy;
+  try { D = pd; fy = savedFy - 1; return getActualValue(target, field, mi); }
+  finally { D = savedD; fy = savedFy; }
+}
+
+function _yoyTargetFromKey(k) {
+  if (!k || k === 'all') return 'all';
+  if (k.indexOf('region:') === 0) return '__region__' + k.slice(7);
+  if (k.indexOf('branch:') === 0) return k.slice(7);
+  if (k.indexOf('person:') === 0) return { type: 'person', id: k.slice(7) };
+  return 'all';
+}
+function _yoySetScope(k) { _yoyScopeKey = k; renderYoy(); }
+
+// 今年度における経過月(mi)配列。過去年度は全月、未来年度は空。
+function _yoyElapsedMis() {
+  var now = new Date();
+  var ny = now.getFullYear(), nm = now.getMonth() + 1;
+  var todayFy = (nm >= 4) ? ny : ny - 1;
+  if (fy < todayFy) return [0,1,2,3,4,5,6,7,8,9,10,11];
+  if (fy > todayFy) return [];
+  var curMi = (nm >= 4) ? nm - 4 : nm + 8;
+  var arr = []; for (var i = 0; i <= curMi; i++) arr.push(i); return arr;
+}
+
+// 案件の計上月→mi（指定年度基準）。範囲外は -1。
+function _yoyDealMi(d, dsFy) {
+  if (!d || !d.deliveryMonth) return -1;
+  var p = String(d.deliveryMonth).split('-');
+  var y = parseInt(p[0]), m = parseInt(p[1]);
+  if (isNaN(y) || isNaN(m)) return -1;
+  if (m >= 4) return (y === dsFy) ? m - 4 : -1;
+  return (y === dsFy + 1) ? m + 8 : -1;
+}
+// 案件の所属拠点（指定データセット内で解決）
+function _yoyBranchOfDeal(d, ds) {
+  if (d.spId && d.spId !== 'office') {
+    var p = (ds.people || []).find(function (x) { return x.id === d.spId; });
+    return p ? p.branch : null;
+  }
+  return d.groupBranch || null;
+}
+// スコープ判定
+function _yoyDealInScope(d, key, ds) {
+  if (!key || key === 'all') return true;
+  if (key.indexOf('person:') === 0) return d.spId === key.slice(7);
+  var br = _yoyBranchOfDeal(d, ds);
+  if (!br) return false;
+  if (key.indexOf('branch:') === 0) return br === key.slice(7);
+  if (key.indexOf('region:') === 0) {
+    var rg = key.slice(7);
+    var bm = (ds.branchMaster && ds.branchMaster.length) ? ds.branchMaster : getBranchMaster();
+    var bo = bm.find(function (b) { return b.name === br; });
+    return bo ? ((bo.region || '西日本') === rg) : false;
+  }
+  return false;
+}
+// 軒数集計（new/exist/total）。販売店は除外。mis=対象月配列。
+function _yoyCountDeals(ds, dsFy, key, mis) {
+  var res = { neww: 0, exist: 0, total: 0 };
+  if (!ds || !ds.deals) return res;
+  var miSet = {}; mis.forEach(function (m) { miSet[m] = 1; });
+  ds.deals.forEach(function (d) {
+    if (!_countsAsWon(d)) return;
+    if ((d.category || '') === '販売店') return;
+    var mi = _yoyDealMi(d, dsFy);
+    if (mi < 0 || !miSet[mi]) return;
+    if (!_yoyDealInScope(d, key, ds)) return;
+    res.total++;
+    var dt = String(d.dealType || '');
+    if (/新規/.test(dt)) res.neww++;
+    else if (/既存/.test(dt)) res.exist++;
+  });
+  return res;
+}
+
+function _yoyFmt(n) { return Math.round(n || 0).toLocaleString(); }
+function _yoyPct(cur, prev) { return (prev > 0) ? Math.round(cur / prev * 100) : null; }
+function _yoyPctCell(cur, prev) {
+  var p = _yoyPct(cur, prev);
+  if (p === null) return (cur > 0) ? '<span style="color:var(--amb);font-weight:900">新</span>' : '<span style="color:var(--tx3)">—</span>';
+  var col = p >= 100 ? '#46823c' : '#a85a4a';
+  return '<span style="color:' + col + ';font-weight:900">' + p + '%</span>';
+}
+// KPIカード（金額用 unit='千' / 件数用 unit='件'）
+function _yoyKpiCard(label, now, prev, unit, accent) {
+  var diff = now - prev;
+  var p = _yoyPct(now, prev);
+  var badge;
+  if (p === null) {
+    badge = (now > 0) ? '<span style="font-size:15px;font-weight:900;padding:2px 10px;border-radius:999px;margin-left:6px;background:#f3e6d2;color:#a8772a">新</span>' : '';
+  } else {
+    var up = p >= 100;
+    badge = '<span style="font-size:15px;font-weight:900;padding:2px 10px;border-radius:999px;margin-left:6px;background:' + (up ? '#e7efd9' : '#f7e1da') + ';color:' + (up ? '#46823c' : '#a85a4a') + '">' + p + '%</span>';
+  }
+  var diffTxt = (diff >= 0 ? '+' : '') + _yoyFmt(diff) + unit;
+  var bg = accent || 'linear-gradient(135deg,#fdfbf6,#f5ede0)';
+  return '<div style="flex:1;min-width:200px;background:' + bg + ';border:1.5px solid var(--bd);border-radius:14px;padding:15px 19px">'
+    + '<div style="font-size:12px;color:var(--tx3);font-weight:700">' + label + '</div>'
+    + '<div style="font-size:28px;font-weight:900;color:var(--tx);line-height:1.15">' + _yoyFmt(now) + '<span style="font-size:13px;color:var(--tx3)">' + unit + '</span>' + badge + '</div>'
+    + '<div style="font-size:12px;color:var(--tx2);margin-top:3px">前年同期 ' + _yoyFmt(prev) + unit + ' ／ 差 ' + diffTxt + '</div>'
+    + '</div>';
+}
+
+function renderYoy() {
+  var body = document.getElementById('yoy-body');
+  if (!body) return;
+  var prev = _yoyLoadPrev();
+  var key = _yoyScopeKey;
+  var target = _yoyTargetFromKey(key);
+  var elapsed = _yoyElapsedMis();
+  var lastMi = elapsed.length ? elapsed[elapsed.length - 1] : -1;
+
+  // ── スコープ切替UI ──
+  var bm = getBranchMaster();
+  var regions = [];
+  bm.forEach(function (b) { var r = b.region || '西日本'; if (regions.indexOf(r) < 0) regions.push(r); });
+  function tabBtn(lbl, k) {
+    var on = (k === key);
+    return '<button onclick="_yoySetScope(\'' + k + '\')" style="font-size:13px;font-weight:' + (on ? '900' : '700') + ';border:1.5px solid ' + (on ? 'var(--acc)' : 'var(--bd)') + ';background:' + (on ? 'var(--acc)' : '#fff') + ';color:' + (on ? '#fff' : 'var(--tx2)') + ';border-radius:9px;padding:7px 15px;cursor:pointer;margin:0 5px 5px 0">' + _esc(lbl) + '</button>';
+  }
+  var tabsHtml = '<div style="margin-bottom:5px">' + tabBtn('🌐 全社', 'all');
+  regions.forEach(function (r) { tabsHtml += tabBtn(r, 'region:' + r); });
+  tabsHtml += '</div>';
+  tabsHtml += '<div style="margin-bottom:5px"><span style="font-size:12px;color:var(--tx3);font-weight:700;margin-right:4px">拠点:</span>';
+  bm.forEach(function (b) { tabsHtml += tabBtn(b.name, 'branch:' + b.name); });
+  tabsHtml += '</div>';
+  var people = ap();
+  var selId = (key.indexOf('person:') === 0) ? key.slice(7) : '';
+  var opts = '<option value="">選択…</option>' + people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === selId ? ' selected' : '') + '>' + _esc(p.name) + '</option>'; }).join('');
+  tabsHtml += '<div style="margin-bottom:14px"><span style="font-size:12px;color:var(--tx3);font-weight:700;margin-right:4px">担当者:</span>'
+    + '<select onchange="_yoySetScope(this.value ? (\'person:\'+this.value) : \'all\')" style="font-size:13px;font-weight:700;border:1.5px solid var(--bd);border-radius:9px;padding:7px 12px;background:#fff;color:var(--tx2)">' + opts + '</select></div>';
+
+  // ── 前年データが無い場合 ──
+  if (!prev) {
+    body.innerHTML = tabsHtml + '<div style="background:#fff;border:1px solid var(--bd);border-radius:12px;padding:34px;text-align:center">'
+      + '<div style="font-size:15px;font-weight:900;color:var(--tx);margin-bottom:8px">前年度（' + (fy - 1) + '年度）のデータがこのPCにありません</div>'
+      + '<div style="font-size:13px;color:var(--tx3);line-height:1.8">前年比較を表示するには、画面右上の年度を一度「' + (fy - 1) + '年度」に切り替えてください。<br>切り替えると前年データがこのPCに読み込まれ、ここで比較できるようになります。</div></div>';
+    return;
+  }
+
+  // ── 累計（売上・粗利・軒数）──
+  var sNow = 0, sPrev = 0, pNow = 0, pPrev = 0;
+  elapsed.forEach(function (mi) {
+    sNow += getActualValue(target, 's', mi); sPrev += _yoyPrevActual(target, 's', mi);
+    pNow += getActualValue(target, 'p', mi); pPrev += _yoyPrevActual(target, 'p', mi);
+  });
+  var cNow = _yoyCountDeals(D, fy, key, elapsed);
+  var cPrev = _yoyCountDeals(prev, fy - 1, key, elapsed);
+  var perLabel = (elapsed.length === 12) ? '通期' : ('4月〜' + ML[lastMi]);
+
+  var html = tabsHtml;
+  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">💰 売上・粗利 前年比（' + perLabel + '累計）</div>';
+  html += '<div style="display:flex;gap:13px;flex-wrap:wrap;margin-bottom:14px">';
+  html += _yoyKpiCard('売上', sNow, sPrev, '千');
+  html += _yoyKpiCard('粗利', pNow, pPrev, '千');
+  html += '</div>';
+  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">🏪 受注軒数 前年比（' + perLabel + '累計・販売店除く）</div>';
+  html += '<div style="display:flex;gap:13px;flex-wrap:wrap;margin-bottom:18px">';
+  html += _yoyKpiCard('新規軒数', cNow.neww, cPrev.neww, '件', 'linear-gradient(135deg,#fdfbf6,#eef2f6)');
+  html += _yoyKpiCard('既存軒数（Vup等）', cNow.exist, cPrev.exist, '件', 'linear-gradient(135deg,#fdfbf6,#f0f2e8)');
+  html += _yoyKpiCard('合計軒数', cNow.total, cPrev.total, '件');
+  html += '</div>';
+
+  // ── 月別テーブル ──
+  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">📅 月別 前年比</div>';
+  html += '<div style="overflow-x:auto;border:1px solid var(--bd);border-radius:12px;background:#fff">';
+  html += '<table style="border-collapse:collapse;width:100%;font-size:13px;min-width:720px">';
+  html += '<thead><tr>'
+    + '<th style="padding:9px 12px;text-align:left;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">月</th>'
+    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">今年 売上</th>'
+    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年 売上</th>'
+    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年比</th>'
+    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">今年 粗利</th>'
+    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年 粗利</th>'
+    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年比</th>'
+    + '</tr></thead><tbody>';
+  for (var mi = 0; mi < 12; mi++) {
+    var future = (lastMi >= 0 && mi > lastMi && elapsed.length < 12);
+    var sn = getActualValue(target, 's', mi), sp = _yoyPrevActual(target, 's', mi);
+    var pn = getActualValue(target, 'p', mi), pp = _yoyPrevActual(target, 'p', mi);
+    var dash = '<span style="color:var(--tx3)">—</span>';
+    html += '<tr>'
+      + '<td style="padding:8px 12px;text-align:left;font-weight:900;background:var(--s2);border-bottom:1px solid var(--bds)">' + ML[mi] + '</td>'
+      + '<td style="padding:8px 12px;text-align:right;font-weight:900;color:var(--tx);border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyFmt(sn)) + '</td>'
+      + '<td style="padding:8px 12px;text-align:right;color:var(--tx3);border-bottom:1px solid var(--bds)">' + _yoyFmt(sp) + '</td>'
+      + '<td style="padding:8px 12px;text-align:right;border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyPctCell(sn, sp)) + '</td>'
+      + '<td style="padding:8px 12px;text-align:right;font-weight:900;color:var(--tx);border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyFmt(pn)) + '</td>'
+      + '<td style="padding:8px 12px;text-align:right;color:var(--tx3);border-bottom:1px solid var(--bds)">' + _yoyFmt(pp) + '</td>'
+      + '<td style="padding:8px 12px;text-align:right;border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyPctCell(pn, pp)) + '</td>'
+      + '</tr>';
+  }
+  html += '<tr>'
+    + '<td style="padding:9px 12px;text-align:left;font-weight:900;background:var(--acc);color:#fff;border-top:2px solid var(--bd)">' + perLabel + '計</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyFmt(sNow) + '</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;color:var(--tx2);border-top:2px solid var(--bd)">' + _yoyFmt(sPrev) + '</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyPctCell(sNow, sPrev) + '</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyFmt(pNow) + '</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;color:var(--tx2);border-top:2px solid var(--bd)">' + _yoyFmt(pPrev) + '</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyPctCell(pNow, pPrev) + '</td>'
+    + '</tr>';
+  html += '</tbody></table></div>';
+  html += '<div style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.6">※ 金額は千円。前年=' + (fy - 1) + '年度／今年=' + fy + '年度。<br>※ 前年データは取り込み済みの拠点のみ正確です（未取込の拠点は前年0と表示されます）。</div>';
+
+  body.innerHTML = html;
 }
 
 function renderOfficeBudget(){
@@ -10631,6 +10873,7 @@ function showTab(name,btn){
   if(name==='meeting'){renderMeeting();}
   if(name==='import')initImportCtrl();
   if(name==='furikaeri'){initFurikaeriCtrl();renderFurikaeri();}
+  if(name==='yoy'){renderYoy();}
 }
 
 // ════════════════════════════════════════════════════════
@@ -23101,6 +23344,7 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-kyogou-btn" onclick="showTab('kyogou',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">⚔ 競合分析</button>
   <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
   <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
+  <button class="htab" id="tab-yoy-btn" onclick="showTab('yoy',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📊 前年比較</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
 <div id="memo-full-modal">
