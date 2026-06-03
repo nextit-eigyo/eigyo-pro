@@ -2215,7 +2215,8 @@ body.has-sidepanel #home-deal-mode {
     <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
     <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 数字</button>
     <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()">🎯 案件</button>
-    <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 営業会議</button>
+    <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 実績確認</button>
+    <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)">📊 前年比較</button>
     <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')">📞 営業活動量</button>
     <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
     <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
@@ -2537,7 +2538,7 @@ body.has-sidepanel #home-deal-mode {
 <!-- ════════════════ MEETING (営業会議レポート) ════════════════ -->
 <div id="tab-meeting" class="sec">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-    <div class="ptitle" style="margin:0">📅 西日本営業会議 レポート</div>
+    <div class="ptitle" style="margin:0">📅 実績確認</div>
     <div style="font-size:11px;color:var(--tx3)">案件管理から自動集計。手入力不要。</div>
   </div>
   <div id="meeting-body"></div>
@@ -7269,12 +7270,25 @@ function _yoyLoadPrev() {
 // 年度を切り替えたら前年キャッシュを破棄（changeFY から呼ぶ）
 function _yoyClearPrevCache() { _yoyPrevCache = { fy: null, data: null }; }
 
+// 今年の担当者ID → 前年データ内の同名担当者ID（年度ごとにIDが変わるため名前で突合）
+function _yoyMapPersonToPrev(curId, pd) {
+  var cur = (D.people || []).find(function (x) { return x.id === curId; });
+  if (!cur || !cur.name) return '__none__';
+  var nm = cur.name.trim();
+  var pp = (pd.people || []).find(function (x) { return x.name && x.name.trim() === nm; });
+  return pp ? pp.id : '__none__';
+}
 // 前年実績（既存 getActualValue を D/fy 一時退避で再利用）
 function _yoyPrevActual(target, field, mi) {
   var pd = _yoyLoadPrev();
   if (!pd) return 0;
+  var t = target;
+  // 担当者スコープは前年データ内の同名IDに付け替える
+  if (target && typeof target === 'object' && target.type === 'person') {
+    t = { type: 'person', id: _yoyMapPersonToPrev(target.id, pd) };
+  }
   var savedD = D, savedFy = fy;
-  try { D = pd; fy = savedFy - 1; return getActualValue(target, field, mi); }
+  try { D = pd; fy = savedFy - 1; return getActualValue(t, field, mi); }
   finally { D = savedD; fy = savedFy; }
 }
 
@@ -7337,7 +7351,8 @@ function _yoyCountDeals(ds, dsFy, key, mis) {
   var miSet = {}; mis.forEach(function (m) { miSet[m] = 1; });
   ds.deals.forEach(function (d) {
     if (!_countsAsWon(d)) return;
-    if ((d.category || '') === '販売店') return;
+    var cat = (d.category || '');
+    if (cat === '販売店' || cat === 'グループ薬局') return; // 軒数は個別薬局のみ
     var mi = _yoyDealMi(d, dsFy);
     if (mi < 0 || !miSet[mi]) return;
     if (!_yoyDealInScope(d, key, ds)) return;
@@ -7400,11 +7415,25 @@ function renderYoy() {
   tabsHtml += '<div style="margin-bottom:5px"><span style="font-size:12px;color:var(--tx3);font-weight:700;margin-right:4px">拠点:</span>';
   bm.forEach(function (b) { tabsHtml += tabBtn(b.name, 'branch:' + b.name); });
   tabsHtml += '</div>';
-  var people = ap();
-  var selId = (key.indexOf('person:') === 0) ? key.slice(7) : '';
-  var opts = '<option value="">選択…</option>' + people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === selId ? ' selected' : '') + '>' + _esc(p.name) + '</option>'; }).join('');
-  tabsHtml += '<div style="margin-bottom:14px"><span style="font-size:12px;color:var(--tx3);font-weight:700;margin-right:4px">担当者:</span>'
-    + '<select onchange="_yoySetScope(this.value ? (\'person:\'+this.value) : \'all\')" style="font-size:13px;font-weight:700;border:1.5px solid var(--bd);border-radius:9px;padding:7px 12px;background:#fff;color:var(--tx2)">' + opts + '</select></div>';
+  // 担当者ワンクリック：選択中の拠点の所属担当者を表示（拠点 or 担当者スコープのとき）
+  var ctxBranch = null;
+  if (key.indexOf('branch:') === 0) ctxBranch = key.slice(7);
+  else if (key.indexOf('person:') === 0) {
+    var _pp = ap().find(function (p) { return p.id === key.slice(7); });
+    ctxBranch = _pp ? _pp.branch : null;
+  }
+  tabsHtml += '<div style="margin-bottom:14px"><span style="font-size:12px;color:var(--tx3);font-weight:700;margin-right:4px">担当者:</span>';
+  if (ctxBranch) {
+    var bpeople = ap().filter(function (p) { return p.branch === ctxBranch; });
+    if (bpeople.length) {
+      bpeople.forEach(function (p) { tabsHtml += tabBtn(p.name, 'person:' + p.id); });
+    } else {
+      tabsHtml += '<span style="font-size:12px;color:var(--tx3)">この拠点に担当者がいません</span>';
+    }
+  } else {
+    tabsHtml += '<span style="font-size:12px;color:var(--tx3)">拠点を選ぶと所属担当者が表示されます</span>';
+  }
+  tabsHtml += '</div>';
 
   // ── 前年データが無い場合 ──
   if (!prev) {
@@ -7421,7 +7450,12 @@ function renderYoy() {
     pNow += getActualValue(target, 'p', mi); pPrev += _yoyPrevActual(target, 'p', mi);
   });
   var cNow = _yoyCountDeals(D, fy, key, elapsed);
-  var cPrev = _yoyCountDeals(prev, fy - 1, key, elapsed);
+  // 軒数の前年は、担当者スコープなら前年データ内の同名IDに付け替え
+  var prevKey = key;
+  if (key.indexOf('person:') === 0) {
+    prevKey = 'person:' + _yoyMapPersonToPrev(key.slice(7), prev);
+  }
+  var cPrev = _yoyCountDeals(prev, fy - 1, prevKey, elapsed);
   var perLabel = (elapsed.length === 12) ? '通期' : ('4月〜' + ML[lastMi]);
 
   var html = tabsHtml;
@@ -7430,7 +7464,7 @@ function renderYoy() {
   html += _yoyKpiCard('売上', sNow, sPrev, '千');
   html += _yoyKpiCard('粗利', pNow, pPrev, '千');
   html += '</div>';
-  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">🏪 受注軒数 前年比（' + perLabel + '累計・販売店除く）</div>';
+  html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">🏪 受注軒数 前年比（' + perLabel + '累計・販売店/グループ薬局除く）</div>';
   html += '<div style="display:flex;gap:13px;flex-wrap:wrap;margin-bottom:18px">';
   html += _yoyKpiCard('新規軒数', cNow.neww, cPrev.neww, '件', 'linear-gradient(135deg,#fdfbf6,#eef2f6)');
   html += _yoyKpiCard('既存軒数（Vup等）', cNow.exist, cPrev.exist, '件', 'linear-gradient(135deg,#fdfbf6,#f0f2e8)');
@@ -11875,6 +11909,7 @@ function _syncTopGroupUI(name) {
   var subBtnMap = {
     actuals: 'subtab-activity',
     meeting: 'subtab-meeting',
+    yoy: 'subtab-yoy',
     tasks: 'subtab-tasks',
     referral: 'subtab-referral',
     kpt: 'subtab-kpt'
@@ -23344,7 +23379,6 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-kyogou-btn" onclick="showTab('kyogou',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">⚔ 競合分析</button>
   <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
   <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
-  <button class="htab" id="tab-yoy-btn" onclick="showTab('yoy',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📊 前年比較</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
 <div id="memo-full-modal">
