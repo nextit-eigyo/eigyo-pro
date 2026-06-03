@@ -7378,26 +7378,31 @@ function _yoyPctCell(cur, prev) {
   var col = p >= 100 ? '#46823c' : '#a85a4a';
   return '<span style="color:' + col + ';font-weight:900">' + p + '%</span>';
 }
-// KPIカード（金額用 unit='千' / 件数用 unit='件'）。onclickJs を渡すとクリック可能（内訳展開）。
-function _yoyKpiCard(label, now, prev, unit, accent, onclickJs, expanded) {
+// KPIカード（金額用 unit='千' / 件数用 unit='件'）。onclickJs=クリック可能(内訳展開)、rightHtml=右側に拠点別内訳。
+function _yoyKpiCard(label, now, prev, unit, accent, onclickJs, expanded, rightHtml) {
   var diff = now - prev;
   var p = _yoyPct(now, prev);
   var badge;
   if (p === null) {
-    badge = (now > 0) ? '<span style="font-size:15px;font-weight:900;padding:2px 10px;border-radius:999px;margin-left:6px;background:#f3e6d2;color:#a8772a">新</span>' : '';
+    badge = (now > 0) ? '<span style="font-size:16px;font-weight:900;padding:2px 11px;border-radius:999px;margin-left:7px;background:#f3e6d2;color:#a8772a">新</span>' : '';
   } else {
     var up = p >= 100;
-    badge = '<span style="font-size:15px;font-weight:900;padding:2px 10px;border-radius:999px;margin-left:6px;background:' + (up ? '#e7efd9' : '#f7e1da') + ';color:' + (up ? '#46823c' : '#a85a4a') + '">' + p + '%</span>';
+    badge = '<span style="font-size:16px;font-weight:900;padding:2px 11px;border-radius:999px;margin-left:7px;background:' + (up ? '#e7efd9' : '#f7e1da') + ';color:' + (up ? '#46823c' : '#a85a4a') + '">' + p + '%</span>';
   }
   var diffTxt = (diff >= 0 ? '+' : '') + _yoyFmt(diff) + unit;
   var bg = accent || 'linear-gradient(135deg,#fdfbf6,#f5ede0)';
-  var clickable = onclickJs ? ' onclick="' + onclickJs + '" style="flex:1;min-width:200px;background:' + bg + ';border:1.5px solid ' + (expanded ? 'var(--acc)' : 'var(--bd)') + ';border-radius:14px;padding:15px 19px;cursor:pointer"' : ' style="flex:1;min-width:200px;background:' + bg + ';border:1.5px solid var(--bd);border-radius:14px;padding:15px 19px"';
-  var hint = onclickJs ? '<span style="font-size:11px;color:var(--acc);font-weight:700;float:right">' + (expanded ? '▲ 閉じる' : '▼ 内訳') + '</span>' : '';
-  return '<div' + clickable + '>'
-    + '<div style="font-size:12px;color:var(--tx3);font-weight:700">' + label + hint + '</div>'
-    + '<div style="font-size:28px;font-weight:900;color:var(--tx);line-height:1.15">' + _yoyFmt(now) + '<span style="font-size:13px;color:var(--tx3)">' + unit + '</span>' + badge + '</div>'
-    + '<div style="font-size:12px;color:var(--tx2);margin-top:3px">前年同期 ' + _yoyFmt(prev) + unit + ' ／ 差 ' + diffTxt + '</div>'
+  var minW = rightHtml ? '320px' : '210px';
+  var border = (onclickJs && expanded) ? 'var(--acc)' : 'var(--bd)';
+  var cur = onclickJs ? 'cursor:pointer;' : '';
+  var attr = onclickJs ? ' onclick="' + onclickJs + '"' : '';
+  var hint = onclickJs ? '<span style="font-size:12px;color:var(--acc);font-weight:700;float:right">' + (expanded ? '▲ 閉じる' : '▼ 内訳') + '</span>' : '';
+  var leftBlock = '<div style="flex:1;min-width:150px">'
+    + '<div style="font-size:13px;color:var(--tx3);font-weight:700">' + label + hint + '</div>'
+    + '<div style="font-size:34px;font-weight:900;color:var(--tx);line-height:1.12">' + _yoyFmt(now) + '<span style="font-size:15px;color:var(--tx3)">' + unit + '</span>' + badge + '</div>'
+    + '<div style="font-size:13px;color:var(--tx2);margin-top:3px">前年同期 ' + _yoyFmt(prev) + unit + ' ／ 差 ' + diffTxt + '</div>'
     + '</div>';
+  var rightBlock = rightHtml ? '<div style="border-left:1px dashed var(--bd);padding-left:13px;min-width:128px">' + rightHtml + '</div>' : '';
+  return '<div' + attr + ' style="flex:1;min-width:' + minW + ';background:' + bg + ';border:1.5px solid ' + border + ';border-radius:14px;padding:15px 19px;display:flex;gap:12px;' + cur + '">' + leftBlock + rightBlock + '</div>';
 }
 
 // ── 内訳ドリルダウン用の状態とヘルパー ──
@@ -7442,16 +7447,16 @@ function _yoyDealListHtml(title, deals) {
     var dt = String(d.dealType || ''); var tag = /新規/.test(dt) ? '新規' : (/既存/.test(dt) ? '既存' : (dt ? dt : '—'));
     var mo = d.deliveryMonth ? String(d.deliveryMonth).slice(5) + '月' : '';
     return '<tr style="border-top:1px solid var(--bds)">'
-      + '<td style="padding:5px 8px;text-align:left">' + _esc(d.name || '(無名)') + '</td>'
-      + '<td style="padding:5px 8px;text-align:left;color:var(--tx3);font-size:11px">' + _esc((d.category || '').slice(0, 5)) + '</td>'
-      + '<td style="padding:5px 8px;text-align:left;color:var(--tx3);font-size:11px">' + _esc(tag) + '</td>'
-      + '<td style="padding:5px 8px;text-align:right">' + _yoyFmt(s) + '</td>'
-      + '<td style="padding:5px 8px;text-align:right;color:var(--tx2)">' + _yoyFmt(s - c) + '</td></tr>';
+      + '<td style="padding:6px 9px;text-align:left">' + _esc(d.name || '(無名)') + '</td>'
+      + '<td style="padding:6px 9px;text-align:left;color:var(--tx3);font-size:12px">' + _esc((d.category || '').slice(0, 5)) + '</td>'
+      + '<td style="padding:6px 9px;text-align:left;color:var(--tx3);font-size:12px">' + _esc(tag) + '</td>'
+      + '<td style="padding:6px 9px;text-align:right">' + _yoyFmt(s) + '</td>'
+      + '<td style="padding:6px 9px;text-align:right;color:var(--tx2)">' + _yoyFmt(s - c) + '</td></tr>';
   }).join('');
   var tot = deals.reduce(function (a, d) { return a + (parseFloat(d.sales) || 0); }, 0);
-  return '<div style="font-size:12px;font-weight:900;color:var(--tx);margin:8px 0 2px">' + title + '（' + deals.length + '件・売上計 ' + _yoyFmt(tot) + '千）</div>'
-    + '<table style="border-collapse:collapse;width:100%;font-size:12px;background:var(--s1)">'
-    + '<thead><tr style="color:var(--tx3);font-size:11px"><th style="text-align:left;padding:3px 8px">薬局名</th><th style="text-align:left;padding:3px 8px">区分</th><th style="text-align:left;padding:3px 8px">種別</th><th style="text-align:right;padding:3px 8px">売上(千)</th><th style="text-align:right;padding:3px 8px">粗利(千)</th></tr></thead>'
+  return '<div style="font-size:13px;font-weight:900;color:var(--tx);margin:8px 0 2px">' + title + '（' + deals.length + '件・売上計 ' + _yoyFmt(tot) + '千）</div>'
+    + '<table style="border-collapse:collapse;width:100%;font-size:13px;background:var(--s1)">'
+    + '<thead><tr style="color:var(--tx3);font-size:12px"><th style="text-align:left;padding:4px 9px">薬局名</th><th style="text-align:left;padding:4px 9px">区分</th><th style="text-align:left;padding:4px 9px">種別</th><th style="text-align:right;padding:4px 9px">売上(千)</th><th style="text-align:right;padding:4px 9px">粗利(千)</th></tr></thead>'
     + '<tbody>' + rows + '</tbody></table>';
 }
 
@@ -7521,6 +7526,22 @@ function renderYoy() {
   var cPrev = _yoyCountDeals(prev, fy - 1, prevKey, elapsed);
   var perLabel = (elapsed.length === 12) ? '通期' : ('4月〜' + ML[lastMi]);
 
+  // 集計スコープ(全社/地域)のときは拠点別の軒数内訳を算出し、カード右側に表示
+  var perBranch = null;
+  if (key === 'all') perBranch = bm.slice();
+  else if (key.indexOf('region:') === 0) { var _rg = key.slice(7); perBranch = bm.filter(function (b) { return (b.region || '西日本') === _rg; }); }
+  var _pbData = perBranch ? perBranch.map(function (b) {
+    return { name: b.name, now: _yoyCountDeals(D, fy, 'branch:' + b.name, elapsed), prev: _yoyCountDeals(prev, fy - 1, 'branch:' + b.name, elapsed) };
+  }) : null;
+  function _branchBreak(bucket) {
+    if (!_pbData) return '';
+    var rows = _pbData.map(function (pb) {
+      var nm = pb.name.replace(/本社|営業所|事業所|支店/g, '');
+      return '<div style="font-size:13px;color:var(--tx2);display:flex;justify-content:space-between;gap:10px;line-height:1.75"><span>' + _esc(nm) + '</span><span><b style="color:var(--tx)">' + pb.now[bucket] + '</b><span style="color:var(--tx3);font-size:11px">/前' + pb.prev[bucket] + '</span></span></div>';
+    }).join('');
+    return '<div style="font-size:11px;color:var(--tx3);font-weight:700;margin-bottom:1px">拠点別(今/前)</div>' + rows;
+  }
+
   var html = tabsHtml;
   html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">💰 売上・粗利 前年比（' + perLabel + '累計）</div>';
   html += '<div style="display:flex;gap:13px;flex-wrap:wrap;margin-bottom:14px">';
@@ -7529,9 +7550,9 @@ function renderYoy() {
   html += '</div>';
   html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">🏪 受注軒数 前年比（' + perLabel + '累計・V8システムのみ／販売店・グループ薬局除く）<span style="font-weight:400">　カードをクリックで内訳</span></div>';
   html += '<div style="display:flex;gap:13px;flex-wrap:wrap;margin-bottom:10px">';
-  html += _yoyKpiCard('新規軒数', cNow.neww, cPrev.neww, '件', 'linear-gradient(135deg,#fdfbf6,#eef2f6)', "_yoyToggleCount('neww')", _yoyExpandCount === 'neww');
-  html += _yoyKpiCard('既存軒数（Vup等）', cNow.exist, cPrev.exist, '件', 'linear-gradient(135deg,#fdfbf6,#f0f2e8)', "_yoyToggleCount('exist')", _yoyExpandCount === 'exist');
-  html += _yoyKpiCard('合計軒数', cNow.total, cPrev.total, '件', null, "_yoyToggleCount('total')", _yoyExpandCount === 'total');
+  html += _yoyKpiCard('新規軒数', cNow.neww, cPrev.neww, '件', 'linear-gradient(135deg,#fdfbf6,#eef2f6)', "_yoyToggleCount('neww')", _yoyExpandCount === 'neww', _branchBreak('neww'));
+  html += _yoyKpiCard('既存軒数（Vup等）', cNow.exist, cPrev.exist, '件', 'linear-gradient(135deg,#fdfbf6,#f0f2e8)', "_yoyToggleCount('exist')", _yoyExpandCount === 'exist', _branchBreak('exist'));
+  html += _yoyKpiCard('合計軒数', cNow.total, cPrev.total, '件', null, "_yoyToggleCount('total')", _yoyExpandCount === 'total', _branchBreak('total'));
   html += '</div>';
   // 軒数の内訳ドリルダウン
   if (_yoyExpandCount) {
@@ -7548,15 +7569,19 @@ function renderYoy() {
   // ── 月別テーブル ──
   html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">📅 月別 前年比<span style="font-weight:400">　行をクリックでその月の受注案件（今年/前年）を表示</span></div>';
   html += '<div style="overflow-x:auto;border:1px solid var(--bd);border-radius:12px;background:#fff">';
-  html += '<table style="border-collapse:collapse;width:100%;font-size:13px;min-width:720px">';
+  html += '<table style="border-collapse:collapse;width:100%;font-size:15px;min-width:920px">';
+  var _th = 'padding:10px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:13px;border-bottom:1px solid var(--bds)';
+  var _thN = 'padding:10px 12px;text-align:right;background:#eef2f6;color:var(--tx2);font-weight:900;font-size:13px;border-bottom:1px solid var(--bds)';
   html += '<thead><tr>'
-    + '<th style="padding:9px 12px;text-align:left;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">月</th>'
-    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">今年 売上</th>'
-    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年 売上</th>'
-    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年比</th>'
-    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">今年 粗利</th>'
-    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年 粗利</th>'
-    + '<th style="padding:9px 12px;text-align:right;background:var(--s3);color:var(--tx2);font-weight:900;font-size:12px;border-bottom:1px solid var(--bds)">前年比</th>'
+    + '<th style="' + _th + ';text-align:left">月</th>'
+    + '<th style="' + _thN + '">新規軒数<br><span style="font-size:11px;font-weight:400">今/前</span></th>'
+    + '<th style="' + _thN + '">既存軒数<br><span style="font-size:11px;font-weight:400">今/前</span></th>'
+    + '<th style="' + _th + '">今年 売上</th>'
+    + '<th style="' + _th + '">前年 売上</th>'
+    + '<th style="' + _th + '">前年比</th>'
+    + '<th style="' + _th + '">今年 粗利</th>'
+    + '<th style="' + _th + '">前年 粗利</th>'
+    + '<th style="' + _th + '">前年比</th>'
     + '</tr></thead><tbody>';
   for (var mi = 0; mi < 12; mi++) {
     var future = (lastMi >= 0 && mi > lastMi && elapsed.length < 12);
@@ -7565,19 +7590,28 @@ function renderYoy() {
     var dash = '<span style="color:var(--tx3)">—</span>';
     var isExp = (_yoyExpandMi === mi);
     var moMark = isExp ? '▲ ' : '▾ ';
+    var cmN = _yoyCountDeals(D, fy, key, [mi]);
+    var cmP = _yoyCountDeals(prev, fy - 1, prevKey, [mi]);
+    function _cntCell(nv, pv, bg) {
+      var nowP = future ? '<span style="color:var(--tx3)">—</span>' : '<b style="color:var(--tx)">' + nv + '</b>';
+      return '<td style="padding:9px 12px;text-align:right;border-bottom:1px solid var(--bds);background:' + bg + '">' + nowP + '<span style="color:var(--tx3);font-size:12px">/' + pv + '</span></td>';
+    }
+    var _td = 'padding:9px 12px;text-align:right;border-bottom:1px solid var(--bds)';
     html += '<tr onclick="_yoyToggleMi(' + mi + ')" style="cursor:pointer;background:' + (isExp ? 'var(--s3)' : 'transparent') + '">'
-      + '<td style="padding:8px 12px;text-align:left;font-weight:900;background:var(--s2);border-bottom:1px solid var(--bds)"><span style="color:var(--acc);font-size:11px">' + moMark + '</span>' + ML[mi] + '</td>'
-      + '<td style="padding:8px 12px;text-align:right;font-weight:900;color:var(--tx);border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyFmt(sn)) + '</td>'
-      + '<td style="padding:8px 12px;text-align:right;color:var(--tx3);border-bottom:1px solid var(--bds)">' + _yoyFmt(sp) + '</td>'
-      + '<td style="padding:8px 12px;text-align:right;border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyPctCell(sn, sp)) + '</td>'
-      + '<td style="padding:8px 12px;text-align:right;font-weight:900;color:var(--tx);border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyFmt(pn)) + '</td>'
-      + '<td style="padding:8px 12px;text-align:right;color:var(--tx3);border-bottom:1px solid var(--bds)">' + _yoyFmt(pp) + '</td>'
-      + '<td style="padding:8px 12px;text-align:right;border-bottom:1px solid var(--bds)">' + (future ? dash : _yoyPctCell(pn, pp)) + '</td>'
+      + '<td style="padding:9px 12px;text-align:left;font-weight:900;background:var(--s2);border-bottom:1px solid var(--bds)"><span style="color:var(--acc);font-size:12px">' + moMark + '</span>' + ML[mi] + '</td>'
+      + _cntCell(cmN.neww, cmP.neww, '#f7fafc')
+      + _cntCell(cmN.exist, cmP.exist, '#f8faf4')
+      + '<td style="' + _td + ';font-weight:900;color:var(--tx)">' + (future ? dash : _yoyFmt(sn)) + '</td>'
+      + '<td style="' + _td + ';color:var(--tx3)">' + _yoyFmt(sp) + '</td>'
+      + '<td style="' + _td + '">' + (future ? dash : _yoyPctCell(sn, sp)) + '</td>'
+      + '<td style="' + _td + ';font-weight:900;color:var(--tx)">' + (future ? dash : _yoyFmt(pn)) + '</td>'
+      + '<td style="' + _td + ';color:var(--tx3)">' + _yoyFmt(pp) + '</td>'
+      + '<td style="' + _td + '">' + (future ? dash : _yoyPctCell(pn, pp)) + '</td>'
       + '</tr>';
     if (isExp) {
       var _mNow = _yoyMonthDealList(D, fy, key, mi);
       var _mPrev = _yoyMonthDealList(prev, fy - 1, prevKey, mi);
-      html += '<tr><td colspan="7" style="padding:10px 16px;background:var(--s3);border-bottom:1px solid var(--bds)">'
+      html += '<tr><td colspan="9" style="padding:10px 16px;background:var(--s3);border-bottom:1px solid var(--bds)">'
         + '<div style="font-weight:900;font-size:13px;margin-bottom:2px">' + ML[mi] + ' の受注案件（スコープ内）</div>'
         + _yoyDealListHtml('今年（' + fy + '年度）' + ML[mi], _mNow)
         + _yoyDealListHtml('前年（' + (fy - 1) + '年度）' + ML[mi], _mPrev)
@@ -7585,14 +7619,17 @@ function renderYoy() {
         + '</td></tr>';
     }
   }
+  var _tt = 'padding:11px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)';
   html += '<tr>'
-    + '<td style="padding:9px 12px;text-align:left;font-weight:900;background:var(--acc);color:#fff;border-top:2px solid var(--bd)">' + perLabel + '計</td>'
-    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyFmt(sNow) + '</td>'
-    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;color:var(--tx2);border-top:2px solid var(--bd)">' + _yoyFmt(sPrev) + '</td>'
-    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyPctCell(sNow, sPrev) + '</td>'
-    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyFmt(pNow) + '</td>'
-    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;color:var(--tx2);border-top:2px solid var(--bd)">' + _yoyFmt(pPrev) + '</td>'
-    + '<td style="padding:9px 12px;text-align:right;font-weight:900;background:#f6efe0;border-top:2px solid var(--bd)">' + _yoyPctCell(pNow, pPrev) + '</td>'
+    + '<td style="padding:11px 12px;text-align:left;font-weight:900;background:var(--acc);color:#fff;border-top:2px solid var(--bd)">' + perLabel + '計</td>'
+    + '<td style="' + _tt + ';background:#e9eef4"><b>' + cNow.neww + '</b><span style="color:var(--tx3);font-size:12px">/' + cPrev.neww + '</span></td>'
+    + '<td style="' + _tt + ';background:#eef2e6"><b>' + cNow.exist + '</b><span style="color:var(--tx3);font-size:12px">/' + cPrev.exist + '</span></td>'
+    + '<td style="' + _tt + '">' + _yoyFmt(sNow) + '</td>'
+    + '<td style="' + _tt + ';color:var(--tx2)">' + _yoyFmt(sPrev) + '</td>'
+    + '<td style="' + _tt + '">' + _yoyPctCell(sNow, sPrev) + '</td>'
+    + '<td style="' + _tt + '">' + _yoyFmt(pNow) + '</td>'
+    + '<td style="' + _tt + ';color:var(--tx2)">' + _yoyFmt(pPrev) + '</td>'
+    + '<td style="' + _tt + '">' + _yoyPctCell(pNow, pPrev) + '</td>'
     + '</tr>';
   html += '</tbody></table></div>';
   html += '<div style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.6">※ 金額は千円。前年=' + (fy - 1) + '年度／今年=' + fy + '年度。<br>※ 前年データは取り込み済みの拠点のみ正確です（未取込の拠点は前年0と表示されます）。</div>';
