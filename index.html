@@ -1862,6 +1862,15 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-sum .good { color:#4a5a32; font-weight:900; }
 #tab-meeting .mt-sum .mid  { color:#7a5a2a; font-weight:900; }
 #tab-meeting .mt-sum .bad  { color:var(--red); font-weight:900; }
+/* ⭐ 系列の色分け(全体統一): 藍=売上系 / オリーブ=粗利系 / クリーム=軒数。
+   列の並びは全mt-sum表で共通(1=ラベル, 2-4=売上, 5-7=粗利, 8-9=軒数)。
+   計(hl-y)行は黄色強調を優先するため :not(.hl-y) で除外。 */
+#tab-meeting .mt-sum th:nth-child(2),#tab-meeting .mt-sum th:nth-child(3),#tab-meeting .mt-sum th:nth-child(4),
+#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(2),#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(3),#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(4){ background:#eff5fb; }
+#tab-meeting .mt-sum th:nth-child(5),#tab-meeting .mt-sum th:nth-child(6),#tab-meeting .mt-sum th:nth-child(7),
+#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(5),#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(6),#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(7){ background:#f2f7ea; }
+#tab-meeting .mt-sum th:nth-child(8),#tab-meeting .mt-sum th:nth-child(9),
+#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(8),#tab-meeting .mt-sum tr:not(.hl-y) td:nth-child(9){ background:#faf4e8; }
 /* 目標との差異バッジ(▲超過 / ▼未達) */
 #tab-meeting .mt-diff {
   display:block; font-size:11px; font-weight:800; margin-top:2px;
