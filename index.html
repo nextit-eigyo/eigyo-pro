@@ -7442,9 +7442,9 @@ function _yoyDealListHtml(title, deals) {
     var dt = String(d.dealType || ''); var tag = /新規/.test(dt) ? '新規' : (/既存/.test(dt) ? '既存' : (dt ? dt : '—'));
     var mo = d.deliveryMonth ? String(d.deliveryMonth).slice(5) + '月' : '';
     return '<tr style="border-top:1px solid var(--bds)">'
-      + '<td style="padding:5px 8px">' + _esc(d.name || '(無名)') + '</td>'
-      + '<td style="padding:5px 8px;color:var(--tx3);font-size:11px">' + _esc((d.category || '').slice(0, 5)) + '</td>'
-      + '<td style="padding:5px 8px;color:var(--tx3);font-size:11px">' + _esc(tag) + '</td>'
+      + '<td style="padding:5px 8px;text-align:left">' + _esc(d.name || '(無名)') + '</td>'
+      + '<td style="padding:5px 8px;text-align:left;color:var(--tx3);font-size:11px">' + _esc((d.category || '').slice(0, 5)) + '</td>'
+      + '<td style="padding:5px 8px;text-align:left;color:var(--tx3);font-size:11px">' + _esc(tag) + '</td>'
       + '<td style="padding:5px 8px;text-align:right">' + _yoyFmt(s) + '</td>'
       + '<td style="padding:5px 8px;text-align:right;color:var(--tx2)">' + _yoyFmt(s - c) + '</td></tr>';
   }).join('');
