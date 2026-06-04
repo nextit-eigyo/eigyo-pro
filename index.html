@@ -10457,6 +10457,12 @@ function _doConfirmImport(addedMasters){
       var _impBranch = (typeof _detectImportBranch === 'function')
         ? _detectImportBranch(r.detectedBranch, _impFileName)
         : (r.detectedBranch || '');
+      // ⭐②a修正: 名寄せはインポート対象拠点の所属者(＋未所属=新規追加分)に限定。
+      //   従来は全people検索で東京の「馬場」が福岡の馬場(大)に誤ヒットしていた。
+      //   拠点判定不可なら従来どおり全people(挙動不変)。
+      var _impCands = _impBranch
+        ? people.filter(function(p){ return !p.branch || p.branch === _impBranch; })
+        : people;
       function _pickRepCandidate(cands){
         if (!cands || !cands.length) return null;
         if (_impBranch) {
@@ -10470,18 +10476,18 @@ function _doConfirmImport(addedMasters){
         // 修正A: 担当者マッチング強化（完全一致→部分一致→逆部分一致→姓一致）
         let spId = null;
         if (impDeal.rep) {
-          var mp1 = people.find(function(p){ return p.name && p.name.trim() === impDeal.rep.trim(); });
-          var mp2 = !mp1 && _pickRepCandidate(people.filter(function(p){ return p.name && p.name.includes(impDeal.rep); }));
-          var mp3 = !mp1 && !mp2 && _pickRepCandidate(people.filter(function(p){ return p.name && impDeal.rep.includes(p.name); }));
+          var mp1 = _impCands.find(function(p){ return p.name && p.name.trim() === impDeal.rep.trim(); });
+          var mp2 = !mp1 && _pickRepCandidate(_impCands.filter(function(p){ return p.name && p.name.includes(impDeal.rep); }));
+          var mp3 = !mp1 && !mp2 && _pickRepCandidate(_impCands.filter(function(p){ return p.name && impDeal.rep.includes(p.name); }));
           var repSei = impDeal.rep.replace(/[\s\u3000].*/, '');
-          var mp4 = !mp1 && !mp2 && !mp3 && _pickRepCandidate(people.filter(function(p){
+          var mp4 = !mp1 && !mp2 && !mp3 && _pickRepCandidate(_impCands.filter(function(p){
             var ps = p.name ? p.name.replace(/[\s\u3000].*/, '') : '';
             return ps && repSei && ps === repSei;
           }));
           var mpFinal = mp1 || mp2 || mp3 || mp4;
           if (mpFinal) spId = mpFinal.id;
         }
-        if (!spId) spId = (people[0] && people[0].id) || 'sp0';
+        if (!spId) spId = (_impCands[0] && _impCands[0].id) || (people[0] && people[0].id) || 'sp0';
 
         const impSales = Math.round(impDeal.sales / 1000);
         const impCost  = Math.round(impDeal.cost  / 1000);
@@ -10605,16 +10611,18 @@ function _doConfirmImport(addedMasters){
       var people2 = ap();
       // インポート先拠点(group案件を office でなく拠点に正しく帰属させる)
       var _gImpBranch = (typeof _detectImportBranch === 'function') ? _detectImportBranch(r.detectedBranch, _impFileName) : (r.detectedBranch || '');
+      // ⭐②a修正: グループ案件の担当者名寄せも対象拠点内(＋未所属)に限定（東京の馬場→福岡馬場の誤ヒット防止）
+      var _gImpCands = _gImpBranch ? people2.filter(function(p){ return !p.branch || p.branch === _gImpBranch; }) : people2;
 
       r.groupDeals.forEach(function(gd) {
         // 担当者マッチング（通常ソフトと同じ4段階）
         var gSpId = null;
         if (gd.rep) {
-          var gm1 = people2.find(function(p){ return p.name && p.name.trim() === gd.rep.trim(); });
-          var gm2 = !gm1 && people2.find(function(p){ return p.name && p.name.includes(gd.rep); });
-          var gm3 = !gm1 && !gm2 && people2.find(function(p){ return p.name && gd.rep.includes(p.name); });
+          var gm1 = _gImpCands.find(function(p){ return p.name && p.name.trim() === gd.rep.trim(); });
+          var gm2 = !gm1 && _gImpCands.find(function(p){ return p.name && p.name.includes(gd.rep); });
+          var gm3 = !gm1 && !gm2 && _gImpCands.find(function(p){ return p.name && gd.rep.includes(p.name); });
           var gRepSei = gd.rep.replace(/[\s　].*/, '');
-          var gm4 = !gm1&&!gm2&&!gm3 && people2.find(function(p){
+          var gm4 = !gm1&&!gm2&&!gm3 && _gImpCands.find(function(p){
             var ps = p.name ? p.name.replace(/[\s　].*/,'') : '';
             return ps && gRepSei && ps === gRepSei;
           });
