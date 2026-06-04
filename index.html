@@ -2167,10 +2167,14 @@ body.has-sidepanel #home-deal-mode {
     <div id="login-error" style="display:none;background:rgba(168,90,74,.15);border:1px solid rgba(168,90,74,.3);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#ff6b6b;text-align:center"></div>
     <!-- Form -->
     <div style="margin-bottom:14px">
-      <label style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px">メールアドレス</label>
-      <input id="login-email" type="email" class="fi" placeholder="your@email.com"
-        style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15);color:#fff;padding:12px 14px;font-size:13px"
-        onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+      <label style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px">ユーザー名</label>
+      <div style="display:flex;align-items:stretch">
+        <input id="login-email" type="text" class="fi" placeholder="例: daichi-baba" autocomplete="username"
+          style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15);color:#fff;padding:12px 14px;font-size:13px;flex:1;min-width:0;border-top-right-radius:0;border-bottom-right-radius:0;border-right:none"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+        <span style="display:flex;align-items:center;padding:0 12px;font-size:13px;color:rgba(255,255,255,.55);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.15);border-left:none;border-top-right-radius:8px;border-bottom-right-radius:8px;white-space:nowrap">@nextit.co.jp</span>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:6px">名前だけ入力（@以降は自動付与）。フルのメールアドレスでもログインできます。</div>
     </div>
     <div style="margin-bottom:24px">
       <label style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px">パスワード</label>
@@ -3703,7 +3707,9 @@ function showLoginScreen() {
     const eInp = document.getElementById('login-email');
     const pInp = document.getElementById('login-pass');
     const rem  = document.getElementById('login-remember');
-    if (eInp) eInp.value = saved.email;
+    // 表示はユーザー名だけに（会社ドメインは隠す。doLoginで再付与される）
+    if (eInp) eInp.value = (saved.email && saved.email.indexOf(LOGIN_EMAIL_DOMAIN) >= 0)
+      ? saved.email.replace(LOGIN_EMAIL_DOMAIN, '') : (saved.email || '');
     if (pInp) pInp.value = saved.password;
     if (rem)  rem.checked = true;
     // 自動ログイン実行
@@ -3747,8 +3753,17 @@ function togglePassVis() {
   }
 }
 
+// ── ログインのユーザー名→メール変換（会社ドメインを自動付与） ──
+//   ユーザーは名前だけ入力（例 daichi-baba）→ daichi-baba@nextit.co.jp に変換。
+//   @を含む(=フルのメール)入力はそのまま使用。ドメイン変更はここを編集。
+var LOGIN_EMAIL_DOMAIN = '@nextit.co.jp';
+function _loginNameToEmail(input) {
+  input = (input || '').trim();
+  if (!input) return '';
+  return input.indexOf('@') >= 0 ? input : (input + LOGIN_EMAIL_DOMAIN);
+}
 function doLogin() {
-  const email = (document.getElementById('login-email')||{}).value?.trim() || '';
+  const email = _loginNameToEmail((document.getElementById('login-email')||{}).value);
   const pass  = (document.getElementById('login-pass') ||{}).value || '';
   const remember = document.getElementById('login-remember')?.checked;
   const errEl = document.getElementById('login-error');
@@ -3825,9 +3840,9 @@ function doForgotPassword() {
     errEl.textContent = msg;
     errEl.style.display = '';
   }
-  const email = (document.getElementById('login-email')||{}).value?.trim() || '';
+  const email = _loginNameToEmail((document.getElementById('login-email')||{}).value);
   if (!email) {
-    show('先にメールアドレスを入力してから「パスワードを忘れた方」を押してください', false);
+    show('先にユーザー名（メール）を入力してから「パスワードを忘れた方」を押してください', false);
     const e = document.getElementById('login-email'); if (e) e.focus();
     return;
   }
