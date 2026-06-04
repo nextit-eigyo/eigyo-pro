@@ -8891,7 +8891,10 @@ function addDeal(){
   if(cdSp===OFFICE_TAB){spId='office';category='グループ薬局';}
   else if(cdSp===HANBAI_TAB){spId=people[0].id;category='販売店';}
   else{spId=people[Math.min(cdSp,people.length-1)].id;category='直販';}
-  D.deals.push({id,spId,name:'',pref:'',deliveryMonth:'',activationMonth:'',originMonth,sales:'',cost:'',memo:'',category,visits:[]});
+  const newD={id,spId,name:'',pref:'',deliveryMonth:'',activationMonth:'',originMonth,sales:'',cost:'',memo:'',category,visits:[]};
+  // ⭐グループ薬局は受注確定(本部一括契約)前提のため確度5(受注)を初期値に(doAddDealと同仕様・クイック追加漏れ修正)
+  if(category==='グループ薬局'){ newD.probability=5; newD.phase='受注'; }
+  D.deals.push(newD);
   if(typeof _auditDealAdd==='function')_auditDealAdd(D.deals[D.deals.length-1],'クイック追加');
   save();renderDeals();
   setTimeout(()=>{
