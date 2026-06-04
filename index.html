@@ -2191,6 +2191,10 @@ body.has-sidepanel #home-deal-mode {
         ログイン状態を保持する
       </label>
     </div>
+    <!-- パスワードを忘れた方 -->
+    <div style="margin-top:12px;text-align:center">
+      <a href="#" onclick="event.preventDefault();doForgotPassword()" style="font-size:11px;color:rgba(149,181,232,.85);text-decoration:underline;cursor:pointer">パスワードを忘れた方はこちら</a>
+    </div>
     <!-- Firebase not configured notice -->
     <div id="login-no-fb" style="display:none;margin-top:20px;padding:11px 13px;background:rgba(200,152,86,.12);border:1px solid rgba(200,152,86,.25);border-radius:10px;font-size:11px;color:rgba(255,200,80,.9);text-align:center;line-height:1.7">
       ⚠ Firebase未設定のため認証をスキップします<br>
@@ -3808,6 +3812,44 @@ function skipLogin() {
   // Firebase未設定時のローカルモード
   hideLoginScreen();
   showUserBadge(null);
+}
+
+// ── パスワード再設定メール送信（案A: 実在メール前提） ─────────────
+function doForgotPassword() {
+  const errEl = document.getElementById('login-error');
+  function show(msg, ok) {
+    if (!errEl) { alert(msg); return; }
+    errEl.style.background  = ok ? 'rgba(122,142,90,.18)' : 'rgba(168,90,74,.15)';
+    errEl.style.borderColor = ok ? 'rgba(122,142,90,.4)'  : 'rgba(168,90,74,.3)';
+    errEl.style.color       = ok ? '#9fd17a' : '#ff6b6b';
+    errEl.textContent = msg;
+    errEl.style.display = '';
+  }
+  const email = (document.getElementById('login-email')||{}).value?.trim() || '';
+  if (!email) {
+    show('先にメールアドレスを入力してから「パスワードを忘れた方」を押してください', false);
+    const e = document.getElementById('login-email'); if (e) e.focus();
+    return;
+  }
+  const cfg = fbLoadConfig();
+  if (!cfg || !cfg.apiKey) {
+    show('Firebaseが未設定のため再設定メールを送れません', false);
+    return;
+  }
+  fbLoadSDK(() => {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(cfg);
+      firebase.auth().sendPasswordResetEmail(email)
+        .then(() => {
+          show('✅ ' + email + ' にパスワード再設定メールを送信しました。メールのリンクから新しいパスワードを設定してください（迷惑メールフォルダもご確認ください）。', true);
+        })
+        .catch(e => {
+          show((typeof getAuthErrorMessage === 'function' ? getAuthErrorMessage(e.code) : '') || ('送信に失敗しました: ' + e.message), false);
+        });
+    } catch(e2) {
+      show('初期化エラー: ' + e2.message, false);
+    }
+  });
 }
 
 function getAuthErrorMessage(code) {
