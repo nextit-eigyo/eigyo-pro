@@ -10559,6 +10559,17 @@ function _doConfirmImport(addedMasters){
             // 同名薬局でも請求先(R列)が違えば別薬局 → 請求先も一致して初めて同一案件とみなす
             && String(x.bill||'') === String(impDeal.bill||'');
         });
+        // ⭐旧データ救済: bill導入前に取り込まれた案件(bill空)は、同名・同月・同担当者なら同一とみなす。
+        //   インポート側にbillがある場合のみ適用し、下でbillを補完。これで再インポート時の重複作成を防ぐ。
+        //   (両方にbillがある同名別法人は上の厳格一致を維持＝区別は崩さない)
+        if (!exactMatch && impDeal.bill && String(impDeal.bill) !== '') {
+          exactMatch = D.deals.find(function(x){
+            return x.name && normDealName(x.name) === normImp
+              && x.deliveryMonth === moStr
+              && x.spId === spId
+              && (!x.bill || String(x.bill) === '');
+          });
+        }
         // ⚠️ 旧: 部分一致(名前の包含)も重複扱いしていたが、これだと「白男川薬局加治木店」が
         //   「白男川薬局」の重複と誤判定され、チェーン店の支店が丸ごと取りこぼされていた。
         //   店舗ごとに別案件が正しいので、重複判定は normDealName(空白/全角を正規化済) の
@@ -10591,6 +10602,10 @@ function _doConfirmImport(addedMasters){
           //   V8ソフト行(impDeal.dealType が設定される行)のみ対象。再インポートで既存案件も正しく振り分け。
           if (impDeal.dealType && existingDeal.dealType !== impDeal.dealType) {
             existingDeal.dealType = impDeal.dealType; changed = true;
+          }
+          // ⭐bill補完: 旧案件(bill空)に請求先を補完(次回以降は厳格一致で重複しない)
+          if (impDeal.bill && (!existingDeal.bill || String(existingDeal.bill) === '')) {
+            existingDeal.bill = impDeal.bill; changed = true;
           }
           if (changed) updatedDeals++; else skippedDeals++;
 
