@@ -3142,6 +3142,7 @@ body.has-sidepanel #home-deal-mode {
           <option value="add">追加</option>
           <option value="edit">編集</option>
           <option value="delete">削除</option>
+          <option value="login">ログイン</option>
         </select>
         <select id="audit-user" class="fs" style="width:auto;font-size:12px;padding:7px 10px" onchange="renderAuditLog()"><option value="">すべての操作者</option></select>
         <button class="btn" onclick="renderAuditLog()" style="padding:7px 14px;font-size:12px;font-weight:700">🔄 更新</button>
@@ -3447,6 +3448,8 @@ function _loadCurrentUserRole(user) {
     }
     // ⭐ ログイン中ユーザーの担当者IDを localStorage にも同期(全画面で整合性確保)
     _syncMyPersonIdFromRole();
+    // ── ログイン記録(初期Firebase同期が落ち着いた後に=受信レースでログが消えないよう遅延)──
+    try { if (typeof _auditLogin === 'function') setTimeout(_auditLogin, 4000); } catch(e){}
     _updateKptTabVisibility();
     // role取得完了後にバッジを再描画（名前を反映）
     showUserBadge(user);
@@ -8716,6 +8719,28 @@ function _auditDealEdit(d, field, oldVal, newVal){
   } catch(e){ console.warn('操作ログ(edit)失敗:', e); }
 }
 
+// ── ログイン記録 ──────────────────────────────────────────────
+// 「誰が・いつ ログインしたか」を D.auditLog に記録。同一ユーザーの連続再読込で
+// ログが溢れないよう、60分以内の同一ユーザー再ログインは記録しない。
+function _auditLogin(){
+  try {
+    var user = _auditUser();
+    if (!user || user === '不明') return;          // ロール未取得時は記録しない
+    if (!D.auditLog) D.auditLog = [];
+    var now = Date.now();
+    for (var i = D.auditLog.length - 1; i >= 0; i--){
+      var e = D.auditLog[i];
+      if (e && e.action === 'login' && e.user === user){
+        if (now - (e._tms||0) < 60*60*1000) return; // 60分以内の同一ユーザーは重複記録しない
+        break;
+      }
+    }
+    var loginId = (typeof currentUserRole==='object' && currentUserRole && currentUserRole.loginId) ? currentUserRole.loginId : '';
+    _auditPush({ action:'login', entityType:'auth', entityName:'', note:(loginId ? ('ID: '+loginId) : '') });
+    if (typeof save === 'function') save();          // ログイン記録を localStorage + Firebase へ保存
+  } catch(e){ console.warn('操作ログ(login)失敗:', e); }
+}
+
 // 操作ログ ビューア(設定→その他→操作ログ)
 function renderAuditLog(){
   var body = document.getElementById('auditlog-body');
@@ -8747,7 +8772,7 @@ function renderAuditLog(){
     body.innerHTML = '<div class="empty" style="padding:20px;color:var(--tx3)">該当するログがありません（記録 '+total+'件）</div>';
     return;
   }
-  var actMap = { add:{t:'追加',c:'#4a5a32',bg:'#e0e9d3'}, edit:{t:'編集',c:'#7a5a2a',bg:'#fde6c5'}, delete:{t:'削除',c:'#7a3a2a',bg:'#f5d5cc'} };
+  var actMap = { add:{t:'追加',c:'#4a5a32',bg:'#e0e9d3'}, edit:{t:'編集',c:'#7a5a2a',bg:'#fde6c5'}, delete:{t:'削除',c:'#7a3a2a',bg:'#f5d5cc'}, login:{t:'ログイン',c:'#2a4a6a',bg:'#d3e0ec'} };
   var h = '<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">表示 '+rows.length+'件 / 記録 '+total+'件（最大'+AUDIT_MAX+'件・'+AUDIT_DAYS+'日保持）</div>';
   h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
   h += '<thead><tr style="text-align:left;color:var(--tx3);border-bottom:2px solid var(--bd)">'
@@ -8757,6 +8782,7 @@ function renderAuditLog(){
     var content = '';
     if (e.action === 'edit') content = '<b>'+_esc(e.fieldLabel||e.field||'')+'</b>： '+_esc(e.oldVal)+' → <b>'+_esc(e.newVal)+'</b>';
     else if (e.action === 'add') content = e.note ? _esc(e.note) : '新規作成';
+    else if (e.action === 'login') content = 'ログインしました';
     else if (e.action === 'delete') {
       var gi = D.auditLog.indexOf(e);
       content = '<span style="color:var(--red);font-weight:700">案件を削除</span>' + (e.snapshot ? ' <button class="btn sm" style="padding:2px 9px;font-size:11px" onclick="_auditRestoreDeal('+gi+')">↩ 復元</button>' : '');
@@ -8792,7 +8818,7 @@ function _auditRestoreDeal(globalIdx){
 // 操作ログ CSV 出力
 function exportAuditLogCsv(){
   if (!D.auditLog || !D.auditLog.length) { alert('ログがありません'); return; }
-  var amap = { add:'追加', edit:'編集', delete:'削除' };
+  var amap = { add:'追加', edit:'編集', delete:'削除', login:'ログイン' };
   var rows = [['日時','操作者','操作','対象','項目','変更前','変更後','備考']];
   D.auditLog.slice().reverse().forEach(function(e){
     rows.push([e.ts||'', e.user||'', amap[e.action]||e.action||'', e.entityName||'', e.fieldLabel||e.field||'', e.oldVal||'', e.newVal||'', e.note||(e.action==='delete'?'削除(復元可)':'')]);
