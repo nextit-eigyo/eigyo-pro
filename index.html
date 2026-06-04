@@ -3060,6 +3060,21 @@ body.has-sidepanel #home-deal-mode {
       <div id="integrity-aggregation-result"></div>
     </div>
 
+    <!-- 🏪 グループ薬局チェーン名簿 (②b) -->
+    <div class="card" style="max-width:1100px;margin-top:14px">
+      <div class="card-title" style="margin-bottom:6px">🏪 グループ薬局チェーン名簿（インポート自動判定）</div>
+      <div style="font-size:12px;color:var(--tx3);line-height:1.6;margin-bottom:10px">
+        ここに登録したチェーン名を<strong>納品先に含む案件</strong>は、Excelインポート時に担当者の有無に関わらず<strong>グループ薬局（拠点計上）</strong>として自動登録されます。<br>
+        ※ 共創未来・くるみ等のグループ店が、担当者の個人売上に混入するのを防ぎます。<br>
+        ※ 1行に1つ。部分一致（例「共創未来」で 共創未来◯◯薬局 すべて該当）。
+      </div>
+      <textarea id="group-chain-textarea" style="width:100%;max-width:520px;height:140px;font-size:13px;font-family:inherit;border:1px solid var(--bd);border-radius:6px;padding:8px;box-sizing:border-box" placeholder="共創未来&#10;くるみ薬局"></textarea>
+      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn pr" onclick="saveGroupChainMaster()" style="padding:9px 16px;font-size:12px;font-weight:700">💾 保存</button>
+      </div>
+      <div id="group-chain-msg" style="font-size:11px;color:var(--tx3);margin-top:8px"></div>
+    </div>
+
     <!-- 🔒 設定画面パスワード管理 (㉒) -->
     <div class="card" style="max-width:1100px;margin-top:14px">
       <div class="card-title" style="margin-bottom:6px">🔒 設定画面パスワードの管理</div>
@@ -4081,6 +4096,7 @@ function showCfgTab(name, btn) {
     else if (name === 'sync')     renderSyncPanel();
     else if (name === 'datamgmt') { if (typeof renderAutoBackupList === 'function') renderAutoBackupList(); }
     else if (name === 'auditlog') { if (typeof renderAuditLog === 'function') renderAuditLog(); }
+    else if (name === 'integrity'){ if (typeof renderGroupChainMaster === 'function') renderGroupChainMaster(); }
   } catch(e) {
     console.error('showCfgTab [' + name + ']:', e);
   }
@@ -6987,6 +7003,40 @@ function getMaintVal(branchName, field, mi) {
   if (field === 's') return v('v7s') + v('v8s') + v('v8ms') + v('ots');
   if (field === 'p') return v('v7p') + v('v8p') + v('v8mp') + v('otp') + v('vtc');
   return 0;
+}
+
+// ── ②b グループ薬局チェーン名簿（編集可能） ──────────────────────
+// インポート時、納品先がこのリストのいずれかを含む案件は、担当者(rep)の有無に関わらず
+// グループ薬局(拠点計上)として扱う。共創未来・くるみ等のチェーンが個人(直販)計上される問題への対策。
+// 設定→その他→グループ薬局チェーンで編集可能。
+var DEFAULT_GROUP_CHAINS = ['共創未来', 'くるみ薬局'];
+function initGroupChainMaster() {
+  if (!Array.isArray(D.groupChainMaster)) D.groupChainMaster = DEFAULT_GROUP_CHAINS.slice();
+}
+function _isGroupChain(name) {
+  if (!name) return false;
+  initGroupChainMaster();
+  var n = String(name);
+  return D.groupChainMaster.some(function(b){ return b && n.indexOf(b) >= 0; });
+}
+// 設定UI: チェーン名簿の表示・保存
+function renderGroupChainMaster() {
+  initGroupChainMaster();
+  var ta = document.getElementById('group-chain-textarea');
+  if (ta) ta.value = (D.groupChainMaster || []).join('\n');
+  var msg = document.getElementById('group-chain-msg');
+  if (msg) msg.textContent = '現在 ' + (D.groupChainMaster || []).length + '件登録';
+}
+function saveGroupChainMaster() {
+  var ta = document.getElementById('group-chain-textarea'); if (!ta) return;
+  var list = ta.value.split('\n').map(function(s){ return s.trim(); }).filter(function(s){ return s; });
+  var seen = {}, uniq = [];
+  list.forEach(function(s){ if (!seen[s]) { seen[s] = 1; uniq.push(s); } });
+  D.groupChainMaster = uniq;
+  if (typeof save === 'function') save();
+  var msg = document.getElementById('group-chain-msg');
+  if (msg) msg.textContent = '✅ 保存しました（' + uniq.length + '件）';
+  if (typeof _showToast === 'function') _showToast('🏪 グループ薬局チェーン名簿を保存（' + uniq.length + '件）', 'ok', 2500);
 }
 
 // ── グループ薬局（共通）案件の所属営業所を特定 ─────────────────
@@ -10489,6 +10539,12 @@ function _doConfirmImport(addedMasters){
         }
         if (!spId) spId = (_impCands[0] && _impCands[0].id) || (people[0] && people[0].id) || 'sp0';
 
+        // ⭐②b: 納品先がグループ薬局チェーン(共創未来/くるみ等)なら、repの有無に関わらず
+        //   拠点計上(グループ薬局)として扱う。spIdをofficeにし、下で category=グループ薬局/groupBranch を付与。
+        //   → applyDealToActuals が D.groupActuals[拠点] に振り分ける(個人D.actualsには入らない)。
+        var _isChain = (typeof _isGroupChain === 'function') && _isGroupChain(impDeal.name);
+        if (_isChain) spId = 'office';
+
         const impSales = Math.round(impDeal.sales / 1000);
         const impCost  = Math.round(impDeal.cost  / 1000);
         var normImp = normDealName(impDeal.name);
@@ -10566,7 +10622,8 @@ function _doConfirmImport(addedMasters){
               name: impDeal.name, pref: '',
               deliveryMonth: moStr, activationMonth: '',
               sales: String(impSales), cost: String(impCost),
-              category: impDeal.sheet === '販売店' ? '販売店' : '直販',
+              category: _isChain ? 'グループ薬局' : (impDeal.sheet === '販売店' ? '販売店' : '直販'),
+              groupBranch: _isChain ? _impBranch : '', // ②b: チェーンは拠点計上のため所属拠点を明示
               dealType: impDeal.dealType || '新規（他社入替）', // 8_その他など既存扱いの場合に対応
               productType: impDeal.productType || '調剤くんV8',
               bill: impDeal.bill || '', // 請求先(同名薬局の別法人判定用)
