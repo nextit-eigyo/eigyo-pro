@@ -13520,16 +13520,23 @@ function _fbDoInit(config) {
       return;
     }
     FB.db = firebase.database();
-    // 認証情報がある場合のみ認証、ない場合は直接DB接続
+    // 🔒 セキュリティ: 認証情報がある場合のみ認証してDB接続。
+    //   認証情報が無い場合は「認証なしで直結」せず、ログインを促す。
+    //   (Firebase DBルールを auth!=null に締めても壊れないように＝認証なしDB接続を廃止)
     if (config.email && config.password) {
       FB.auth = firebase.auth();
       fbSetStatus('spin', '認証中...');
       fbSignIn(config.email, config.password);
-    } else {
-      // 認証なしで直接接続（テストモード）
-      FB.user = null;
-      fbSetStatus('ok', '接続中');
+    } else if (firebase.auth && firebase.auth().currentUser) {
+      // 既にログイン済み(別フローで認証済み) → そのトークンでDB接続
+      FB.user = firebase.auth().currentUser;
       fbStartSync();
+    } else {
+      // 未認証 → DBに接続しない。ログイン画面へ。
+      FB.user = null;
+      FB.mode = 'local';
+      fbSetStatus('warn', 'ログインが必要です');
+      if (typeof showLoginScreen === 'function') showLoginScreen();
     }
   } catch(e) {
     fbSetStatus('error', '初期化エラー: ' + e.message);
@@ -13539,11 +13546,14 @@ function _fbDoInit(config) {
 // ── 匿名 or メール認証 ───────────────────────────────────────────
 function fbSignIn(email, password) {
   const auth = firebase.auth();
-  const signInFn = (email && password)
-    ? () => auth.signInWithEmailAndPassword(email, password)
-    : () => auth.signInAnonymously();
-
-  signInFn().then(cred => {
+  // 🔒 セキュリティ: 匿名認証は廃止(誰でも auth!=null を通過できてしまうため)。
+  //   メール+パスワード認証のみ許可。認証情報が無ければログインを促す。
+  if (!email || !password) {
+    fbSetStatus('warn', 'ログインが必要です');
+    if (typeof showLoginScreen === 'function') showLoginScreen();
+    return;
+  }
+  auth.signInWithEmailAndPassword(email, password).then(cred => {
     FB.user = cred.user;
     fbSetStatus('ok', '接続中');
     fbStartSync();
