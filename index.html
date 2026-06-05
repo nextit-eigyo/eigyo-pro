@@ -3455,10 +3455,13 @@ body.has-sidepanel #home-deal-mode {
 // ================================================================
 var currentUser = null;
 var currentUserRole = null; // {role, region, loginId, name}
+var currentLoginId  = null; // ログインメールの@前(小文字)。担当者の loginId と照合(B方式の自動紐づけ)
 
 // ── KPT権限制御 ────────────────────────────────────────────────
 function _loadCurrentUserRole(user) {
   if (!user || !window.firebase) return;
+  // ⭐B方式: ログインメールの@前を担当者照合キーに（例 daichi-baba@nextit.co.jp → "daichi-baba"）
+  currentLoginId = (user.email || '').split('@')[0].trim().toLowerCase();
   firebase.database().ref('adminConfig/roles/' + user.uid).once('value').then(function(snap) {
     var data = snap.val();
     if (data) {
@@ -3532,17 +3535,29 @@ function _getKptAccessiblePeople() {
 
 // ログイン中ユーザーのspIdを返す
 function _getCurrentSpId() {
-  if (!currentUserRole || !currentUserRole.loginId) return null;
-  var lid = currentUserRole.loginId;
   var people = ap();
-  // D.peopleのnameかidでマッチ
-  var p = people.find(function(pp){
-    return pp.name && (
-      pp.name === currentUserRole.name ||
-      (pp.id && pp.id.includes(lid))
-    );
-  });
-  return p ? p.id : null;
+  // ① ⭐B方式(本命): ログインメールの@前(currentLoginId) と 担当者マスタの「ログイン用メール」(p.email)の@前で照合。
+  //    これにより、Firebaseユーザーを作るだけで(UIDごとのroles手動登録なしで)担当者に自動紐づく。
+  //    @前で照合するためドメイン(@nextit.co.jp / 旧@eigyo-pro.internal)が違っても紐づく=移行が安全。
+  if (currentLoginId) {
+    var byLogin = people.find(function(pp){
+      var pe = String(pp.email || '').trim().toLowerCase();
+      return pe && pe.split('@')[0] === currentLoginId;
+    });
+    if (byLogin) return byLogin.id;
+  }
+  // ② 後方互換: adminConfig/roles の name / loginId で照合(旧アカウント用)
+  if (currentUserRole) {
+    var lid = currentUserRole.loginId;
+    var p = people.find(function(pp){
+      return pp.name && (
+        (currentUserRole.name && pp.name === currentUserRole.name) ||
+        (lid && pp.id && pp.id.includes(lid))
+      );
+    });
+    if (p) return p.id;
+  }
+  return null;
 }
 
 // ── 初回ログイン検出（パスワード変更促進）────────────────────────
@@ -6540,7 +6555,7 @@ function renderSetup() {
     emailInp.className = 'fi';
     emailInp.style.cssText = 'flex:1.2;min-width:140px;background:var(--s1);font-size:11px';
     emailInp.value = p.email || '';
-    emailInp.placeholder = 'ログイン用メール（例: taro@xxx.com）';
+    emailInp.placeholder = 'ログイン用メール（例: daichi-baba@nextit.co.jp）';
     (function(idx) {
       emailInp.oninput = function() {
         D.people[idx].email = this.value.trim().toLowerCase();
