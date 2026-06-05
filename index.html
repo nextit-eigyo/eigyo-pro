@@ -684,7 +684,8 @@ tr:hover td{background:rgba(90,123,158,.02)}
   #logo{font-size:13px}
   #main-tabs{display:none}          /* トップタブ非表示 */
   #hdr-r .data-btn span,
-  #hdr-r #save-txt{display:none}   /* テキスト非表示 */
+  #hdr-r #save-txt,
+  #hdr-r #last-upd{display:none}   /* テキスト非表示 */
   #hdr-r{gap:4px}
   #save-bdg .save-dot{display:block}
   #sync-wrap{padding:5px 8px}
@@ -2243,6 +2244,7 @@ body.has-sidepanel #home-deal-mode {
   </div>
   <div id="hdr-r">
     <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
+    <div id="last-upd" title="最終更新（このデータを最後に保存した担当者と時刻）" style="font-size:11px;color:var(--tx3);white-space:nowrap;line-height:1.15"></div>
     <div style="position:relative">
       <button class="data-btn" onclick="toggleDataMenu()">💾 データ管理 ▾</button>
       <div id="data-menu" style="display:none">
@@ -13627,6 +13629,8 @@ function fbSignIn(email, password) {
 function fbStartSync() {
   const key = 'eigyo3_' + fy;
   FB.dbRef = firebase.database().ref('data/' + key);
+  // 同期開始(ログイン/年度切替)ごとに同期状態をリセット(初回確認・誤ブロック防止)
+  FB.firstFireDone = false; FB.staleDeclined = false; FB.lastRemoteTs = 0;
 
   // 接続状態監視
   firebase.database().ref('.info/connected').on('value', snap => {
@@ -13661,6 +13665,7 @@ function fbStartSync() {
 
       const remoteTs = remote._ts || 0;
       const localTs  = D._ts  || 0;
+      const _isFirstFire = !FB.firstFireDone; FB.firstFireDone = true;  // 起動後の初回発火か(Feature1の確認用)
 
       // ⭐ 自分自身の書き込みのエコー受信 → 再描画/ダイアログを抑止し、サーバ確定時刻だけ取り込む。
       //   以後の TS 比較がサーバ時刻基準になり clock skew が解消する。
@@ -13668,8 +13673,11 @@ function fbStartSync() {
       //   ここでは D を作り替えず _ts のみ更新するため、万一外してもデータ消失は起きない。
       if (remote._wid && FB.clientId && remote._wid === FB.clientId && remote._wseq === FB.wseq) {
         D._ts = remoteTs;
+        if (remote._lastBy != null) D._lastBy = remote._lastBy;
         _localSave({preserveTs:true});
         FB.lastRemoteTs = remoteTs;
+        FB.staleDeclined = false;
+        _updateLastUpd();
         return;
       }
 
@@ -13701,6 +13709,7 @@ function fbStartSync() {
         }
         D = remote;
         _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
+        FB.lastRemoteTs = remoteTs; FB.staleDeclined = false;
         sanitizeD();
         rebuildAll();
         setTimeout(showPersonSelectDialog, 500);
@@ -13711,17 +13720,35 @@ function fbStartSync() {
 
       // ③ タイムスタンプ比較による通常同期
       if (remoteTs > localTs) {
-        console.log('[EIGYO PRO] タイムスタンプ更新検出 → 受信');
-        if (remote.deals && !Array.isArray(remote.deals)) {
-          remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
+        // 受信処理(共通)
+        var _applyRemote = function(){
+          if (remote.deals && !Array.isArray(remote.deals)) {
+            remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
+          }
+          D = remote;
+          _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
+          FB.lastRemoteTs = remoteTs; FB.staleDeclined = false;
+          sanitizeD();
+          rebuildAll();
+          setTimeout(showPersonSelectDialog, 500);
+          showSyncBadge('受信');
+          console.log('[EIGYO PRO] Firebase受信完了', {remoteTs, deals: (D.deals||[]).length});
+        };
+        // ★ Feature1: 起動後の初回検出のみ「受信しますか？」を確認(以降のリアルタイム更新は自動受信)
+        if (_isFirstFire) {
+          var _who  = remote._lastBy || '別PC';
+          var _when = remote._ts ? new Date(remote._ts).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+          if (confirm('別のPCで更新があります（' + _who + (_when ? (' / ' + _when) : '') + '）。\n最新データを受信しますか？\n\n[OK]＝受信する　[キャンセル]＝今は受信しない')) {
+            console.log('[EIGYO PRO] 起動時の別PC更新 → ユーザー承認で受信');
+            _applyRemote();
+          } else {
+            FB.staleDeclined = true; // 受信を見送り → 古いデータでの上書きをブロック(Feature2)
+            fbSetStatus('warn', '⚠️ 最新を未受信。保存は一時停止中（🔥強制再受信で取得）');
+            console.log('[EIGYO PRO] 起動時の別PC更新 → ユーザーが受信を見送り');
+          }
+        } else {
+          _applyRemote();
         }
-        D = remote;
-        _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
-        sanitizeD();
-        rebuildAll();
-        setTimeout(showPersonSelectDialog, 500);
-        showSyncBadge('受信');
-        console.log('[EIGYO PRO] Firebase受信完了', {remoteTs, deals: (D.deals||[]).length});
       } else {
         console.log('[EIGYO PRO] 同期不要（ローカルが最新）');
       }
@@ -13770,6 +13797,18 @@ function _doFbWrite() {
       return;
     }
 
+    // ── 古い_tsで新しいFirebaseを上書きしない（別PCの更新の踏み潰し防止） ──
+    //   自分のエコーでない & （起動時に受信を見送り中 or リモートが自分の最終同期より新しい）なら中止。
+    //   FB.lastRemoteTs は受信/自己エコーで更新されるサーバ時刻なので clock skew に強い。
+    var _rTs = (remote && remote._ts) || 0;
+    var _ownEcho = !!(remote && remote._wid && FB.clientId && remote._wid === FB.clientId);
+    if (!_ownEcho && (FB.staleDeclined || ((FB.lastRemoteTs||0) > 0 && _rTs > FB.lastRemoteTs))) {
+      fbSetStatus('warn', '⚠️ 別PCが新しいデータに更新済み。上書きを中止しました（🔥強制再受信で最新取得を）');
+      console.warn('[EIGYO PRO] 書込み中止: 別PCが新しい/未受信', {remoteTs:_rTs, lastRemoteTs:FB.lastRemoteTs, staleDeclined:FB.staleDeclined});
+      if (typeof _showToast === 'function') _showToast('⚠️ 別PCの新しい更新が未受信のため保存を中止しました。🔥Firebaseから強制再受信してください', 'warn', 7000);
+      return;
+    }
+
     // 安全確認OK → 書き込み実行
     // _localSave()でD._tsを更新してからFirebaseに書き込む
     // save()を呼ぶとfbWriteが再度呼ばれ無限ループになるため_localSave()を使用
@@ -13784,6 +13823,7 @@ function _doFbWrite() {
     FB.wseq = (FB.wseq || 0) + 1;
     D._wid = FB.clientId;
     D._wseq = FB.wseq;
+    D._lastBy = (typeof _auditUser === 'function') ? _auditUser() : ((currentUserRole && currentUserRole.name) || '');  // ヘッダー「最終更新:誰」用
     var _payload = Object.assign({}, D, { _ts: firebase.database.ServerValue.TIMESTAMP });
     FB.dbRef.set(_payload)
       .then(() => showSyncBadge('保存'))
@@ -13796,7 +13836,20 @@ function _doFbWrite() {
 
 // ── 同期バッジ表示 ───────────────────────────────────────────────
 var _syncBadgeTimer = null;
+// ヘッダーの「最終更新: 担当者・時刻」表示を更新(Dの_lastBy/_tsから)
+function _updateLastUpd(){
+  try {
+    var el = document.getElementById('last-upd');
+    if (!el) return;
+    var ts = (typeof D!=='undefined' && D && D._ts) ? D._ts : 0;
+    if (!ts) { el.textContent = ''; return; }
+    var by = (typeof D!=='undefined' && D && D._lastBy) ? D._lastBy : '?';
+    var d = new Date(ts); function z(n){ return (n<10?'0':'')+n; }
+    el.textContent = '最終更新: ' + by + ' ' + z(d.getMonth()+1) + '/' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+  } catch(e){}
+}
 function showSyncBadge(label) {
+  _updateLastUpd();
   const t = document.getElementById('save-txt');
   if (t) {
     t.textContent = '🔥 ' + label + ' ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -13829,6 +13882,7 @@ function fbSetStatus(state, label) {
 }
 
 function updateAllSyncUI() {
+  _updateLastUpd();
   const statusPanel = document.getElementById('fb-status-panel');
   if (statusPanel) {
     statusPanel.style.display = FB.mode === 'firebase' ? '' : 'none';
