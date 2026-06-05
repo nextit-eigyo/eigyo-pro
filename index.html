@@ -1241,6 +1241,11 @@ body.has-sidepanel #home-deal-mode {
 .dg-row.dg-header > div:last-child { text-align:right; }
 .dg-row.deal-row { cursor:pointer; }
 .dg-row.deal-row:hover { background:var(--s2); }
+/* ② 案件カード質感: 区分の左色帯(藍=直販/オリーブ=グループ薬局/琥珀=販売店)。inset影でレイアウト不動 */
+.dg-row.deal-row.band-s { box-shadow:inset 4px 0 0 var(--acc); }
+.dg-row.deal-row.band-g { box-shadow:inset 4px 0 0 var(--grn); }
+.dg-row.deal-row.band-d { box-shadow:inset 4px 0 0 var(--amb); }
+.dg-row.deal-row.band-o { box-shadow:inset 4px 0 0 var(--bd); }
 .dg-row.deal-row > div { padding:7px 10px; vertical-align:middle; }
 .dg-row.deal-row > div:last-child { text-align:right; }
 .dg-row.deal-row.selected-sp {
@@ -11527,6 +11532,14 @@ document.addEventListener('click', function(e) {
 });
 
 // Excelテーブルビュー本体 (4列リッチ行 + 水平タブ展開)
+// ② 案件カード質感: 区分(category)→左色帯クラス
+function _dealBandCls(d){
+  var c = (d && d.category) ? String(d.category) : '';
+  if (c.indexOf('グループ') >= 0) return 'band-g';
+  if (c.indexOf('販売店') >= 0) return 'band-d';
+  if (c.indexOf('直販') >= 0) return 'band-s';
+  return 'band-o';
+}
 function renderDealsTableView(deals) {
   var el = document.getElementById('deal-list');
   if (!el) return;
@@ -11734,7 +11747,7 @@ function _dtBuildRow(d, people) {
       + '</div>'
     : '<div class="dt-amount-cell" style="color:var(--tx3);font-size:11px">金額未設定</div>';
 
-  var rowCls = 'dg-row deal-row';
+  var rowCls = 'dg-row deal-row ' + _dealBandCls(d);
   if (isWon) rowCls += ' won';
   if (isLost) rowCls += ' lost';
   if (window._sidepanelDealId === d.id) rowCls += ' selected-sp';
