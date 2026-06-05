@@ -3303,10 +3303,6 @@ body.has-sidepanel #home-deal-mode {
         <button id="ql-mode-task" class="ql-mode-btn"    onclick="event.stopPropagation();setQLMode('task')">✅ タスク記録</button>
       </div>
       <button class="ql-add-deal-btn" onclick="event.stopPropagation();openQuickAddDeal()" style="margin-left:4px">＋ 新規案件</button>
-      <button onclick="event.stopPropagation();clearMyPersonId();showPersonSelectDialog()"
-        style="font-size:12px;padding:3px 9px;border:1px solid var(--bd);border-radius:8px;background:var(--s3);cursor:pointer;color:var(--tx3);white-space:nowrap">
-        👤 担当者変更
-      </button>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <div id="ql-today-list" style="display:none"></div>
@@ -3923,22 +3919,7 @@ function showUserBadge(user) {
       menu.id = 'user-badge-menu';
       menu.style.cssText = 'position:fixed;top:48px;right:12px;background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:5000;min-width:160px';
 
-      var personBtn = document.createElement('button');
-      personBtn.style.cssText = 'display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:none;cursor:pointer;font-size:12px;color:var(--acc);border-radius:7px;font-weight:700';
-      personBtn.textContent = '👤 担当者を変更';
-      personBtn.onmouseover = function(){ this.style.background='var(--s3)'; };
-      personBtn.onmouseout  = function(){ this.style.background='none'; };
-      personBtn.onclick = function() {
-        clearMyPersonId();
-        menu.remove();
-        showPersonSelectDialog();
-      };
-      menu.appendChild(personBtn);
-
-      var sep = document.createElement('div');
-      sep.style.cssText = 'height:1px;background:var(--bds);margin:4px 0';
-      menu.appendChild(sep);
-
+      // 担当者はログインユーザーから自動紐づけ(B方式)するため、手動「担当者を変更」は廃止。
       var logoutBtn = document.createElement('button');
       logoutBtn.style.cssText = 'display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:none;cursor:pointer;font-size:12px;color:var(--tx3);border-radius:7px';
       logoutBtn.textContent = '🚪 ログアウト';
@@ -20377,59 +20358,14 @@ function clearMyPersonId() {
 }
 
 function showPersonSelectDialog() {
-  var people = ap().filter(function(p){ return p.name; });
-  if (!people.length) return;
-
-  // 既に設定済みなら表示しない
-  var saved = getMyPersonId();
-  if (saved && people.find(function(p){ return p.id === saved; })) return;
-
-  var overlay = document.createElement('div');
-  overlay.id = 'person-select-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
-
-  var modal = document.createElement('div');
-  modal.style.cssText = 'background:var(--s1);border-radius:20px;padding:32px;max-width:400px;width:100%;box-shadow:0 32px 80px rgba(0,0,0,.3);text-align:center';
-
-  var ttl = document.createElement('div');
-  ttl.style.cssText = 'font-size:20px;font-weight:900;margin-bottom:8px';
-  ttl.textContent = '👋 ようこそ！';
-  modal.appendChild(ttl);
-
-  var sub = document.createElement('div');
-  sub.style.cssText = 'font-size:13px;color:var(--tx3);margin-bottom:24px;line-height:1.6';
-  sub.textContent = 'あなたの担当者名を選択してください。クイック記録が自分の案件のみ表示されます。';
-  modal.appendChild(sub);
-
-  var grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:20px';
-
-  people.forEach(function(p) {
-    var btn = document.createElement('button');
-    btn.style.cssText = 'padding:12px 8px;border:2px solid var(--bd);border-radius:12px;background:var(--s3);cursor:pointer;font-size:13px;font-weight:700;transition:all .15s';
-    btn.textContent = p.name;
-    btn.onmouseover = function(){ this.style.borderColor='var(--acc)'; this.style.background='rgba(90,123,158,.08)'; };
-    btn.onmouseout  = function(){ this.style.borderColor='var(--bd)'; this.style.background='var(--s3)'; };
-    btn.onclick = function() {
-      setMyPersonId(p.id);
-      overlay.remove();
-      refreshQLDeals();
-    };
-    grid.appendChild(btn);
-  });
-  modal.appendChild(grid);
-
-  var skipBtn = document.createElement('button');
-  skipBtn.style.cssText = 'font-size:11px;color:var(--tx3);background:none;border:none;cursor:pointer;text-decoration:underline';
-  skipBtn.textContent = 'スキップ（全員の案件を表示）';
-  skipBtn.onclick = function() {
-    setMyPersonId('__all__');
-    overlay.remove();
-  };
-  modal.appendChild(skipBtn);
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  // ⭐ 担当者はログインユーザーから自動紐づけ(B方式: メール@前で照合)。
+  //   ダイアログは表示せず自動解決する。紐づけ済み→その担当者 / 未紐づけ(管理者・新規アカウント等)→全員表示(__all__)。
+  //   login=本人 のため、手動の「担当者を変更」UIは廃止済み。
+  try {
+    var autoSp = (typeof _getCurrentSpId === 'function') ? _getCurrentSpId() : null;
+    setMyPersonId(autoSp || '__all__');
+  } catch(e) {}
+  if (typeof refreshQLDeals === 'function') { try { refreshQLDeals(); } catch(e){} }
 }
 
 
