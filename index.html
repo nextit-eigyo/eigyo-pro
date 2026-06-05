@@ -1299,17 +1299,17 @@ body.has-sidepanel #home-deal-mode {
   display:grid; grid-template-columns:repeat(5,1fr); gap:2px;
 }
 .dt-progress-bar .seg {
-  height:6px; border-radius:2px; background:#ebe4d4;
+  height:7px; border-radius:99px; background:#e7dfce;
 }
-.dt-progress-bar .seg.done { background:#7a8e5a; }
-.dt-progress-bar .seg.current { background:#c89856; box-shadow:0 0 0 1px #8a5a2e; }
+.dt-progress-bar .seg.done { background:var(--acc); }
+.dt-progress-bar .seg.current { background:linear-gradient(90deg,var(--acc),#7d9bb8); box-shadow:0 0 0 2px rgba(90,123,158,.20); }
 .dt-progress-labels {
   display:grid; grid-template-columns:repeat(5,1fr); gap:2px;
   font-size:11px; text-align:center;
 }
 .dt-progress-labels span { color:var(--tx3); }
-.dt-progress-labels span.done { color:#4a5a32; }
-.dt-progress-labels span.current { color:#8a5a2e; font-weight:700; }
+.dt-progress-labels span.done { color:var(--acc); }
+.dt-progress-labels span.current { color:var(--acc); font-weight:800; }
 .dt-last-activity {
   background:var(--s2); border-left:2px solid #b4b2a9;
   padding:4px 9px; border-radius:0 4px 4px 0;
@@ -14434,7 +14434,7 @@ function buildDealBody(d) {
   const probInfo = (function(){
     var pr = getProb(d);
     var def = PROB_DEFS.find(function(p){ return p.rank === pr; });
-    return { rank: pr, label: def ? def.label : '未設定', weight: def ? def.weight : 0 };
+    return { rank: pr, label: def ? def.label : '未設定', weight: def ? def.weight : 0, stars: def ? def.stars : '' };
   })();
   var probBadgeCls = probInfo.rank === 5 ? 'k-won'
                    : probInfo.rank === 4 ? 'k-verbal'
@@ -14499,7 +14499,7 @@ function buildDealBody(d) {
       <div class="dc-kpi">
         <div class="dc-kpi-lbl"><span class="ic">🎯</span>確度・ステージ</div>
         <div class="dc-kpi-main" style="font-size:14px">${ls?_esc(ls):'<span style="color:var(--tx3)">未設定</span>'}</div>
-        <span class="dc-kpi-badge ${probBadgeCls}">確度${probInfo.rank} ${_esc(probInfo.label)} (${probInfo.weight}%)</span>
+        <span class="dc-kpi-badge ${probBadgeCls}"><span style="letter-spacing:1px">${probInfo.stars}</span> ${_esc(probInfo.label)} (${probInfo.weight}%)</span>
       </div>
     </div>
 
