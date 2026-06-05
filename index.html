@@ -460,7 +460,7 @@ tr:hover td{background:rgba(90,123,158,.02)}
    ULTRA-COMPACT DASHBOARD
 ═══════════════════════════════════ */
 #tab-dashboard{padding:10px 18px 140px!important}
-.db-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.db-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;position:sticky;top:var(--nav);z-index:90;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--bds)}
 .db-header h2{font-size:15px;font-weight:900;display:flex;align-items:center;gap:7px;margin:0}
 .db-ts-badge{font-size:12px;color:var(--tx3);font-weight:400}
 .db-mgr-badge{font-size:12px;font-weight:700;background:rgba(122,142,90,.12);color:var(--grn);padding:2px 8px;border-radius:8px}
@@ -1952,7 +1952,7 @@ body.has-sidepanel #home-deal-mode {
   background:var(--s2); border:1px dashed var(--bd); border-radius:6px; margin:0;
 }
 /* ── 営業会議 スコープ対応(Phase1): 選択タブ / 年間サマリー / 内訳 ── */
-#tab-meeting .mt-scope-wrap { margin:6px 0 12px; }
+#tab-meeting .mt-scope-wrap { margin:6px 0 12px; position:sticky; top:var(--nav); z-index:80; background:var(--bg); padding:8px 0; border-bottom:1px solid var(--bds); }
 #tab-meeting .mt-scope-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 #tab-meeting .mt-scope-row.r2 { margin-top:8px; padding-top:8px; border-top:1px solid var(--bds); }
 #tab-meeting .mt-sc { border:1px solid var(--bd); background:var(--s1); color:var(--tx2); padding:6px 13px; border-radius:99px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; }
@@ -7662,7 +7662,8 @@ function renderYoy() {
     return '<div style="font-size:13px;color:var(--tx3);font-weight:700;margin-bottom:3px">拠点別(今/前)</div>' + rows;
   }
 
-  var html = tabsHtml;
+  // スコープ選択バーをスクロール時に固定（ヘッダー直下）
+  var html = '<div style="position:sticky;top:var(--nav);z-index:80;background:var(--bg);padding:8px 0 6px;margin-bottom:8px;border-bottom:1px solid var(--bds)">' + tabsHtml + '</div>';
   html += '<div style="font-size:12px;color:var(--tx3);font-weight:700;margin-bottom:6px">💰 売上・粗利 前年比（' + perLabel + '累計）</div>';
   html += '<div style="display:flex;gap:13px;flex-wrap:wrap;margin-bottom:14px">';
   html += _yoyKpiCard('売上', sNow, sPrev, '千');
