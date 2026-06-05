@@ -18,3 +18,8 @@ preview-*.html
 # OS files
 Thumbs.db
 .DS_Store
+
+# 自動バックアップ(誤コミット防止)
+*.bak
+*.bak.*
+PROJECT_STATUS.md.bak.*
