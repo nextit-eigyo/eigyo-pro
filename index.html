@@ -1647,28 +1647,27 @@ body.has-sidepanel #home-deal-mode {
 
 /* ════════════════ ストーリーパネル (👤自分タブの顔) ════════════════ */
 #story-panel {
-  background: linear-gradient(135deg, #fdfbf6 0%, #f5ede0 100%);
-  border:1.5px solid var(--bd); border-radius:14px;
+  background: linear-gradient(135deg, #fdfbf6 0%, #f7f1e6 100%);
+  border:1px solid var(--bds); border-radius:18px;
   padding:22px 26px; margin-bottom:18px;
-  box-shadow:0 2px 16px rgba(90,75,55,.05);
+  box-shadow:var(--sh);
   position:relative;
 }
-#story-panel::before {
-  content:'📖';
-  position:absolute; top:-12px; left:18px;
-  font-size:22px; background:var(--bg); padding:0 8px;
+/* 📖 はヘッダータイトルにインライン表示(浮きノッチ廃止=新バンドとトーン統一) */
+#story-panel .story-head .ttl::before {
+  content:'📖 '; font-size:16px;
 }
 #story-panel .story-head {
   display:flex; align-items:baseline; gap:14px; margin-bottom:12px;
-  padding-bottom:10px; border-bottom:1.5px dashed var(--bd); flex-wrap:wrap;
+  padding-bottom:10px; border-bottom:1px solid var(--bds); flex-wrap:wrap;
 }
 #story-panel .story-head .ttl {
   font-size:13px; font-weight:900; color:var(--acc); letter-spacing:.05em;
 }
 #story-panel .story-head .person { font-size:18px; font-weight:900; }
 #story-panel .story-head .term {
-  margin-left:auto; font-size:12px; color:var(--tx3);
-  background:var(--s3); padding:3px 10px; border-radius:10px; font-weight:700;
+  margin-left:auto; font-size:12px; color:var(--acc); font-weight:800;
+  background:#eef3f8; border:1px solid #d7e3ee; padding:4px 12px; border-radius:99px;
 }
 #story-panel .story-body { font-size:14.5px; line-height:1.9; color:var(--tx); }
 #story-panel .story-body p { margin:0 0 12px; }
@@ -1681,7 +1680,7 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .story-body b { color:var(--tx); font-weight:900; }
 #story-panel .story-foot {
   display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;
-  padding-top:12px; border-top:1px solid var(--bd);
+  padding-top:12px; border-top:1px solid var(--bds);
 }
 #story-panel .story-foot .lnk {
   background:#fff; border:1px solid var(--bd); padding:7px 14px;
@@ -1698,10 +1697,10 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .story-text { flex:1 1 440px; min-width:0; }
 #story-panel .story-aside {
   flex:1.25 1 460px; display:flex; flex-direction:column; gap:18px;
-  border-left:1.5px dashed var(--bd); padding-left:30px; justify-content:center;
+  border-left:1px solid var(--bds); padding-left:30px; justify-content:center;
 }
 @media (max-width:880px){
-  #story-panel .story-aside{ border-left:none; padding-left:0; border-top:1.5px dashed var(--bd); padding-top:16px; }
+  #story-panel .story-aside{ border-left:none; padding-left:0; border-top:1px solid var(--bds); padding-top:16px; }
 }
 /* 左ストーリー: セクション化して見やすく(改行+フォント拡大) */
 #story-panel .st-sec { padding:11px 0; border-bottom:1px dotted var(--bd); }
