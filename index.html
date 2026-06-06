@@ -7406,14 +7406,20 @@ function _isImportSourcedDeal(d){
 // ⭐ インポート済み月の拠点に、Excelに無い「手動登録の受注」だけを上乗せする額(リアルタイム反映の核)。
 //   Excel由来案件は除外＝二重計上なし。再インポートしても直接案件を数えるので累積しない。
 function _manualExtraForBranch(bn, field, mi){
-  // ⭐時刻方式: その月のインポート基準時刻(実時刻)より「後に受注になった案件」だけ上乗せ。
-  //   基準時刻が実時刻で記録されていない月(旧データ ts=1 等)は上乗せ0＝branchActuals直接(Excel一致・安全)。
+  // ⭐時刻方式(緩和版): 「受注時刻 _wonAt が実時刻(ミリ秒)で刻まれた案件」だけを上乗せ。
+  //   ・インポート生成案件は _wonAt を持たない → 決して上乗せされない＝二重計上なし。
+  //   ・旧データ(_wonAt無し)も対象外 → 既存月はExcel完全一致のまま不変。
+  //   ・取込基準時刻(importTs)が実時刻で記録済みなら、それより後に受注した分だけ
+  //     (＝再インポート後はExcelに含まれた案件を自動的に除外できる)。
+  //   ※安全根拠: 現データで _wonAt 保持案件はゼロ。手動で受注にした瞬間のみ刻まれる。
   var importTs = 0;
   try { var _b = D.branchActualsBaseline && D.branchActualsBaseline[bn]; if (_b && _b.ts) importTs = parseFloat(_b.ts[mi]) || 0; } catch(e){}
-  if (importTs < 1e12) return 0;   // 実時刻(ミリ秒)でなければ上乗せしない
   var sum = 0;
   (D.deals || []).forEach(function(d){
-    if (!d || !d._wonAt || (parseFloat(d._wonAt)||0) <= importTs) return;       // インポート後に受注になった案件のみ
+    if (!d) return;
+    var w = parseFloat(d._wonAt) || 0;
+    if (w < 1e12) return;          // 実時刻の受注時刻を持つ案件のみ＝手動で受注にした(Excel未掲載の)案件
+    if (w <= importTs) return;     // その月のExcel取込より後に受注した分だけ(再インポート時の二重計上防止)
     if (typeof _countsAsWon === 'function') { if (!_countsAsWon(d)) return; }  // 受注(確度5)のみ
     else { if ((typeof getProb === 'function' ? getProb(d) : 0) < 5) return; }
     var dmi = (typeof implToFyIdx === 'function') ? implToFyIdx(d.deliveryMonth) : -1;
@@ -7429,6 +7435,29 @@ function _manualExtraForBranch(bn, field, mi){
     sum += (field === 's') ? sv : (sv - cv);
   });
   return sum;
+}
+// ⭐ 一度きりの移行: Excel取込「後」に手動登録された受注で _wonAt 未刻みの案件に
+//   受注時刻を付与し、拠点実績へリアルタイム上乗せできるようにする。
+//   ※自動判定(マーカー/差額/作成時刻)はインポート生成案件と区別不能=数字破壊リスクのため、
+//     対象は明示ID指定にとどめる(安全最優先)。今後手動で受注にした案件は updDeal/受注ハンドラで
+//     自動的に _wonAt が刻まれるため、本移行が必要なのは過去の取りこぼし分のみ。
+function _migrateManualWonAt(){
+  try {
+    if (!D || D._migManualWonAt_v1) return;
+    // 反映対象(Excel未掲載の手動受注)の案件ID。馬場さん確認済み:
+    //   d1779286507206 = 本町薬局(福岡営業所6月・直販3,698千)
+    var TARGET_IDS = ['d1779286507206'];
+    var stamped = 0, now = Date.now();
+    (D.deals || []).forEach(function(d){
+      if (!d || !d.id || TARGET_IDS.indexOf(String(d.id)) < 0) return;
+      if (d._wonAt) return; // 既に刻み済みなら何もしない(冪等)
+      if (typeof getProb === 'function' && getProb(d) !== 5) return; // 受注(確度5)のみ
+      d._wonAt = now;
+      stamped++;
+    });
+    D._migManualWonAt_v1 = true;
+    if (stamped > 0 && typeof save === 'function') save();
+  } catch(e){}
 }
 // ⭐ 指定の月インデックス(mi)が「未来月(今日より後)」かを判定。
 //   予実管理の実績で、未来月は Excel取込で埋まる繰越系コンポーネント
@@ -24026,7 +24055,7 @@ document.addEventListener('keydown', function(e) {
     if (modal && modal.classList.contains('open')) closeMemoModal();
   }
 });
-initFY();load();migrateBranchBudgets();_migrateHWOther();_migrateBranchSoftActuals();_migrateGroupActuals();_initDealProbabilities();_cleanupAbnormalActuals();_silentApplyWonToActuals();rebuildAll();checkAuthOnStart();
+initFY();load();migrateBranchBudgets();_migrateHWOther();_migrateBranchSoftActuals();_migrateGroupActuals();_initDealProbabilities();_migrateManualWonAt();_cleanupAbnormalActuals();_silentApplyWonToActuals();rebuildAll();checkAuthOnStart();
 // 検索ボックスのオートフィル強制クリア（Chrome対策）
 setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.value)el.value='';},100);
 setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.value)el.value='';},500);
