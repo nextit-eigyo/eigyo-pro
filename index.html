@@ -1707,8 +1707,8 @@ body.has-sidepanel #home-deal-mode {
 /* ════════════════ ストーリーパネル (👤自分タブの顔) ════════════════ */
 #story-panel {
   background: linear-gradient(135deg, #fdfbf6 0%, #f7f1e6 100%);
-  border:1px solid var(--bds); border-radius:18px;
-  padding:22px 26px; margin-bottom:18px;
+  border:1px solid var(--bds); border-radius:14px;
+  padding:12px 18px; margin-bottom:10px;
   box-shadow:var(--sh);
   position:relative;
 }
@@ -1717,8 +1717,8 @@ body.has-sidepanel #home-deal-mode {
   content:'📖 '; font-size:16px;
 }
 #story-panel .story-head {
-  display:flex; align-items:baseline; gap:14px; margin-bottom:12px;
-  padding-bottom:10px; border-bottom:1px solid var(--bds); flex-wrap:wrap;
+  display:flex; align-items:baseline; gap:12px; margin-bottom:7px;
+  padding-bottom:6px; border-bottom:1px solid var(--bds); flex-wrap:wrap;
 }
 #story-panel .story-head .ttl {
   font-size:13px; font-weight:900; color:var(--acc); letter-spacing:.05em;
@@ -1738,8 +1738,8 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .story-body .dim  { color:var(--tx3); font-style:italic; }
 #story-panel .story-body b { color:var(--tx); font-weight:900; }
 #story-panel .story-foot {
-  display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;
-  padding-top:12px; border-top:1px solid var(--bds);
+  display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;
+  padding-top:8px; border-top:1px solid var(--bds);
 }
 #story-panel .story-foot .lnk {
   background:#fff; border:1px solid var(--bd); padding:7px 14px;
@@ -1752,19 +1752,19 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .story-foot .lnk.pri:hover { background:#000; color:#fff; }
 
 /* ── 営業ホーム ストーリーパネル 2カラム(左ストーリー / 右シミュレーション) ── */
-#story-panel .story-main { display:flex; gap:30px; flex-wrap:wrap; align-items:stretch; }
-#story-panel .story-text { flex:1 1 440px; min-width:0; }
+#story-panel .story-main { display:flex; gap:22px; flex-wrap:wrap; align-items:center; }
+#story-panel .story-text { flex:1 1 380px; min-width:0; }
 #story-panel .story-aside {
-  flex:1.25 1 460px; display:flex; flex-direction:column; gap:18px;
-  border-left:1px solid var(--bds); padding-left:30px; justify-content:center;
+  flex:1.3 1 440px; display:flex; flex-direction:column; gap:8px;
+  border-left:1px solid var(--bds); padding-left:20px; justify-content:center;
 }
 @media (max-width:880px){
   #story-panel .story-aside{ border-left:none; padding-left:0; border-top:1px solid var(--bds); padding-top:16px; }
 }
 /* 左ストーリー: セクション化して見やすく(改行+フォント拡大) */
-#story-panel .st-sec { padding:11px 0; border-bottom:1px dotted var(--bd); }
+#story-panel .st-sec { padding:3px 0; border-bottom:none; }
 #story-panel .st-sec:last-child { border-bottom:none; }
-#story-panel .st-label { font-size:13px; font-weight:900; color:var(--acc); margin-bottom:7px; letter-spacing:.03em; }
+#story-panel .st-label { font-size:12px; font-weight:900; color:var(--acc); margin-bottom:3px; letter-spacing:.03em; }
 #story-panel .st-line { font-size:15.5px; line-height:1.85; color:var(--tx2); }
 #story-panel .st-line.big { font-size:17px; }
 #story-panel .st-line b { color:var(--tx); font-weight:900; font-size:18px; }
@@ -1804,17 +1804,17 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .sa-sum b { color:var(--tx); font-weight:900; }
 #story-panel .sa-empty { font-size:13px; color:var(--tx3); padding:10px 0; line-height:1.7; }
 /* 上期達成シミュレーション(粗利) */
-#story-panel .sa-sim-head { display:flex; align-items:baseline; gap:8px; margin-bottom:11px; flex-wrap:wrap; }
+#story-panel .sa-sim-head { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
 #story-panel .sa-sim-head .t { font-size:15px; font-weight:900; }
 #story-panel .sa-sim-head .g { font-size:14px; color:var(--tx3); font-weight:700; margin-left:auto; }
 #story-panel .sa-sim-head .ach { font-size:13px; font-weight:900; color:var(--acc); background:rgba(90,123,158,.1); padding:3px 11px; border-radius:999px; }
-#story-panel .sa-bar { position:relative; height:32px; border-radius:9px; background:#ece6da; overflow:hidden; display:flex; margin-bottom:7px; }
+#story-panel .sa-bar { position:relative; height:22px; border-radius:7px; background:#ece6da; overflow:hidden; display:flex; margin-bottom:5px; }
 #story-panel .sa-seg { height:100%; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:900; color:#fff; white-space:nowrap; overflow:hidden; }
 #story-panel .sa-seg.fixed { background:linear-gradient(180deg,#8ba06d,#7a8e5a); }
 #story-panel .sa-seg.pipe { background:linear-gradient(180deg,#dcb673,#c89856); }
 #story-panel .sa-seg.gap { background:repeating-linear-gradient(45deg,#efe2dd,#efe2dd 6px,#e7d3cd 6px,#e7d3cd 12px); color:#a85a4a; }
 #story-panel .sa-goalmark { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--tx); }
-#story-panel .sa-leg { display:flex; gap:14px; font-size:12px; color:var(--tx2); margin-bottom:13px; flex-wrap:wrap; }
+#story-panel .sa-leg { display:flex; gap:12px; font-size:11px; color:var(--tx2); margin-bottom:6px; flex-wrap:wrap; }
 #story-panel .sa-leg i { display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:4px; }
 #story-panel .sa-leg i.f { background:#7a8e5a; }
 #story-panel .sa-leg i.p { background:#c89856; }
@@ -1823,7 +1823,7 @@ body.has-sidepanel #home-deal-mode {
 #story-panel .sa-r { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dotted var(--bd); gap:8px; }
 #story-panel .sa-r:last-child { border-bottom:none; }
 #story-panel .sa-r .v { font-weight:900; white-space:nowrap; }
-#story-panel .sa-verdict { border-radius:11px; padding:13px 16px; font-size:15px; line-height:1.7; }
+#story-panel .sa-verdict { border-radius:9px; padding:8px 12px; font-size:12.5px; line-height:1.45; }
 #story-panel .sa-verdict.ng { background:#f7e7e2; border:1px solid #e9c9c0; color:#7a3a2a; }
 #story-panel .sa-verdict.ok { background:#e7efd9; border:1px solid #cfdcb5; color:#46562c; }
 #story-panel .sa-verdict b { font-weight:900; }
@@ -12118,12 +12118,12 @@ function renderStoryPanel() {
   var _achRow = function(lbl, ach, has){
     if (!has) return '';
     var c = _achColor(ach), w = Math.max(3, Math.min(ach, 100));
-    return '<div style="margin:9px 0">'
-      + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
-      +   '<span style="color:var(--tx2);font-weight:700;font-size:13px">' + lbl + '</span>'
-      +   '<span style="color:' + c + ';font-weight:900;font-size:17px">' + ach.toFixed(0) + '%' + (ach >= 100 ? ' 🎉' : '') + '</span>'
+    return '<div style="margin:3px 0">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
+      +   '<span style="color:var(--tx2);font-weight:700;font-size:12px">' + lbl + '</span>'
+      +   '<span style="color:' + c + ';font-weight:900;font-size:14px">' + ach.toFixed(0) + '%' + (ach >= 100 ? ' 🎉' : '') + '</span>'
       + '</div>'
-      + '<div style="height:9px;background:var(--s3);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:' + c + ';border-radius:99px;transition:width .4s"></div></div>'
+      + '<div style="height:6px;background:var(--s3);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:' + c + ';border-radius:99px;transition:width .4s"></div></div>'
       + '</div>';
   };
   html += '<div class="st-sec">';
