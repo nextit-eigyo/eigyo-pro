@@ -9086,6 +9086,7 @@ function addDeal(){
   const newD={id,spId,name:'',pref:'',deliveryMonth:'',activationMonth:'',originMonth,sales:'',cost:'',memo:'',category,visits:[]};
   // ⭐グループ薬局は受注確定(本部一括契約)前提のため確度5(受注)を初期値に(doAddDealと同仕様・クイック追加漏れ修正)
   if(category==='グループ薬局'){ newD.probability=5; newD.phase='受注'; }
+  newD._cre = Date.now(); // 作成時刻(受信時の新規案件保護用)
   D.deals.push(newD);
   if(typeof _auditDealAdd==='function')_auditDealAdd(D.deals[D.deals.length-1],'クイック追加');
   save();renderDeals();
@@ -12882,7 +12883,8 @@ function cloneDeal(id) {
     name: orig.name + '（コピー）',
     visits: [],
     originMonth: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,
-    deliveryMonth: '', activationMonth: '', nextAction: ''
+    deliveryMonth: '', activationMonth: '', nextAction: '',
+    _cre: now.getTime() // 作成時刻(受信時の新規案件保護用)
   });
   D.deals.push(clone);
   if(typeof _auditDealAdd==='function')_auditDealAdd(clone,'複製');
@@ -13725,6 +13727,22 @@ function fbSignIn(email, password) {
 }
 
 // ── リアルタイムリスナー開始 ────────────────────────────────────
+// 🛡 受信(D=remote)で、未同期のローカル新規案件が消えないよう保護。
+//   remote に無い & 直近30分以内に作成(_cre)されたローカル案件を remote.deals に合流させる。
+//   → リロード/他PC受信で「作ったばかりの案件が消える」を防止。戻り値=保護した件数。
+function _collectLocalNewDeals(remote) {
+  try {
+    if (!remote || !Array.isArray(remote.deals) || typeof D === 'undefined' || !D || !Array.isArray(D.deals)) return 0;
+    var rids = {}; remote.deals.forEach(function(d){ if (d && d.id) rids[d.id] = 1; });
+    var now = Date.now(), WIN = 30 * 60 * 1000;
+    var add = D.deals.filter(function(d){ return d && d.id && !rids[d.id] && d._cre && (now - d._cre) < WIN; });
+    if (add.length) {
+      remote.deals = remote.deals.concat(add);
+      console.warn('[EIGYO PRO] 受信時に未同期のローカル新規案件を保護:', add.map(function(d){ return d.name || d.id; }));
+    }
+    return add.length;
+  } catch(e) { console.warn('[EIGYO PRO] 新規案件保護に失敗', e); return 0; }
+}
 function fbStartSync() {
   const key = 'eigyo3_' + fy;
   FB.dbRef = firebase.database().ref('data/' + key);
@@ -13824,6 +13842,8 @@ function fbStartSync() {
           if (remote.deals && !Array.isArray(remote.deals)) {
             remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
           }
+          // 🛡 未同期のローカル新規案件を保護(リロード/受信で消えるのを防止)
+          var _preserved = _collectLocalNewDeals(remote);
           D = remote;
           _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
           FB.lastRemoteTs = remoteTs; FB.staleDeclined = false;
@@ -13831,7 +13851,12 @@ function fbStartSync() {
           rebuildAll();
           setTimeout(showPersonSelectDialog, 500);
           showSyncBadge('受信');
-          console.log('[EIGYO PRO] Firebase受信完了', {remoteTs, deals: (D.deals||[]).length});
+          // 保護した新規案件をFirebaseへ書き戻して恒久化
+          if (_preserved > 0) {
+            setTimeout(function(){ try { fbWrite(true); } catch(e){} }, 1500);
+            if (typeof _showToast === 'function') _showToast('🛡 未同期だった新規案件 ' + _preserved + ' 件を保護しました', 'ok', 5000);
+          }
+          console.log('[EIGYO PRO] Firebase受信完了', {remoteTs, deals: (D.deals||[]).length, preserved:_preserved});
         };
         // ★ Feature1: 起動後の初回検出のみ「受信しますか？」を確認(以降のリアルタイム更新は自動受信)
         if (_isFirstFire) {
@@ -16512,6 +16537,7 @@ function doAddDeal() {
     newDeal.phase = '受注';
   }
   if (!D.deals) D.deals = [];
+  newDeal._cre = Date.now(); // 作成時刻(受信時の新規案件保護用)
   D.deals.unshift(newDeal); // 先頭に追加
   if(typeof _auditDealAdd==='function')_auditDealAdd(newDeal);
   save();
