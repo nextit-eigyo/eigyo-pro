@@ -2279,7 +2279,7 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- HEADER -->
 <div id="hdr">
-  <div id="logo" onclick="showTab('deals',document.getElementById('tab-deals-btn'));if(typeof setHomeMode==='function')setHomeMode('num')" title="営業ホーム(数字モード)に戻る">EIGYO<em>PRO</em></div>
+  <div id="logo" onclick="var _m=document.getElementById('subtab-meeting');if(typeof showTab==='function'&&_m)showTab('meeting',_m)" title="ホーム(予実管理)に戻る">EIGYO<em>PRO</em></div>
   <div class="htabs" id="main-tabs">
     <!-- 隠しタブ(他コードからのプログラム参照用に保持。display:none) -->
     <button class="htab active" id="tab-deals-btn" onclick="showTab('deals',this)" style="display:none">🏠 営業ホーム <span class="nb" id="alert-badge" style="display:none">0</span></button>
@@ -2290,7 +2290,7 @@ body.has-sidepanel #home-deal-mode {
     <button class="htab" id="tab-kpt-btn"     onclick="showTab('kpt',this);renderKPT()" style="display:none">📝 KPT</button>
     <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)" style="display:none">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
     <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
-    <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')"><span class="st-ic">📊</span><span class="st-lab">ダッシュボード</span></button>
+    <button id="subtab-num"  class="sub-tab" style="display:none" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')"><span class="st-ic">📊</span><span class="st-lab">ダッシュボード</span></button>
     <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()"><span class="st-ic">🎯</span><span class="st-lab">案件</span></button>
     <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)"><span class="st-ic">📈</span><span class="st-lab">予実管理</span></button>
     <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)"><span class="st-ic">🔄</span><span class="st-lab">前年比較</span></button>
