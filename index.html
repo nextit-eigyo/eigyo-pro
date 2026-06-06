@@ -7429,32 +7429,13 @@ function getActualValue(target, field, mi) {
   // ── ブランチごとに集計 ──
   var total = 0;
   branches.forEach(function(bn) {
-    // ① Excelインポート優先
+    // ① Excelインポート済みの月は branchActuals(Excel確定値・全部入り)をそのまま使う＝Excelと完全一致。
+    //   ⭐根本解決(2026-06): リアルタイム上乗せ(branchSoftActualsとの差分加算)は、インポートが自動生成する
+    //   受注案件がD.actualsに積まれ「二重計上」で過大になるため廃止。確定月はExcel単一ソース。
+    //   ※当月など未インポートの月は branchActuals が空→下記②以降で受注からリアルタイム集計される。
     var brVal = (D.branchActuals && D.branchActuals[bn]) ? safeGetArr(D.branchActuals[bn], field, mi) : 0;
     if (brVal > 0) {
-      // ⭐ リアルタイム化(2026-06): Excel全部入りを固定表示せず、
-      //   「Excelの案件以外(= branchActuals − branchSoftActuals: 保守/HW/消耗品/その他)」＋
-      //   「現在のソフト(担当者actuals＋group＋office案件・リアルタイム)」で算出。
-      //   → 受注した瞬間に拠点合計が増える。保守等はExcel確定値のまま。branchActualsは改変しない(ドリフトなし)。
-      //   ※ branchSoftActuals(Excelソフト基準値)が記録済みの月のみ。未記録の古い月は従来通り全部入り(二重計上防止)。
-      var _fkey = (field === 's') ? 's' : 'p';
-      var _softCell = (D.branchSoftActuals && D.branchSoftActuals[bn] && D.branchSoftActuals[bn][_fkey]) ? D.branchSoftActuals[bn][_fkey][mi] : '';
-      if (_softCell !== '' && _softCell != null) {
-        var _brSoft = safeGetArr(D.branchSoftActuals[bn], field, mi);
-        var _liveSoft = 0;                              // 現在のソフト(担当者actuals＋group＋office案件・リアルタイム)
-        if (D.people) {
-          D.people.filter(function(p){ return p.branch === bn; }).forEach(function(p){
-            _liveSoft += (D.actuals && D.actuals[p.id]) ? safeGetArr(D.actuals[p.id], field, mi) : 0;
-          });
-        }
-        if (typeof getGroupActualsVal === 'function') _liveSoft += getGroupActualsVal(bn, field, mi);
-        if (typeof _getOfficeDealsTotalForBranch === 'function') _liveSoft += _getOfficeDealsTotalForBranch(bn, field, mi);
-        // ⭐ 加算のみ(2026-06修正): Excel確定値(全部入り)に、Excelソフトを超えた受注ぶんだけ上乗せ。
-        //   引き算しない=受注をアプリ未入力の拠点(Excel主体)はExcel値のまま下がらない。福岡等で新規受注した分だけ即増える。
-        total += brVal + Math.max(0, _liveSoft - _brSoft);
-      } else {
-        total += brVal; // ソフト基準値が無い古い月は従来通り(全部入り)
-      }
+      total += brVal; // この拠点・月はExcel確定値のみ。他ソースは足さない(二重計上なし・Excel完全一致)
       return;
     }
 
