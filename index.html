@@ -7395,6 +7395,36 @@ function getBudgetValue(target, field, mi) {
   return 0;
 }
 
+// ⭐ Excel由来(インポート生成/確認)案件か判定。branchActualsに既に含まれるためリアルタイム上乗せから除外する。
+//   _imp フラグ(今後の取込) or 受注メモに「Excelインポート」(既存の取込案件)で判定。
+function _isImportSourcedDeal(d){
+  if (!d) return false;
+  if (d._imp === true) return true;
+  if (d.visits && d.visits.some(function(v){ return v && v.memo && String(v.memo).indexOf('Excelインポート') >= 0; })) return true;
+  return false;
+}
+// ⭐ インポート済み月の拠点に、Excelに無い「手動登録の受注」だけを上乗せする額(リアルタイム反映の核)。
+//   Excel由来案件は除外＝二重計上なし。再インポートしても直接案件を数えるので累積しない。
+function _manualExtraForBranch(bn, field, mi){
+  var sum = 0;
+  (D.deals || []).forEach(function(d){
+    if (!d || _isImportSourcedDeal(d)) return;                 // Excel由来は除外
+    if (typeof _countsAsWon === 'function') { if (!_countsAsWon(d)) return; }  // 受注(確度5)のみ
+    else { if ((typeof getProb === 'function' ? getProb(d) : 0) < 5) return; }
+    var dmi = (typeof implToFyIdx === 'function') ? implToFyIdx(d.deliveryMonth) : -1;
+    if (dmi !== mi) return;
+    var dbr;
+    if (d.category === 'グループ薬局') {
+      dbr = d.groupBranch || (((D.people||[]).find(function(p){ return p.id===d.spId; })||{}).branch);
+    } else {
+      dbr = ((D.people||[]).find(function(p){ return p.id===d.spId; })||{}).branch;
+    }
+    if (dbr !== bn) return;
+    var sv = parseFloat(d.sales)||0, cv = parseFloat(d.cost)||0;
+    sum += (field === 's') ? sv : (sv - cv);
+  });
+  return sum;
+}
 function getActualValue(target, field, mi) {
   // ── 入力検証 ──
   if (field !== 's' && field !== 'p') return 0;
@@ -7435,7 +7465,9 @@ function getActualValue(target, field, mi) {
     //   ※当月など未インポートの月は branchActuals が空→下記②以降で受注からリアルタイム集計される。
     var brVal = (D.branchActuals && D.branchActuals[bn]) ? safeGetArr(D.branchActuals[bn], field, mi) : 0;
     if (brVal > 0) {
-      total += brVal; // この拠点・月はExcel確定値のみ。他ソースは足さない(二重計上なし・Excel完全一致)
+      // Excel確定値 ＋ Excel取込後に手動登録した受注(Excelに無い分)だけを上乗せ＝リアルタイム反映。
+      //   Excel由来案件(_isImportSourcedDeal)は branchActuals に含まれるため除外＝二重計上なし。
+      total += brVal + _manualExtraForBranch(bn, field, mi);
       return;
     }
 
@@ -10771,6 +10803,9 @@ function _doConfirmImport(addedMasters){
 
         if (existingDeal) {
           let changed = false;
+          // ⭐ Excelに載った案件＝確定値(branchActuals)に含まれる→リアルタイム上乗せ対象外にする(二重計上防止)。
+          //   手動登録の受注が後でExcelに載った場合もここで_imp化され、正しく一本化される。
+          if (existingDeal._imp !== true) { existingDeal._imp = true; changed = true; }
           // 修正C: 売上・原価は「未入力/0のみ」上書き（手修正値を保護）
           if (impSales > 0 && (!existingDeal.sales || existingDeal.sales === '0' || existingDeal.sales === '')) {
             existingDeal.sales = String(impSales); changed = true;
@@ -10838,6 +10873,7 @@ function _doConfirmImport(addedMasters){
               productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
               nextAction: isNoRep ? '⚠️ 担当者を設定してください' : '',
               probability: 5, phase: '受注', // Excelインポート由来は確度5(確定実績)
+              _imp: true, // Excel由来=branchActualsに含まれる(リアルタイム上乗せ対象外)
               visits:[{ date: today, actType: '受注', status: '受注',
                 reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
                 memo: dealMemo }]
@@ -10908,6 +10944,7 @@ function _doConfirmImport(addedMasters){
         });
 
         if (exists) {
+          exists._imp = true; // Excelに載った=確定値側。リアルタイム上乗せ対象外(二重計上防止)
           // 既存: 売上が未入力なら更新
           if (gSales > 0 && (!exists.sales || exists.sales === '0' || exists.sales === '')) {
             exists.sales = String(gSales);
@@ -10933,6 +10970,7 @@ function _doConfirmImport(addedMasters){
             productOption: '', route: '', routeRef: '', resecon: '', kyogou: '',
             nextAction: '',
             probability: 5, phase: '受注', // Excelインポート由来は確度5(確定実績)
+            _imp: true, // Excel由来(リアルタイム上乗せ対象外)
             visits:[{ date: today2, actType: '受注', status: '受注',
               reaction: '◎ 非常に良好（即決意欲あり）', reason: '',
               memo: 'Excelインポートより自動登録（グループ薬局: ' + gd.midCat + '）' }]
