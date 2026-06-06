@@ -7428,8 +7428,29 @@ function getActualValue(target, field, mi) {
     // ① Excelインポート優先
     var brVal = (D.branchActuals && D.branchActuals[bn]) ? safeGetArr(D.branchActuals[bn], field, mi) : 0;
     if (brVal > 0) {
-      total += brVal;
-      return; // この拠点は branchActuals だけ。他のソースは足さない
+      // ⭐ リアルタイム化(2026-06): Excel全部入りを固定表示せず、
+      //   「Excelの案件以外(= branchActuals − branchSoftActuals: 保守/HW/消耗品/その他)」＋
+      //   「現在のソフト(担当者actuals＋group＋office案件・リアルタイム)」で算出。
+      //   → 受注した瞬間に拠点合計が増える。保守等はExcel確定値のまま。branchActualsは改変しない(ドリフトなし)。
+      //   ※ branchSoftActuals(Excelソフト基準値)が記録済みの月のみ。未記録の古い月は従来通り全部入り(二重計上防止)。
+      var _fkey = (field === 's') ? 's' : 'p';
+      var _softCell = (D.branchSoftActuals && D.branchSoftActuals[bn] && D.branchSoftActuals[bn][_fkey]) ? D.branchSoftActuals[bn][_fkey][mi] : '';
+      if (_softCell !== '' && _softCell != null) {
+        var _brSoft = safeGetArr(D.branchSoftActuals[bn], field, mi);
+        var _nonSoft = Math.max(0, brVal - _brSoft);  // Excelの案件以外(保守/HW/消耗品/その他)=固定
+        var _liveSoft = 0;                              // 現在のソフト(リアルタイム)
+        if (D.people) {
+          D.people.filter(function(p){ return p.branch === bn; }).forEach(function(p){
+            _liveSoft += (D.actuals && D.actuals[p.id]) ? safeGetArr(D.actuals[p.id], field, mi) : 0;
+          });
+        }
+        if (typeof getGroupActualsVal === 'function') _liveSoft += getGroupActualsVal(bn, field, mi);
+        if (typeof _getOfficeDealsTotalForBranch === 'function') _liveSoft += _getOfficeDealsTotalForBranch(bn, field, mi);
+        total += _nonSoft + _liveSoft;
+      } else {
+        total += brVal; // ソフト基準値が無い古い月は従来通り(全部入り)
+      }
+      return;
     }
 
     // ② 担当者由来実績
