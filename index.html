@@ -7465,9 +7465,10 @@ function getActualValue(target, field, mi) {
     //   ※当月など未インポートの月は branchActuals が空→下記②以降で受注からリアルタイム集計される。
     var brVal = (D.branchActuals && D.branchActuals[bn]) ? safeGetArr(D.branchActuals[bn], field, mi) : 0;
     if (brVal > 0) {
-      // Excel確定値 ＋ Excel取込後に手動登録した受注(Excelに無い分)だけを上乗せ＝リアルタイム反映。
-      //   Excel由来案件(_isImportSourcedDeal)は branchActuals に含まれるため除外＝二重計上なし。
-      total += brVal + _manualExtraForBranch(bn, field, mi);
+      // インポート済み月は branchActuals(Excel確定値)をそのまま使う＝Excelと完全一致・二重計上なし。
+      //   ※手動受注のリアルタイム上乗せは、既存案件のマーカー欠落/重複で二重計上が起きたため一旦無効化。
+      //     (再有効化するには案件データの_imp整備が前提。_manualExtraForBranchは保持)
+      total += brVal;
       return;
     }
 
