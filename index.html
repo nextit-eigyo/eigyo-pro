@@ -2291,8 +2291,8 @@ body.has-sidepanel #home-deal-mode {
     <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)" style="display:none">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
     <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
     <button id="subtab-num"  class="sub-tab" style="display:none" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')"><span class="st-ic">📊</span><span class="st-lab">ダッシュボード</span></button>
-    <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()"><span class="st-ic">🎯</span><span class="st-lab">案件</span></button>
     <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)"><span class="st-ic">📈</span><span class="st-lab">予実管理</span></button>
+    <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()"><span class="st-ic">🎯</span><span class="st-lab">案件</span></button>
     <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)"><span class="st-ic">🔄</span><span class="st-lab">前年比較</span></button>
     <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')"><span class="st-ic">📞</span><span class="st-lab">営業活動量</span></button>
     <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)"><span class="st-ic">✅</span><span class="st-lab">タスク</span><span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
