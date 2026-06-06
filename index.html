@@ -1335,10 +1335,12 @@ body.has-sidepanel #home-deal-mode {
   background:var(--s3); color:var(--tx2); padding:2px 7px;
   border-radius:4px; font-size:11px; font-weight:600;
 }
-.dt-info .pills .pill.prod { background:rgba(90,123,158,.12); color:var(--acc); }
-.dt-info .pills .pill.cfg { background:rgba(99,102,241,.12); color:#6366f1; }
-.dt-info .pills .pill.deal { background:rgba(122,142,90,.14); color:#4a5a32; }
-.dt-info .pills .pill.route { background:rgba(138,90,46,.10); color:var(--acc2); }
+/* 🎨 タグは中立トーンに統一(色の氾濫=チカチカ防止)。色の意味は「確度バッジ＋左の区分帯」に集約。
+   商品名だけ薄い藍で軽く強調、それ以外(構成/種別/経路)はクリームの中立に。 */
+.dt-info .pills .pill.prod { background:#eef3f8; color:var(--acc); }
+.dt-info .pills .pill.cfg { background:var(--s3); color:var(--tx3); }
+.dt-info .pills .pill.deal { background:var(--s3); color:var(--tx2); }
+.dt-info .pills .pill.route { background:var(--s3); color:var(--tx3); }
 .dt-info .pills .pill.warn { background:rgba(168,90,74,.14); color:var(--red); font-weight:800; }
 
 /* 進捗バー+最終活動セル(コンパクト) */
