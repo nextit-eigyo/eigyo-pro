@@ -9982,6 +9982,17 @@ function parseImportFile(file) {
           });
         }
 
+        // ⭐ 公式値を直販シートのサマリーセルから直接読む: 予算 D1(売上)/D2(粗利)・実績 H1(売上)/H2(粗利)。単位=円。
+        //   これにより実績はExcelの確定セルと完全一致し、予算もExcelから自動取込される(手入力廃止)。
+        try {
+          var _ds = wb.Sheets['直販'];
+          if (!_ds) { var _dn = allSheets.find(function(n){ return /直販/.test(n) && !/イメージ/.test(n); }); if (_dn) _ds = wb.Sheets[_dn]; }
+          if (_ds) {
+            var _cv = function(addr){ var c = _ds[addr]; if (!c || c.v == null) return null; var n = (typeof c.v === 'number') ? c.v : parseFloat(c.v); return isNaN(n) ? null : n; };
+            result.official = { budS:_cv('D1'), budP:_cv('D2'), actS:_cv('H1'), actP:_cv('H2') };
+          }
+        } catch(e){ console.warn('[EIGYO PRO] 直販サマリー読取失敗', e); }
+
         _impData = result;
         _impFileName = file.name || '';
 
@@ -10984,15 +10995,25 @@ function _doConfirmImport(addedMasters){
       var ot_p = _pn(r.other.p) / 1000;
       var totalS = sw_s + hw_s + cs_s + mt_s + ot_s;
       var totalP = sw_p + hw_p + cs_p + mt_p + ot_p;
-      D.branchActuals[detectedBranch].s[mi] = String(Math.round(totalS));
-      D.branchActuals[detectedBranch].p[mi] = String(Math.round(totalP));
-      // ⭐ baseline記録(②): インポートした「正値」を別途保存し、後でズレ検知/復元に使う
+      // ⭐ 実績は直販シートの確定セル(H1売上/H2粗利)を優先＝Excelと完全一致。無ければ明細合計にフォールバック。
+      var _actS = (r.official && r.official.actS != null) ? Math.round(r.official.actS/1000) : Math.round(totalS);
+      var _actP = (r.official && r.official.actP != null) ? Math.round(r.official.actP/1000) : Math.round(totalP);
+      D.branchActuals[detectedBranch].s[mi] = String(_actS);
+      D.branchActuals[detectedBranch].p[mi] = String(_actP);
+      // baseline記録(②): ズレ検知/復元の正値
       if (!D.branchActualsBaseline) D.branchActualsBaseline = {};
       if (!D.branchActualsBaseline[detectedBranch]) D.branchActualsBaseline[detectedBranch] = {s:Array(12).fill(''),p:Array(12).fill(''),ts:Array(12).fill(0)};
-      D.branchActualsBaseline[detectedBranch].s[mi] = String(Math.round(totalS));
-      D.branchActualsBaseline[detectedBranch].p[mi] = String(Math.round(totalP));
-      if (D.branchActualsBaseline[detectedBranch].ts) D.branchActualsBaseline[detectedBranch].ts[mi] = (typeof _auditUser==='function' ? 1 : 1);
-      log.push(detectedBranch + '実績合計: ' + Math.round(totalS) + '千 (粗利' + Math.round(totalP) + '千)');
+      D.branchActualsBaseline[detectedBranch].s[mi] = String(_actS);
+      D.branchActualsBaseline[detectedBranch].p[mi] = String(_actP);
+      if (D.branchActualsBaseline[detectedBranch].ts) D.branchActualsBaseline[detectedBranch].ts[mi] = 1;
+      // ⭐ 予算もExcel(直販 D1売上/D2粗利)から取込＝手入力廃止・予算ズレの恒久対策
+      if (r.official && (r.official.budS != null || r.official.budP != null)) {
+        if (!D.branchBudgets) D.branchBudgets = {};
+        if (!D.branchBudgets[detectedBranch]) D.branchBudgets[detectedBranch] = {s:Array(12).fill(''),p:Array(12).fill('')};
+        if (r.official.budS != null) D.branchBudgets[detectedBranch].s[mi] = String(Math.round(r.official.budS/1000));
+        if (r.official.budP != null) D.branchBudgets[detectedBranch].p[mi] = String(Math.round(r.official.budP/1000));
+      }
+      log.push(detectedBranch + '実績(直販H1/H2): 売上' + _actS + '千 / 粗利' + _actP + '千' + ((r.official&&r.official.budS!=null)?('　予算: 売上'+Math.round(r.official.budS/1000)+'千/粗利'+Math.round(r.official.budP/1000)+'千'):'') );
       // ★ 再発防止: カテゴリ別内訳を log に追加して可視化
       var bdLines = [];
       bdLines.push('  ├ ソフト: ' + Math.round(sw_s) + '千');
