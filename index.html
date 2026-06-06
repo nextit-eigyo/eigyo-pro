@@ -73,9 +73,17 @@ table td,table th{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"
 .htab.active,.htab.on{color:#fff;background:linear-gradient(135deg,var(--acc),#4a6a8c);font-weight:700;box-shadow:0 3px 10px rgba(90,123,158,.28)}
 .nb{font-size:12px;font-weight:700;background:var(--red);color:#fff;padding:1px 5px;border-radius:10px}
 #hdr-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
+/* 右側ヘッダーの並び順: 年度 → ログイン者 → 同期 → 自動保存+最終更新 → データ管理 → 設定 */
+#hdr-r > #fy-sel{order:1}
+#hdr-r > #user-badge{order:2}
+#hdr-r > #sync-wrap{order:3}
+#hdr-r > #save-bdg{order:4}
+#hdr-r > #last-upd{order:5}
+#hdr-r > #data-mgmt-wrap{order:6}
+#hdr-r > #tab-setup-hdr-btn{order:7}
 #sync-wrap{
   display:flex;align-items:center;gap:6px;
-  border:1px solid var(--bd);border-radius:20px;
+  border:1px solid var(--bds);border-radius:9px;
   padding:5px 12px;cursor:pointer;transition:all .15s;
   background:none;font-size:13px;color:var(--tx3);white-space:nowrap;
 }
@@ -84,16 +92,16 @@ table td,table th{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"
 .sdot.ok{background:var(--grn)}.sdot.err{background:var(--red)}.sdot.spin{animation:spin-dot .8s infinite}
 @keyframes spin-dot{0%,100%{background:var(--acc);transform:scale(1)}50%{background:var(--acc2);transform:scale(1.5)}}
 #fy-sel{
-  background:var(--s3);border:1px solid var(--bd);color:var(--tx2);
-  font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;
+  background:var(--s3);border:1px solid var(--bds);color:var(--tx2);
+  font-size:12px;padding:5px 10px;border-radius:9px;cursor:pointer;
   outline:none;transition:border-color .15s;
 }
 #fy-sel:focus{border-color:var(--acc)}
 
 /* Data menu */
 .data-btn{
-  background:var(--s3);border:1px solid var(--bd);color:var(--tx2);
-  font-size:12px;padding:5px 12px;border-radius:8px;cursor:pointer;
+  background:var(--s3);border:1px solid var(--bds);color:var(--tx2);
+  font-size:12px;padding:5px 12px;border-radius:9px;cursor:pointer;
   font-weight:600;transition:all .15s;white-space:nowrap;
 }
 .data-btn:hover{border-color:var(--acc);color:var(--acc)}
@@ -2259,7 +2267,7 @@ body.has-sidepanel #home-deal-mode {
   <div id="hdr-r">
     <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
     <div id="last-upd" title="最終更新（このデータを最後に保存した担当者と時刻）" style="font-size:11px;color:var(--tx3);white-space:nowrap;line-height:1.15"></div>
-    <div style="position:relative">
+    <div id="data-mgmt-wrap" style="position:relative">
       <button class="data-btn" onclick="toggleDataMenu()">💾 データ管理 ▾</button>
       <div id="data-menu" style="display:none">
         <!-- 日常使用 (営業担当者を含む全員) -->
@@ -3920,7 +3928,7 @@ function showUserBadge(user) {
   if (existing) existing.remove();
   const badge = document.createElement('div');
   badge.id = 'user-badge';
-  badge.style.cssText = 'display:flex;align-items:center;gap:7px;background:var(--s3);border:1px solid var(--bd);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:11px;color:var(--tx2);transition:all .15s;white-space:nowrap';
+  badge.style.cssText = 'display:flex;align-items:center;gap:7px;background:var(--s3);border:1px solid var(--bds);border-radius:9px;padding:5px 12px;cursor:pointer;font-size:11px;color:var(--tx2);transition:all .15s;white-space:nowrap';
   badge.onmouseover = () => badge.style.borderColor = 'var(--acc)';
   badge.onmouseout  = () => badge.style.borderColor = '';
   if (user) {
