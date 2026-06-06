@@ -1275,6 +1275,27 @@ body.has-sidepanel #home-deal-mode {
 .dg-row.deal-row.band-g { box-shadow:inset 4px 0 0 var(--grn); }
 .dg-row.deal-row.band-d { box-shadow:inset 4px 0 0 var(--amb); }
 .dg-row.deal-row.band-o { box-shadow:inset 4px 0 0 var(--bd); }
+/* === 案件グリッドタイル表示(タイル化) — 同じ情報を縦並びのカードに === */
+.deal-tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:13px; align-items:start; padding:4px 0; }
+.deal-tile{
+  display:flex; flex-direction:column; gap:9px;
+  background:#fff; border:1px solid var(--bds); border-left:4px solid var(--bd);
+  border-radius:13px; padding:13px 15px; cursor:pointer; font-size:13px;
+  box-shadow:0 3px 12px rgba(90,75,55,.06); transition:box-shadow .15s, transform .08s;
+}
+.deal-tile:hover{ box-shadow:0 7px 20px rgba(90,75,55,.13); transform:translateY(-1px); }
+.deal-tile.band-s{ border-left-color:var(--acc); }
+.deal-tile.band-d{ border-left-color:var(--amb); }
+.deal-tile.band-g{ border-left-color:var(--grn); }
+.deal-tile.band-o{ border-left-color:var(--bd); }
+.deal-tile.won{ background:linear-gradient(135deg,#f6f8f0,#fff); }
+.deal-tile.lost{ opacity:.55; }
+.deal-tile.selected-sp{ border-color:var(--acc); box-shadow:0 0 0 2px rgba(90,123,158,.3); }
+.deal-tile > div{ width:100%; }
+/* 内部セル: タイル用に左寄せ＋薄い区切り */
+.deal-tile .dt-amount-cell{ text-align:left; }
+.deal-tile .dt-amount-cell .row1{ justify-content:flex-start; }
+.deal-tile .dt-progress-cell{ border-top:1px solid #f3edE0; padding-top:9px; }
 .dg-row.deal-row > div { padding:7px 10px; vertical-align:middle; }
 .dg-row.deal-row > div:last-child { text-align:right; }
 .dg-row.deal-row.selected-sp {
@@ -11553,7 +11574,7 @@ function _openSidepanel(dealId) {
   document.body.classList.add('has-sidepanel');
 
   // 選択中の行をハイライト (Grid版)
-  document.querySelectorAll('.dg-row.deal-row').forEach(function(row) {
+  document.querySelectorAll('.deal-tile').forEach(function(row) {
     if (row.dataset.dealId === dealId) row.classList.add('selected-sp');
     else row.classList.remove('selected-sp');
   });
@@ -11567,7 +11588,7 @@ function _closeSidepanel() {
     panel.setAttribute('aria-hidden', 'true');
   }
   document.body.classList.remove('has-sidepanel');
-  document.querySelectorAll('.dg-row.deal-row').forEach(function(row) {
+  document.querySelectorAll('.deal-tile').forEach(function(row) {
     row.classList.remove('selected-sp');
   });
 }
@@ -11631,14 +11652,7 @@ function renderDealsTableView(deals) {
   var wrap = document.createElement('div');
   wrap.id = 'deal-table-wrap';
 
-  var html = '<div class="deal-grid">';
-  // ヘッダー行
-  html += '<div class="dg-row dg-header">';
-  html += '<div>案件 / 担当・商品</div>';
-  html += '<div>進捗 / 最終活動</div>';
-  html += '<div>次の動き</div>';
-  html += '<div>金額・計上月</div>';
-  html += '</div>';
+  var html = '<div class="deal-tiles">';
 
   var people = ap();
   sorted.forEach(function(d) {
@@ -11652,7 +11666,7 @@ function renderDealsTableView(deals) {
 
   // サイドパネルが開いていれば、選択中の行を再ハイライト
   if (window._sidepanelDealId) {
-    var sel = el.querySelector('.dg-row.deal-row[data-deal-id="'+window._sidepanelDealId+'"]');
+    var sel = el.querySelector('.deal-tile[data-deal-id="'+window._sidepanelDealId+'"]');
     if (sel) sel.classList.add('selected-sp');
   }
 }
@@ -11810,7 +11824,7 @@ function _dtBuildRow(d, people) {
       + '</div>'
     : '<div class="dt-amount-cell" style="color:var(--tx3);font-size:11px">金額未設定</div>';
 
-  var rowCls = 'dg-row deal-row ' + _dealBandCls(d);
+  var rowCls = 'deal-tile ' + _dealBandCls(d);
   if (isWon) rowCls += ' won';
   if (isLost) rowCls += ' lost';
   if (window._sidepanelDealId === d.id) rowCls += ' selected-sp';
