@@ -7406,9 +7406,14 @@ function _isImportSourcedDeal(d){
 // ⭐ インポート済み月の拠点に、Excelに無い「手動登録の受注」だけを上乗せする額(リアルタイム反映の核)。
 //   Excel由来案件は除外＝二重計上なし。再インポートしても直接案件を数えるので累積しない。
 function _manualExtraForBranch(bn, field, mi){
+  // ⭐時刻方式: その月のインポート基準時刻(実時刻)より「後に受注になった案件」だけ上乗せ。
+  //   基準時刻が実時刻で記録されていない月(旧データ ts=1 等)は上乗せ0＝branchActuals直接(Excel一致・安全)。
+  var importTs = 0;
+  try { var _b = D.branchActualsBaseline && D.branchActualsBaseline[bn]; if (_b && _b.ts) importTs = parseFloat(_b.ts[mi]) || 0; } catch(e){}
+  if (importTs < 1e12) return 0;   // 実時刻(ミリ秒)でなければ上乗せしない
   var sum = 0;
   (D.deals || []).forEach(function(d){
-    if (!d || _isImportSourcedDeal(d)) return;                 // Excel由来は除外
+    if (!d || !d._wonAt || (parseFloat(d._wonAt)||0) <= importTs) return;       // インポート後に受注になった案件のみ
     if (typeof _countsAsWon === 'function') { if (!_countsAsWon(d)) return; }  // 受注(確度5)のみ
     else { if ((typeof getProb === 'function' ? getProb(d) : 0) < 5) return; }
     var dmi = (typeof implToFyIdx === 'function') ? implToFyIdx(d.deliveryMonth) : -1;
@@ -7465,10 +7470,9 @@ function getActualValue(target, field, mi) {
     //   ※当月など未インポートの月は branchActuals が空→下記②以降で受注からリアルタイム集計される。
     var brVal = (D.branchActuals && D.branchActuals[bn]) ? safeGetArr(D.branchActuals[bn], field, mi) : 0;
     if (brVal > 0) {
-      // インポート済み月は branchActuals(Excel確定値)をそのまま使う＝Excelと完全一致・二重計上なし。
-      //   ※手動受注のリアルタイム上乗せは、既存案件のマーカー欠落/重複で二重計上が起きたため一旦無効化。
-      //     (再有効化するには案件データの_imp整備が前提。_manualExtraForBranchは保持)
-      total += brVal;
+      // Excel確定値 ＋「インポート後に受注になった案件(時刻方式)」だけ上乗せ＝リアルタイム反映・二重計上なし。
+      //   基準時刻が実時刻で記録された月のみ上乗せ。未記録の月は brVal のみ(Excel完全一致)。
+      total += brVal + _manualExtraForBranch(bn, field, mi);
       return;
     }
 
@@ -9303,6 +9307,9 @@ function addVisit(dealId){
     statusChanged = true;
   }
 
+  // ⭐ 受注になった時刻を記録(時刻方式のリアルタイム上乗せ判定用)。手動の受注記録のみ刻む(インポートは別経路で刻まない)。
+  if (status === '受注') d._wonAt = Date.now();
+
   // ── 実績即時反映 ──
   // 計上対象は確度5(受注=書面)のみ。口頭受注は見込みのため計上しない。
   if (status === '受注' && _countsAsWon(d) && !d.actualsReflected) {
@@ -11025,7 +11032,7 @@ function _doConfirmImport(addedMasters){
       if (!D.branchActualsBaseline[detectedBranch]) D.branchActualsBaseline[detectedBranch] = {s:Array(12).fill(''),p:Array(12).fill(''),ts:Array(12).fill(0)};
       D.branchActualsBaseline[detectedBranch].s[mi] = String(_actS);
       D.branchActualsBaseline[detectedBranch].p[mi] = String(_actP);
-      if (D.branchActualsBaseline[detectedBranch].ts) D.branchActualsBaseline[detectedBranch].ts[mi] = 1;
+      if (D.branchActualsBaseline[detectedBranch].ts) D.branchActualsBaseline[detectedBranch].ts[mi] = Date.now(); // インポート時刻(実時刻)=時刻方式の基準
       // ⭐ 予算もExcel(直販 D1売上/D2粗利)から取込＝手入力廃止・予算ズレの恒久対策
       if (r.official && (r.official.budS != null || r.official.budP != null)) {
         if (!D.branchBudgets) D.branchBudgets = {};
