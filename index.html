@@ -7441,8 +7441,7 @@ function getActualValue(target, field, mi) {
       var _softCell = (D.branchSoftActuals && D.branchSoftActuals[bn] && D.branchSoftActuals[bn][_fkey]) ? D.branchSoftActuals[bn][_fkey][mi] : '';
       if (_softCell !== '' && _softCell != null) {
         var _brSoft = safeGetArr(D.branchSoftActuals[bn], field, mi);
-        var _nonSoft = Math.max(0, brVal - _brSoft);  // Excelの案件以外(保守/HW/消耗品/その他)=固定
-        var _liveSoft = 0;                              // 現在のソフト(リアルタイム)
+        var _liveSoft = 0;                              // 現在のソフト(担当者actuals＋group＋office案件・リアルタイム)
         if (D.people) {
           D.people.filter(function(p){ return p.branch === bn; }).forEach(function(p){
             _liveSoft += (D.actuals && D.actuals[p.id]) ? safeGetArr(D.actuals[p.id], field, mi) : 0;
@@ -7450,7 +7449,9 @@ function getActualValue(target, field, mi) {
         }
         if (typeof getGroupActualsVal === 'function') _liveSoft += getGroupActualsVal(bn, field, mi);
         if (typeof _getOfficeDealsTotalForBranch === 'function') _liveSoft += _getOfficeDealsTotalForBranch(bn, field, mi);
-        total += _nonSoft + _liveSoft;
+        // ⭐ 加算のみ(2026-06修正): Excel確定値(全部入り)に、Excelソフトを超えた受注ぶんだけ上乗せ。
+        //   引き算しない=受注をアプリ未入力の拠点(Excel主体)はExcel値のまま下がらない。福岡等で新規受注した分だけ即増える。
+        total += brVal + Math.max(0, _liveSoft - _brSoft);
       } else {
         total += brVal; // ソフト基準値が無い古い月は従来通り(全部入り)
       }
