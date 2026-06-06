@@ -8721,7 +8721,7 @@ function renderPipeline(deals) {
   function buildCard(d) {
     const ls = lstat(d);
     const pp = people.find(p => p.id === d.spId);
-    const profit = d.sales !== '' && d.cost !== '' ? parseFloat(d.sales) - parseFloat(d.cost) : null;
+    const profit = d.sales !== '' ? (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0) : null;
     const lv = d.visits && d.visits.length ? d.visits[d.visits.length-1] : null;
     const days = lv ? daysSince(lv.date) : null;
     const isStale = days !== null && days >= 30;
@@ -14398,7 +14398,7 @@ function buildDI(d) {
   const people = ap();
   const ls = lstat(d);
   const pp = people.find(p => p.id === d.spId);
-  const profit = d.sales !== '' && d.cost !== '' ? parseFloat(d.sales) - parseFloat(d.cost) : null;
+  const profit = d.sales !== '' ? (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0) : null;
   const isLost = ls === '失注';
   const isWon  = ls === '受注' || ls === '口頭受注';
   const dm_d   = d.deliveryMonth || d.implMonth || '';
@@ -14488,7 +14488,7 @@ function buildDealBody(d) {
   const people = ap();
   const ls = lstat(d);
   const pp = people.find(p => p.id === d.spId);
-  const profit = d.sales !== '' && d.cost !== '' ? parseFloat(d.sales) - parseFloat(d.cost) : null;
+  const profit = d.sales !== '' ? (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0) : null;
   const dm_d = d.deliveryMonth || d.implMonth || '';
   const dm_a = d.activationMonth || '';
   const prefOpts = PREFS.map(p => `<option${p===d.pref?' selected':''}>${p}</option>`).join('');
@@ -14880,7 +14880,7 @@ function buildDealBody_LEGACY(d) {
   // 旧実装(リファレンスとして残置・呼び出されない)
   const people = ap();
   const ls = lstat(d);
-  const profit = d.sales !== '' && d.cost !== '' ? parseFloat(d.sales) - parseFloat(d.cost) : null;
+  const profit = d.sales !== '' ? (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0) : null;
   const dm_d = d.deliveryMonth || d.implMonth || '';
   const dm_a = d.activationMonth || '';
   const prefOpts = PREFS.map(p => `<option${p===d.pref?' selected':''}>${p}</option>`).join('');
