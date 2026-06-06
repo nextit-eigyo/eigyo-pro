@@ -7430,6 +7430,21 @@ function _manualExtraForBranch(bn, field, mi){
   });
   return sum;
 }
+// ⭐ 指定の月インデックス(mi)が「未来月(今日より後)」かを判定。
+//   予実管理の実績で、未来月は Excel取込で埋まる繰越系コンポーネント
+//   (保守料・消耗品・HW・その他)を計上しない＝「確定受注だけ未来月にも出す」運用のため。
+//   ※過去年度(fy<今年度)は全て過去扱い／未来年度(fy>今年度)は全て未来扱い。
+function _isFutureMi(mi) {
+  try {
+    var now = new Date();
+    var ny = now.getFullYear(), nm = now.getMonth() + 1;
+    var todayFy = (nm >= 4) ? ny : ny - 1;
+    if (fy < todayFy) return false;
+    if (fy > todayFy) return true;
+    var curMi = (nm >= 4) ? nm - 4 : nm + 8;
+    return mi > curMi;
+  } catch (e) { return false; }
+}
 function getActualValue(target, field, mi) {
   // ── 入力検証 ──
   if (field !== 's' && field !== 'p') return 0;
@@ -7490,27 +7505,32 @@ function getActualValue(target, field, mi) {
     if (typeof _getOfficeDealsTotalForBranch === 'function') {
       total += _getOfficeDealsTotalForBranch(bn, field, mi);
     }
-    // ⑤ 保守料
-    if (typeof getMaintVal === 'function') {
-      total += getMaintVal(bn, field, mi);
-    }
-    // ⑥ HW
-    if (D.hardware && D.hardware[bn]) {
-      total += safeGetArr(D.hardware[bn], field, mi);
-    }
-    // ⑦ その他
-    if (D.other && D.other[bn]) {
-      total += safeGetArr(D.other[bn], field, mi);
-    }
-    // ⑧ 消耗品
-    var fm = mi + 4;
-    var yr = fm <= 12 ? fy : fy + 1;
-    var mo = fm <= 12 ? fm : fm - 12;
-    var ym = yr + '-' + String(mo).padStart(2, '0');
-    var nm = bn.replace(/本社|営業所|事業所|支店/g, '');
-    if (D.consumables && D.consumables[ym] && D.consumables[ym][nm]) {
-      var c = D.consumables[ym][nm];
-      total += field === 's' ? (c.sales || 0) : (c.profit || 0);
+    // ⑤〜⑧ Excel取込で埋まる繰越系(保守料/HW/その他/消耗品)。
+    //   ⭐未来月(今日より後)は「保守料の前倒し仮入力」等で実績が膨らむため計上しない。
+    //   ＝『確定受注だけ未来月にも出す』運用。過去・当月の未取込月は従来どおり全て計上。
+    if (!_isFutureMi(mi)) {
+      // ⑤ 保守料
+      if (typeof getMaintVal === 'function') {
+        total += getMaintVal(bn, field, mi);
+      }
+      // ⑥ HW
+      if (D.hardware && D.hardware[bn]) {
+        total += safeGetArr(D.hardware[bn], field, mi);
+      }
+      // ⑦ その他
+      if (D.other && D.other[bn]) {
+        total += safeGetArr(D.other[bn], field, mi);
+      }
+      // ⑧ 消耗品
+      var fm = mi + 4;
+      var yr = fm <= 12 ? fy : fy + 1;
+      var mo = fm <= 12 ? fm : fm - 12;
+      var ym = yr + '-' + String(mo).padStart(2, '0');
+      var nm = bn.replace(/本社|営業所|事業所|支店/g, '');
+      if (D.consumables && D.consumables[ym] && D.consumables[ym][nm]) {
+        var c = D.consumables[ym][nm];
+        total += field === 's' ? (c.sales || 0) : (c.profit || 0);
+      }
     }
   });
 
