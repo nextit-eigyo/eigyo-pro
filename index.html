@@ -12022,19 +12022,26 @@ function renderStoryPanel() {
     if (ach >= 80)  return '<span class="hl-a">' + ach.toFixed(0) + '%</span>';
     return '<span class="hl-r">' + ach.toFixed(0) + '%</span>';
   }
-  // セクション1: 今月の達成率
+  // セクション1: 今月の達成率（ミニ進捗ゲージ・売上/粗利）
+  var _achColor = function(a){ return a >= 100 ? '#7a8e5a' : (a >= 80 ? '#c89856' : '#a85a4a'); };
+  var _achRow = function(lbl, ach, has){
+    if (!has) return '';
+    var c = _achColor(ach), w = Math.max(3, Math.min(ach, 100));
+    return '<div style="margin:9px 0">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
+      +   '<span style="color:var(--tx2);font-weight:700;font-size:13px">' + lbl + '</span>'
+      +   '<span style="color:' + c + ';font-weight:900;font-size:17px">' + ach.toFixed(0) + '%' + (ach >= 100 ? ' 🎉' : '') + '</span>'
+      + '</div>'
+      + '<div style="height:9px;background:var(--s3);border-radius:99px;overflow:hidden"><div style="width:' + w + '%;height:100%;background:' + c + ';border-radius:99px;transition:width .4s"></div></div>'
+      + '</div>';
+  };
   html += '<div class="st-sec">';
   html += '<div class="st-label">📅 ' + moLabels[thisMi] + 'の達成率</div>';
   if (thisM_budS === 0 && thisM_budP === 0) {
     html += '<div class="st-line"><span class="dim">予算未設定</span></div>';
   } else {
-    html += '<div class="st-line">';
-    var _ps = [];
-    if (thisM_budS > 0) _ps.push('<span class="lbl">売上</span>' + _achTag(thisM_achS));
-    if (thisM_budP > 0) _ps.push('<span class="lbl">粗利</span>' + _achTag(thisM_achP));
-    html += _ps.join('<span class="sep">/</span>');
-    if (Math.max(thisM_achS, thisM_achP) >= 100) html += ' 🎉';
-    html += '</div>';
+    html += _achRow('売上', thisM_achS, thisM_budS > 0);
+    html += _achRow('粗利', thisM_achP, thisM_budP > 0);
   }
   html += '</div>';
 
@@ -12172,10 +12179,6 @@ function renderStoryPanel() {
     html += '<div class="sa-goalmark" style="left:' + _goalPct + '%"></div>';
     html += '</div>';
     html += '<div class="sa-leg"><span><i class="f"></i>確定</span><span><i class="p"></i>進行中(全部受注)</span>' + (!simAchievable ? '<span><i class="x"></i>不足</span>' : '') + '<span>┃ゴール</span></div>';
-    html += '<div class="sa-rows">';
-    html += '<div class="sa-r"><span>✅ 確定(受注済)</span><span class="v">' + Math.round(simFixedP).toLocaleString() + '千</span></div>';
-    html += '<div class="sa-r"><span>🔵 進行中を全部受注すると</span><span class="v">+' + Math.round(simPipeP).toLocaleString() + '千 → 計 ' + Math.round(simProjP).toLocaleString() + '千</span></div>';
-    html += '</div>';
     if (simAchievable) {
       html += '<div class="sa-verdict ok">🎉 <b>動いている案件を全部受注すれば' + halfLbl + '達成！</b><br>ゴール超過の余裕は <b class="big">+' + Math.round(simSurplus).toLocaleString() + '千</b>。取りこぼさず確実に受注を。</div>';
     } else {
@@ -12186,51 +12189,8 @@ function renderStoryPanel() {
     }
   }
   html += '</div>'; // close .sa-sim
-  // 翌月パイプライン(確度順)
-  html += '<div class="sa-pipe">';
-  html += '<div class="sa-pipe-ttl">' + nextMoLabelStr + 'の仕込み（確度順）</div>';
-  if (nextDeals.length === 0) {
-    html += '<div class="sa-empty">仕込み案件がまだありません。<br>翌月の種をまきましょう 🌱</div>';
-  } else {
-    var _sorted = nextDeals.slice().sort(function(a, b) {
-      var pa = getProb(a), pb = getProb(b);
-      if (pb !== pa) return pb - pa;
-      return (parseFloat(b.sales) || 0) - (parseFloat(a.sales) || 0);
-    });
-    _sorted.slice(0, 3).forEach(function(d) {
-      var _def = getProbDef(getProb(d));
-      html += '<div class="sa-pill">';
-      html += '<span class="sa-stars" style="color:' + _def.color + '">' + _def.stars + '</span>';
-      html += '<span class="sa-nm">' + _esc(d.name || '(無名)') + '</span>';
-      html += '<span class="sa-ph" style="background:' + _def.color + '22;color:' + _def.color + '">' + _def.label + ' ' + _def.pct + '%</span>';
-      html += '<span class="sa-amt">' + Math.round(parseFloat(d.sales) || 0).toLocaleString() + '千</span>';
-      html += '</div>';
-    });
-    if (_sorted.length > 3) html += '<div class="sa-more">他 ' + (_sorted.length - 3) + '件</div>';
-    html += '<div class="sa-sum">想定粗利 <b>' + Math.round(nextTotalP).toLocaleString() + '千</b>';
-    if (nextHighProb >= 1) html += ' / 確度A以上 <b>' + nextHighProb + '件</b>';
-    else html += ' / <span style="color:#a85a4a;font-weight:700">確度A以上なし</span>';
-    html += '</div>';
-  }
-  html += '</div>'; // close .sa-pipe
-
-  // ── 🚦 ひとこと信号 — 上期ゴールの状況を「色＋一言」で瞬時に判断 ──
-  // ゴール系の数字を増やさず、シミュレーションの結論だけを信号で提示する。
-  var sigCls, sigLabel, sigSub;
-  if (simGoalP <= 0) {
-    sigCls = 'n'; sigLabel = '⚪ 予算未設定';
-    sigSub = '設定→予算 で' + halfLbl + '目標を入力してください';
-  } else if (simFixedP >= simGoalP) {
-    sigCls = 'g'; sigLabel = '🟢 順調';
-    sigSub = '確定だけで' + halfLbl + 'ゴール達成 🎉 さらに上積みを';
-  } else if (simShort > 0) {
-    sigCls = 'r'; sigLabel = '🔴 危険';
-    sigSub = '今の案件を全部受注しても不足。新規の仕込みを急いで' + (simNeed ? '（あと' + simNeed + '件で到達）' : '');
-  } else {
-    sigCls = 'a'; sigLabel = '🟡 要加速';
-    sigSub = '今ある案件を確実に受注すれば届く。確度を上げて詰めを';
-  }
-  html += '<div class="sa-signal ' + sigCls + '"><div class="sig-head">' + sigLabel + '</div><div class="sig-sub">' + sigSub + '</div></div>';
+  // 🔧 リニューアル: 翌月の仕込みリスト/別枠の信号は削除しコンパクト化。
+  //   危険/達成のひとことは上の sa-verdict に集約済み。詳細は「案件一覧」「営業会議」へ誘導。
 
   html += '</div>'; // close .story-aside
   html += '</div>'; // close .story-main
