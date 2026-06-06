@@ -15379,6 +15379,11 @@ function updDeal(id, field, val) {
   // 操作ログ(編集): 変更前の値を記録(同一項目の連続入力は内部でまとめる)
   if (typeof _auditDealEdit === 'function') _auditDealEdit(d, field, d[field], val);
 
+  // ⭐ 受注(確度5/phase受注)に変更した瞬間の時刻を記録(時刻方式のリアルタイム上乗せ用)。
+  if ((field === 'probability' && (val === 5 || val === '5')) || (field === 'phase' && val === '受注')) {
+    d._wonAt = Date.now();
+  }
+
   if (field === 'spId') {
     const people = ap();
     const oldSpId = d.spId;
