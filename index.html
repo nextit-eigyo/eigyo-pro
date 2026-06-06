@@ -3137,6 +3137,11 @@ body.has-sidepanel #home-deal-mode {
           💾 バックアップ保存(JSON ファイル)
           <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">現在のデータを JSON でダウンロード</span>
         </button>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--tx2);padding:9px 12px;cursor:pointer;background:var(--s2);border:1px solid var(--bds);border-radius:8px">
+          <input type="checkbox" id="cfg-autobackup-daily" style="margin-top:2px" onchange="localStorage.setItem('eigyo_autobackup_daily', this.checked?'on':'off'); if(typeof _showToast==='function')_showToast(this.checked?'📅 毎日自動バックアップ ON':'毎日自動バックアップ OFF','ok',3000);">
+          <span>📅 <b>毎日自動でバックアップをダウンロード</b>（その日の初回起動時に1回だけ）<br><span style="color:var(--tx3);font-size:11px">Chromeの保存先を Google Drive 同期フォルダにすると、毎日自動でオフサイトに残ります</span></span>
+        </label>
+        <script>try{var _ab=document.getElementById('cfg-autobackup-daily'); if(_ab) _ab.checked=(localStorage.getItem('eigyo_autobackup_daily')!=='off');}catch(e){}</script>
         <button class="btn" onclick="triggerImportFile()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left">
           📂 JSON ファイルから復元
           <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">バックアップ JSON を選んで読込</span>
@@ -4007,6 +4012,8 @@ function checkAuthOnStart() {
               fbSetStatus('error', 'DB接続エラー: ' + e.message);
             }
           }
+          // 📅 毎日自動バックアップ: 同期が落ち着く頃(12秒後)に1日1回だけ実行
+          setTimeout(function(){ try { _autoDailyBackup(); } catch(e){} }, 12000);
         } else {
           // 未ログイン → ログイン画面を表示
           FB.mode = 'local';
@@ -4629,6 +4636,31 @@ function exportData(){
   // バックアップ日時を記録
   localStorage.setItem('eigyo_last_backup', Date.now().toString());
   _hideBackupBanner();
+}
+
+// ── 📅 毎日自動バックアップ（オフサイト保全の自動化） ──
+//   その日初めてアプリを開いた時に1回だけ、現在データをJSONで自動ダウンロードする。
+//   Chromeの保存先をGoogle Drive同期フォルダにしておけば、毎日自動でオフサイトに残る。
+//   設定→その他→データ管理 のチェックでON/OFF可。空データは保存しない(誤バックアップ防止)。
+function _autoDailyBackup(){
+  try {
+    if (localStorage.getItem('eigyo_autobackup_daily') === 'off') return;
+    var today = new Date().toISOString().slice(0,10);
+    if (localStorage.getItem('eigyo_autobackup_date') === today) return; // 本日分は取得済み
+    // データが実在する時だけ実行(空/初期化直後の誤バックアップ防止)
+    var nDeals  = (typeof D!=='undefined' && D && D.deals)  ? D.deals.length : 0;
+    var nPeople = (typeof D!=='undefined' && D && D.people) ? D.people.filter(function(p){ return p && p.name; }).length : 0;
+    if (nDeals === 0 && nPeople <= 3) return;
+    var b = new Blob([JSON.stringify(D, null, 2)], {type:'application/json'});
+    var u = URL.createObjectURL(b);
+    var a = document.createElement('a');
+    a.href = u; a.download = 'eigyo_autobackup_' + today + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
+    localStorage.setItem('eigyo_autobackup_date', today);
+    localStorage.setItem('eigyo_last_backup', Date.now().toString());
+    if (typeof _showToast === 'function') _showToast('📅 本日のバックアップを保存しました（ダウンロードフォルダ）', 'ok', 5000);
+    console.log('[EIGYO PRO] 毎日自動バックアップ実行', today, {nDeals, nPeople});
+  } catch(e) { console.warn('[EIGYO PRO] 毎日自動バックアップ失敗', e); }
 }
 function triggerImportFile(){document.getElementById('import-json-file').click();}
 function importFromFile(input){
