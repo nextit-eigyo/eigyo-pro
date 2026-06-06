@@ -1314,18 +1314,17 @@ body.has-sidepanel #home-deal-mode {
 }
 .dt-info .nm.lost { color:var(--tx3); text-decoration:line-through; }
 .dt-info .prob-badge {
-  display:inline-flex; align-items:center; gap:3px;
-  color:var(--tx2); font-size:11px; font-weight:800;
-  padding:2px 8px; border-radius:9px; white-space:nowrap;
-  border:1px solid transparent;
+  display:inline-flex; align-items:center; gap:4px;
+  background:transparent; border:none; color:var(--tx2);
+  font-size:11px; font-weight:700; padding:0 2px; white-space:nowrap;
 }
-.dt-info .prob-badge .stars { font-size:10px; letter-spacing:.5px; }
-/* 🎨 確度バッジは「濃いグラデ白文字」→「淡色ピル+濃い文字」に。色味は残しつつチカチカを抑える */
-.dt-info .prob-badge.p1 { background:#ece6d9; color:#6a5e4a; border-color:#ddd4c2; }
-.dt-info .prob-badge.p2 { background:#f4e6cb; color:#8a5a2e; border-color:#e8d3a8; }
-.dt-info .prob-badge.p3 { background:#e6eef6; color:#3a5b7e; border-color:#cfe0f0; }
-.dt-info .prob-badge.p4 { background:#eddcc8; color:#7a451a; border-color:#e0c8aa; }
-.dt-info .prob-badge.p5 { background:#e4edd5; color:#46682c; border-color:#d2e0bb; }
+/* 🎨 確度: 背景なし・星は小さく淡く(目が疲れない)・ラベル/%だけ淡い同系色で意味を残す */
+.dt-info .prob-badge .stars { font-size:9px; letter-spacing:0; color:#c4b793; }
+.dt-info .prob-badge.p1 { color:#8a7e6a; }
+.dt-info .prob-badge.p2 { color:#9a7032; }
+.dt-info .prob-badge.p3 { color:#4a6a8c; }
+.dt-info .prob-badge.p4 { color:#8a5a2e; }
+.dt-info .prob-badge.p5 { color:#5a7340; }
 .dt-info .row1 .pp-inline {
   font-size:12px; color:var(--tx3); margin-left:auto;
 }
