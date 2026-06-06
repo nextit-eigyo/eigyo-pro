@@ -33,7 +33,7 @@
   --r:8px;
   --rl:14px;
   --rxl:20px;
-  --nav:50px;
+  --nav:62px; /* ヘッダー高さ＆sticky基準。アイコンタイル型ナビ(案A)に合わせて拡張 */
   --sh:0 2px 16px rgba(90,75,55,.07);
   --shd:0 8px 32px rgba(90,75,55,.12);
 }
@@ -62,7 +62,7 @@ table td,table th{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"
 }
 #logo:hover{opacity:.65}
 #logo em{color:var(--acc);font-style:normal}
-.htabs{display:flex;gap:1px;flex:1;flex-wrap:wrap;min-width:0;padding:4px 0}
+.htabs{display:flex;gap:2px;flex:1;flex-wrap:wrap;min-width:0;padding:0;align-items:flex-end}
 .htabs::-webkit-scrollbar{display:none}
 .htab{
   background:none;border:none;color:var(--tx3);font-size:12px;font-weight:500;
@@ -944,19 +944,28 @@ tr:hover td{background:rgba(90,123,158,.02)}
   position:sticky;top:var(--nav);z-index:150;
   box-shadow:0 2px 6px rgba(58,90,126,.04);
 }
-/* タブ: アンダーライン型(案B) — シャープでモダンな印象 */
+/* タブ: アイコンタイル型(案A) — アイコン上・ラベル下、選択中は藍タイル＋下線 */
 .sub-tab{
-  background:transparent;border:none;border-bottom:2.5px solid transparent;
-  color:var(--tx2);font-family:inherit;font-size:14px;font-weight:700;
-  padding:13px 9px 10px;border-radius:0;cursor:pointer;
-  transition:color .12s,border-color .12s;display:inline-flex;align-items:center;gap:4px;
-  letter-spacing:0;white-space:nowrap;
+  background:transparent;border:none;border-bottom:3px solid transparent;
+  color:var(--tx2);font-family:inherit;font-size:11.5px;font-weight:700;
+  padding:4px 7px 3px;border-radius:0;cursor:pointer;
+  transition:color .12s,border-color .12s;
+  display:inline-flex;flex-direction:column;align-items:center;gap:4px;
+  letter-spacing:.01em;white-space:nowrap;position:relative;
 }
-.sub-tab:hover{ color:var(--tx); border-bottom-color:var(--bd); }
-.sub-tab.active{
-  color:var(--acc);font-weight:900;
-  border-bottom-color:var(--acc);background:transparent;
+.sub-tab .st-ic{
+  width:32px;height:32px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;
+  background:var(--s3);border:1px solid var(--bds);transition:all .13s;
 }
+.sub-tab:hover{ color:var(--tx); }
+.sub-tab:hover .st-ic{ background:var(--s4); }
+.sub-tab.active{ color:var(--acc);font-weight:900;border-bottom-color:var(--acc); }
+.sub-tab.active .st-ic{
+  background:linear-gradient(135deg,var(--acc),#46627f);
+  border-color:transparent;color:#fff;box-shadow:0 4px 11px rgba(90,123,158,.32);
+}
+.sub-tab .nb{ position:absolute;top:0;right:4px; }
 .sub-tab.active .nb{background:var(--red);color:#fff}
 
 /* === 🛠 薬局構成図 (PharmacyConfig) === */
@@ -2237,15 +2246,15 @@ body.has-sidepanel #home-deal-mode {
     <button class="htab" id="tab-kpt-btn"     onclick="showTab('kpt',this);renderKPT()" style="display:none">📝 KPT</button>
     <button class="htab" id="tab-tasks-btn" onclick="showTab('tasks',this)" style="display:none">✅ タスク <span class="nb" id="task-badge" style="display:none">!</span></button>
     <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
-    <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')">📊 ダッシュボード</button>
-    <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()">🎯 案件</button>
-    <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)">📅 予実管理</button>
-    <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)">📊 前年比較</button>
-    <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')">📞 営業活動量</button>
-    <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)">✅ タスク <span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
-    <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)">🤝 紹介拠点</button>
-    <button id="tab-reportmenu-btn" class="sub-tab" onclick="toggleReportMenu(this)" style="gap:6px">📊 レポート <span style="font-size:11px;opacity:.6">▼</span></button>
-    <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()">📝 KPT(振り返り)</button>
+    <button id="subtab-num"  class="sub-tab active" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')"><span class="st-ic">📊</span><span class="st-lab">ダッシュボード</span></button>
+    <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()"><span class="st-ic">🎯</span><span class="st-lab">案件</span></button>
+    <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)"><span class="st-ic">📈</span><span class="st-lab">予実管理</span></button>
+    <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)"><span class="st-ic">🔄</span><span class="st-lab">前年比較</span></button>
+    <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')"><span class="st-ic">📞</span><span class="st-lab">営業活動量</span></button>
+    <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)"><span class="st-ic">✅</span><span class="st-lab">タスク</span><span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
+    <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)"><span class="st-ic">🤝</span><span class="st-lab">紹介拠点</span></button>
+    <button id="tab-reportmenu-btn" class="sub-tab" onclick="toggleReportMenu(this)"><span class="st-ic">📄</span><span class="st-lab">レポート ▾</span></button>
+    <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()"><span class="st-ic">💭</span><span class="st-lab">KPT</span></button>
   </div>
   <div id="hdr-r">
     <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
