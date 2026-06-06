@@ -11712,7 +11712,6 @@ function _dtBuildRow(d, people) {
 
   // 確度バッジ(タグ行に固定配置・薬局名の隣だと目移りするため)
   var probBadgeHtml = '<span class="prob-badge p'+probKey+'">'
-    +   '<span class="stars">'+_esc(probDefRow.stars||'☆☆☆☆☆')+'</span>'
     +   '<span>'+_esc(probDefRow.label||ls||'未設定')+'</span>'
     +   '<span>'+(probDefRow.weight||0)+'%</span>'
     + '</span>';
