@@ -13822,6 +13822,30 @@ function _doFbWrite() {
       return;
     }
 
+    // ── ⭐ 担当者ログイン情報の消失ガード(多PC上書き対策) ──
+    //   案件件数ガードでは守れない「担当者マスタのフィールド消失」を検知。
+    //   別PC(リモート/最新)が持つ「ログイン用メール」を、古い可能性のあるローカルが
+    //   空のまま踏み潰す書込みを中止する(2名以上が空になる=明らかに古い端末)。
+    if (!_ownEcho && remote && Array.isArray(remote.people) && Array.isArray(D.people)) {
+      try {
+        var _localPById = {};
+        D.people.forEach(function(p){ if (p && p.id) _localPById[p.id] = p; });
+        var _wouldLose = [];
+        remote.people.forEach(function(rp){
+          if (rp && rp.id && rp.email && String(rp.email).trim()) {
+            var lp = _localPById[rp.id];
+            if (lp && (!lp.email || !String(lp.email).trim())) _wouldLose.push(rp.name || rp.id);
+          }
+        });
+        if (_wouldLose.length >= 2) {
+          fbSetStatus('warn', '⚠️ 安全停止: 別PCの担当者ログイン情報(' + _wouldLose.length + '名)を消す恐れ。🔥強制再受信してください');
+          console.warn('[EIGYO PRO] 書込み中止: 担当者メール消失ガード', _wouldLose);
+          if (typeof _showToast === 'function') _showToast('⚠️ 別PCで設定した担当者のログイン情報(' + _wouldLose.length + '名分)を消してしまう恐れがあるため保存を中止しました。🔥Firebaseから強制再受信してください', 'warn', 8000);
+          return;
+        }
+      } catch(e){}
+    }
+
     // 安全確認OK → 書き込み実行
     // _localSave()でD._tsを更新してからFirebaseに書き込む
     // save()を呼ぶとfbWriteが再度呼ばれ無限ループになるため_localSave()を使用
