@@ -6710,8 +6710,12 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof setHomeMode === 'function') {
       try { setHomeMode('num'); } catch(e) { console.error('初期モード設定エラー:', e); }
     }
-    // 案件ビューモードは 'table' 固定(カードビュー削除済)→ 初期化呼び出し不要
-  }, 100);
+    // ⭐ ホームは「予実管理」(役割別スコープ_mtDefaultScopeで自動表示)。ダッシュボードはナビから随時。
+    try {
+      var _mt = document.getElementById('subtab-meeting');
+      if (typeof showTab === 'function' && _mt) showTab('meeting', _mt);
+    } catch(e) { console.error('初期タブ(予実管理)設定エラー:', e); }
+  }, 120);
 });
 
 
