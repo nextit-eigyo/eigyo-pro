@@ -77,10 +77,22 @@ table td,table th{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"
 #hdr-r > #fy-sel{order:1}
 #hdr-r > #user-badge{order:2}
 #hdr-r > #sync-wrap{order:3}
-#hdr-r > #save-bdg{order:4}
-#hdr-r > #last-upd{order:5}
+#hdr-r > #save-group{order:4;display:flex;flex-direction:column;align-items:flex-start;gap:0;line-height:1.2}
 #hdr-r > #data-mgmt-wrap{order:6}
 #hdr-r > #tab-setup-hdr-btn{order:7}
+/* ヘッダー右のタイル型ボタン(データ管理/設定) — ダッシュボードのナビと同じ上アイコン+下ラベル */
+.hdr-tile{
+  background:transparent;border:none;cursor:pointer;font-family:inherit;
+  display:inline-flex;flex-direction:column;align-items:center;gap:4px;
+  padding:2px 6px;font-size:11.5px;font-weight:700;color:var(--tx2);white-space:nowrap;
+}
+.hdr-tile .st-ic{
+  width:32px;height:32px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1;
+  background:var(--s3);border:1px solid var(--bds);transition:all .13s;
+}
+.hdr-tile:hover{color:var(--acc)}
+.hdr-tile:hover .st-ic{background:var(--s4);border-color:var(--acc)}
 #sync-wrap{
   display:flex;align-items:center;gap:6px;
   border:1px solid var(--bds);border-radius:9px;
@@ -2265,10 +2277,12 @@ body.has-sidepanel #home-deal-mode {
     <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()"><span class="st-ic">💭</span><span class="st-lab">KPT</span></button>
   </div>
   <div id="hdr-r">
-    <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
-    <div id="last-upd" title="最終更新（このデータを最後に保存した担当者と時刻）" style="font-size:11px;color:var(--tx3);white-space:nowrap;line-height:1.15"></div>
+    <div id="save-group">
+      <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
+      <div id="last-upd" title="最終更新（このデータを最後に保存した担当者と時刻）" style="font-size:11px;color:var(--tx3);white-space:nowrap;line-height:1.15"></div>
+    </div>
     <div id="data-mgmt-wrap" style="position:relative">
-      <button class="data-btn" onclick="toggleDataMenu()">💾 データ管理 ▾</button>
+      <button class="hdr-tile" onclick="toggleDataMenu()"><span class="st-ic">💾</span><span class="st-lab">データ管理 ▾</span></button>
       <div id="data-menu" style="display:none">
         <!-- 日常使用 (営業担当者を含む全員) -->
         <button class="dmitem" onclick="applyAllWonToActuals();closeDataMenu()">🔄 受注実績を再計算</button>
@@ -2279,7 +2293,7 @@ body.has-sidepanel #home-deal-mode {
       </div>
     </div>
     <input type="file" id="import-json-file" accept=".json" style="display:none" onchange="importFromFile(this)">
-    <button class="data-btn" id="tab-setup-hdr-btn" onclick="showTab('setup',document.getElementById('tab-setup-btn'))" title="設定（パスワード保護）">🔒 設定</button>
+    <button class="hdr-tile" id="tab-setup-hdr-btn" onclick="showTab('setup',document.getElementById('tab-setup-btn'))" title="設定（パスワード保護）"><span class="st-ic">🔒</span><span class="st-lab">設定</span></button>
     <button id="sync-wrap" onclick="showTab('setup',document.getElementById('tab-setup-btn'));showCfgTab('sync',document.getElementById('cfg-tab-sync'))" title="同期設定">
       <div class="sdot" id="sdot-hdr" style="width:6px;height:6px;border-radius:50%;background:var(--tx3);flex-shrink:0;transition:background .3s"></div>
       <span id="slabel-hdr" style="font-size:11px">同期設定</span>
