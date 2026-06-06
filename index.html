@@ -12038,6 +12038,9 @@ function renderStoryPanel() {
   }
   html += '</div>';
 
+  // ⭐ ネクストアクション/活動サマリー/直近受注は「担当者ビュー」だけ表示。
+  //   統括(全社/拠点)ビューでは個人向けの一手で冗長なため省略し、右の粗利ゴールに集中させる。
+  if (scope === 'person') {
   // セクション2: ネクストアクション(自動TODO) — 「次の一手」を実データから抽出
   // (上期累計/翌月の仕込みは右の「上期粗利ゴール」と重複するため左からは削除)
   var naItems = [];
@@ -12120,8 +12123,9 @@ function renderStoryPanel() {
   if (recentWon.length > 0) {
     var _rw = recentWon.slice(0, 3).map(function(d){ return _esc(d.name || ''); }).join(' / ');
     if (recentWon.length > 3) _rw += ' 他' + (recentWon.length - 3) + '件';
-    html += '<div class="st-sec"><div class="st-recent">🎉 直近の受注　<b>' + _rw + '</b>' + (scope === 'person' ? '　→　お礼TEL推奨' : '') + '</div></div>';
+    html += '<div class="st-sec"><div class="st-recent">🎉 直近の受注　<b>' + _rw + '</b>　→　お礼TEL推奨</div></div>';
   }
+  } // end if(scope==='person') — 統括ビューでは上記3セクションを省略
 
   html += '</div>'; // close .story-text
 
