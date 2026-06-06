@@ -3119,6 +3119,20 @@ body.has-sidepanel #home-deal-mode {
     </div>
 
     <div class="card" style="max-width:1100px;margin-top:14px">
+      <div class="card-title" style="margin-bottom:6px">🛡 拠点実績ガード（Excelインポート値の保護）</div>
+      <div style="font-size:12px;color:var(--tx3);line-height:1.6;margin-bottom:14px">
+        拠点の確定値（branchActuals）は <strong>Excelインポートでのみ</strong> 更新され、案件の編集・受注確定では動きません（「直してもまた壊れる」の再発防止）。<br>
+        インポート時に記録した <strong>正値（baseline）</strong> と現在値を照合し、ズレ（多PCの上書き等）を検知・復元します。<br>
+        ※ 新たに受注にした案件は、その月のExcelを<strong>再インポート</strong>するまで拠点合計に出ません（下の一覧で確認できます）。
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <button class="btn pr" onclick="renderBranchBaselineCheck()" style="padding:9px 16px;font-size:12px;font-weight:700">🔍 ズレ・受注をチェック</button>
+        <button class="btn" onclick="restoreBranchActualsBaseline()" style="padding:9px 16px;font-size:12px;font-weight:700">↩ インポート値に復元</button>
+      </div>
+      <div id="branch-baseline-result"></div>
+    </div>
+
+    <div class="card" style="max-width:1100px;margin-top:14px">
       <div class="card-title" style="margin-bottom:6px">🔍 集計関数の整合性チェック</div>
       <div style="font-size:12px;color:var(--tx3);line-height:1.6;margin-bottom:14px">
         実績画面・ダッシュボード・内訳バー・ソフト内訳など、複数の画面で表示される「<strong>同じ数字</strong>」が、本当に同じ計算結果になっているかチェックします。<br>
@@ -4069,6 +4083,8 @@ function checkAuthOnStart() {
           }
           // 📅 毎日自動バックアップ: 同期が落ち着く頃(12秒後)に1日1回だけ実行
           setTimeout(function(){ try { _autoDailyBackup(); } catch(e){} }, 12000);
+          // 🛡 拠点実績のズレ検知(②): 同期確定後に、インポート正値からのズレを警告
+          setTimeout(function(){ try { _checkBranchActualsDriftAlert(); } catch(e){} }, 13000);
         } else {
           // 未ログイン → ログイン画面を表示
           FB.mode = 'local';
@@ -10943,6 +10959,12 @@ function _doConfirmImport(addedMasters){
       var totalP = sw_p + hw_p + cs_p + mt_p + ot_p;
       D.branchActuals[detectedBranch].s[mi] = String(Math.round(totalS));
       D.branchActuals[detectedBranch].p[mi] = String(Math.round(totalP));
+      // ⭐ baseline記録(②): インポートした「正値」を別途保存し、後でズレ検知/復元に使う
+      if (!D.branchActualsBaseline) D.branchActualsBaseline = {};
+      if (!D.branchActualsBaseline[detectedBranch]) D.branchActualsBaseline[detectedBranch] = {s:Array(12).fill(''),p:Array(12).fill(''),ts:Array(12).fill(0)};
+      D.branchActualsBaseline[detectedBranch].s[mi] = String(Math.round(totalS));
+      D.branchActualsBaseline[detectedBranch].p[mi] = String(Math.round(totalP));
+      if (D.branchActualsBaseline[detectedBranch].ts) D.branchActualsBaseline[detectedBranch].ts[mi] = (typeof _auditUser==='function' ? 1 : 1);
       log.push(detectedBranch + '実績合計: ' + Math.round(totalS) + '千 (粗利' + Math.round(totalP) + '千)');
       // ★ 再発防止: カテゴリ別内訳を log に追加して可視化
       var bdLines = [];
@@ -19880,6 +19902,11 @@ function confirmWin() {
 // 再計算(applyAllWonToActuals)は拠点値をリセットしないため、ここで触ると案件分が二重加算され、
 // Excel値の膨張・保守料の脱落(getActualValueの早期return経由)が起きる。これを防ぐためのガード。
 var _skipBranchSync = false;
+// ⛔ 2026-06: 案件操作(編集/受注確定/計上月変更)で branchActuals(=Excel拠点確定値)を
+//   自動改変しない。Excelには既に受注案件が含まれるため、加減算するとExcel正値からズレ続ける
+//   (「インポートで直る→また壊れる」の真因)。拠点確定値はインポートでのみ更新する。
+//   ※新たに受注にした案件は整合性チェックで「未反映」として可視化(③)。再有効化はこのフラグをtrueに。
+var _SYNC_BRANCH_FROM_DEALS = false;
 // ── 案件1件分を実績に加算/減算する共通ヘルパー ─────────────────
 // グループ薬局案件 → D.groupActuals[営業所]（担当者個人実績には含めない）
 // 通常案件       → D.actuals[spId]
@@ -19939,7 +19966,7 @@ function applyDealToActuals(d, remove) {
   // (Excel再インポート時はそちらで上書きされる。整合性チェックで差異把握可)
   var _bpr = ap().find(function(p){ return p.id === d.spId; });
   var _br = _bpr ? _bpr.branch : (isGroup && typeof _getBranchForGroupDeal === 'function' ? _getBranchForGroupDeal(d) : null);
-  if (!_skipBranchSync && _br && _br !== 'office') {
+  if (_SYNC_BRANCH_FROM_DEALS && !_skipBranchSync && _br && _br !== 'office') {
     var _sign = remove ? -1 : 1;
     var _apply = function(obj){
       // ⭐ 恒久対策(2026-06 福岡8/9月消失バグ): Excelインポート済みの月だけ同期する。
@@ -19959,6 +19986,101 @@ function applyDealToActuals(d, remove) {
     _apply(D.branchActuals);
     _apply(D.branchSoftActuals);
   }
+}
+
+// ── ② 拠点実績(branchActuals)のズレ検知・復元 ──────────────────
+//   インポートで記録した baseline(正値) と現在値を照合。ズレ=不意の上書き/ドリフトを即検知し復元。
+function _branchActualsDrift() {
+  var out = [];
+  var base = D.branchActualsBaseline;
+  if (!base) return out;
+  Object.keys(base).forEach(function(br){
+    var b = base[br], cur = (D.branchActuals||{})[br];
+    if (!b || !b.s) return;
+    for (var mi=0; mi<12; mi++) {
+      var bs = b.s[mi]; if (bs==='' || bs==null) continue;        // baselineが無い月はスキップ
+      var cs = (cur && cur.s) ? cur.s[mi] : '';
+      var bp = b.p ? b.p[mi] : '', cp = (cur && cur.p) ? cur.p[mi] : '';
+      if (String(cs) !== String(bs) || String(cp) !== String(bp)) {
+        out.push({ branch:br, mi:mi, cur_s:parseFloat(cs)||0, base_s:parseFloat(bs)||0, cur_p:parseFloat(cp)||0, base_p:parseFloat(bp)||0 });
+      }
+    }
+  });
+  return out;
+}
+function restoreBranchActualsBaseline() {
+  var drifts = _branchActualsDrift();
+  if (!drifts.length) { if(typeof _showToast==='function')_showToast('ズレはありません(拠点実績はインポート値と一致)','ok',3000); return; }
+  if (!confirm('拠点実績が「最後にインポートした値」からズレています('+drifts.length+'件)。\nインポート値に復元しますか？\n\n🛡 実行前に自動バックアップを作成します。')) return;
+  if (typeof _autoBackup==='function') _autoBackup('branchActuals_baseline復元');
+  var base = D.branchActualsBaseline;
+  drifts.forEach(function(x){
+    if (!D.branchActuals[x.branch]) D.branchActuals[x.branch]={s:Array(12).fill(''),p:Array(12).fill('')};
+    D.branchActuals[x.branch].s[x.mi] = base[x.branch].s[x.mi];
+    D.branchActuals[x.branch].p[x.mi] = base[x.branch].p[x.mi];
+  });
+  save(); rebuildAll();
+  if(typeof _showToast==='function')_showToast('✅ '+drifts.length+'件の拠点実績をインポート値に復元しました','ok',4000);
+  _hideBranchDriftBanner();
+}
+function _hideBranchDriftBanner(){ var b=document.getElementById('branch-drift-banner'); if(b)b.style.display='none'; }
+function _checkBranchActualsDriftAlert() {
+  try {
+    var drifts = _branchActualsDrift();
+    var banner = document.getElementById('branch-drift-banner');
+    if (!drifts.length) { if(banner) banner.style.display='none'; return; }
+    var ML2=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+    var detail = drifts.slice(0,4).map(function(x){ return x.branch+ML2[x.mi]+'(現'+Math.round(x.cur_s)+'→正'+Math.round(x.base_s)+')'; }).join(' / ');
+    if (drifts.length>4) detail += ' 他'+(drifts.length-4)+'件';
+    if (!banner) { banner = document.createElement('div'); banner.id='branch-drift-banner'; document.body.appendChild(banner); }
+    banner.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9998;background:#fff;border:2px solid var(--red);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.2);padding:13px 18px;max-width:90vw;font-size:13px;color:var(--tx)';
+    banner.innerHTML = '⚠️ <b style="color:var(--red)">拠点実績がインポート値からズレています</b>('+drifts.length+'件)<br><span style="font-size:11.5px;color:var(--tx3)">'+detail+'</span><div style="margin-top:9px;display:flex;gap:8px"><button onclick="restoreBranchActualsBaseline()" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">インポート値に復元</button><button onclick="_hideBranchDriftBanner()" style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer">後で</button></div>';
+    banner.style.display='block';
+  } catch(e){ console.warn('drift check失敗',e); }
+}
+
+// ③ 拠点実績ガードの画面表示: ズレ一覧 + インポート済み月の受注サマリー
+function renderBranchBaselineCheck(){
+  var div = document.getElementById('branch-baseline-result'); if(!div) return;
+  var ML2=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+  var base = D.branchActualsBaseline || {};
+  var html='';
+  if (!Object.keys(base).length) {
+    div.innerHTML = '<div style="font-size:12px;color:var(--amb)">まだインポート正値(baseline)が記録されていません。各拠点・各月をExcelインポートすると記録され、以後ズレを検知できます。</div>';
+    return;
+  }
+  var drifts = _branchActualsDrift();
+  if (drifts.length) {
+    html += '<div style="background:rgba(168,90,74,.08);border:1px solid rgba(168,90,74,.35);border-radius:8px;padding:12px;margin-bottom:14px">';
+    html += '<div style="font-weight:800;color:var(--red);margin-bottom:7px">⚠ インポート値からのズレ '+drifts.length+'件（上書き/ドリフトの疑い）</div>';
+    drifts.forEach(function(x){ html += '<div style="font-size:12px;margin:2px 0">'+x.branch+' '+ML2[x.mi]+'：現在 売上<b>'+Math.round(x.cur_s)+'</b>/粗利'+Math.round(x.cur_p)+' → 正値 売上<b style="color:var(--grn)">'+Math.round(x.base_s)+'</b>/粗利'+Math.round(x.base_p)+'</div>'; });
+    html += '<button onclick="restoreBranchActualsBaseline()" style="margin-top:9px;background:var(--acc);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">↩ インポート値に復元</button>';
+    html += '</div>';
+  } else {
+    html += '<div style="background:rgba(122,142,90,.10);border:1px solid rgba(122,142,90,.35);border-radius:8px;padding:11px;margin-bottom:14px;color:#4a5a32;font-weight:700">✅ 拠点実績はインポート値と一致（ズレなし）</div>';
+  }
+  // 受注サマリー(取りこぼし確認用)
+  var rows=[];
+  Object.keys(base).forEach(function(br){
+    if(!base[br]||!base[br].s) return;
+    for(var mi=0;mi<12;mi++){
+      if(base[br].s[mi]===''||base[br].s[mi]==null) continue;
+      var deals=(D.deals||[]).filter(function(d){
+        if(typeof _countsAsWon!=='function'||!_countsAsWon(d)) return false;
+        var dmi=(typeof implToFyIdx==='function')?implToFyIdx(d.deliveryMonth):-1; if(dmi!==mi) return false;
+        var pp=ap().find(function(p){return p.id===d.spId;}); var dbr=pp?pp.branch:(d.groupBranch||null);
+        return dbr===br;
+      });
+      if(deals.length){ var sum=deals.reduce(function(a,d){return a+(parseFloat(d.sales)||0);},0);
+        rows.push({br:br,mi:mi,n:deals.length,sum:Math.round(sum),base_s:Math.round(parseFloat(base[br].s[mi])||0)}); }
+    }
+  });
+  html += '<div style="font-size:12px;color:var(--tx3);margin-bottom:6px;line-height:1.6">インポート済み月の <b>受注(確度5)案件</b> 一覧。受注売上計が拠点実績(Excel)を超える等の違和感があれば、その月を<b>再インポート</b>してください（新規受注はExcelに反映されるまで拠点合計に出ません）。</div>';
+  html += '<table class="tb0" style="font-size:12px;width:auto"><tr><th>拠点</th><th>月</th><th>受注件数</th><th>受注売上計</th><th>拠点実績(Excel)</th></tr>';
+  if(!rows.length) html += '<tr><td colspan="5" style="color:var(--tx3)">該当なし</td></tr>';
+  rows.forEach(function(r){ html += '<tr><td style="text-align:left">'+r.br+'</td><td>'+ML2[r.mi]+'</td><td>'+r.n+'</td><td>'+r.sum+'千</td><td>'+r.base_s+'千</td></tr>'; });
+  html += '</table>';
+  div.innerHTML = html;
 }
 
 // ── 🔧 実績データ整合性チェック ──────────────────────────────────
