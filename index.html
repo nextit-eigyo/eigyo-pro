@@ -18842,6 +18842,12 @@ function _getBreakdownForMi(branch, field, mi) {
       csVal = field === 's' ? (c.sales || 0) : (c.profit || 0);
     }
 
+    // ⭐ 未来月(今日より後)は繰越系(保守料/HW/その他/消耗品)を計上しない＝getActualValueと整合。
+    //   「確定受注だけ未来月にも出す」運用。ソフト(system)は案件(受注)から積み上げ＝下記③で算出。
+    if (typeof _isFutureMi === 'function' && _isFutureMi(mi)) {
+      hwVal = 0; otVal = 0; mtVal = 0; csVal = 0;
+    }
+
     // ── ソフト(system) の計算 ──
     // 優先順位: ① branchSoftActuals(Excelソフト確定値)
     //          ② branchActualsからの逆算（旧データ救済）
