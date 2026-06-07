@@ -5702,7 +5702,9 @@ function _mtRegionBranchSectionsHtml(scope, halfMis){
   var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
   var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
   var html = '<div class="mt-rb-wrap">';
-  _mtElapsedMis(halfMis).forEach(function(mi){
+  // ⭐ 集計スコープ(全社/営業部)の月別カードは「上期/下期/通期の全月」を表示(未来月=予算と達成率0%を確認できるように)。
+  //   ※経過月のみに絞らない(馬場さん要望: 7〜9月も見たい)。当月は●今月マーク付き。
+  halfMis.forEach(function(mi){
     var tbs=getBudgetValue(scopeTarget,'s',mi), tas=getActualValue(scopeTarget,'s',mi);
     var tbp=getBudgetValue(scopeTarget,'p',mi), tap=getActualValue(scopeTarget,'p',mi);
     var sA=tbs>0?(tas/tbs*100):0, pA=tbp>0?(tap/tbp*100):0;
