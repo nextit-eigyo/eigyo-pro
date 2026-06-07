@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>モックアップ｜顧客マスタ取込版・顧客別活動管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+Antique:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f8f5ef; --s2:#fffdf8; --s3:#f1ece2; --s4:#e9e2d4;
+    --acc:#5a7b9e; --acc2:#48657f; --cop:#c89856; --olv:#7a8e5a; --red:#a85a4a;
+    --tx:#3a3631; --tx2:#6b6459; --tx3:#9a9286; --bd:#ddd5c7; --bds:#ece6da; --r:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Zen Kaku Gothic Antique',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;padding:24px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .note{background:#fff8e8;border:1px solid var(--cop);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--tx2);margin-bottom:18px}
+  .note b{color:var(--cop)}
+  h1{font-size:22px;font-weight:900;color:var(--acc2);margin-bottom:4px}
+  .sub{font-size:12px;color:var(--tx3);margin-bottom:18px}
+
+  .topbar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(90,123,158,.10),rgba(122,142,90,.06));border:1px solid var(--bd);border-radius:12px;padding:12px 16px;margin-bottom:18px;flex-wrap:wrap}
+  .imp-chip{background:var(--olv);color:#fff;font-size:12px;font-weight:800;padding:5px 13px;border-radius:18px}
+  .topbar .desc{font-size:12px;color:var(--tx2)}
+  .topbar .reimp{margin-left:auto;background:#fff;border:1px solid var(--bd);border-radius:18px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--acc2);cursor:pointer;font-family:inherit}
+
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:16px}
+  .card{background:var(--s2);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+  .card-h{background:rgba(90,123,158,.07);padding:11px 16px;font-size:14px;font-weight:900;color:var(--acc2);border-bottom:1px solid var(--bds);display:flex;align-items:center;gap:8px}
+  .card-b{padding:14px}
+
+  /* 顧客リスト */
+  .search{width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:20px;font-family:inherit;font-size:13px;margin-bottom:10px}
+  .search:focus{outline:none;border-color:var(--acc)}
+  .clist{max-height:560px;overflow-y:auto;margin:-4px}
+  .citem{padding:10px 12px;border:1px solid var(--bds);border-radius:10px;margin:6px 4px;cursor:pointer;transition:all .12s;background:#fff}
+  .citem:hover{border-color:var(--acc)}
+  .citem.on{border-color:var(--acc);box-shadow:0 0 0 2px rgba(90,123,158,.14);background:rgba(90,123,158,.04)}
+  .citem .cn{font-size:13.5px;font-weight:800}
+  .citem .cmeta{font-size:11px;color:var(--tx3);margin-top:2px}
+  .citem .ctags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+  .tg{font-size:10px;font-weight:700;padding:1px 7px;border-radius:9px}
+  .tg.prod{background:rgba(90,123,158,.12);color:var(--acc2)}
+  .tg.warn{background:rgba(168,90,74,.12);color:#8a3a2a}
+  .tg.ok{background:rgba(122,142,90,.14);color:#4a5a32}
+
+  /* 顧客カルテ */
+  .prof{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;border-bottom:1px solid var(--bds);padding-bottom:12px;margin-bottom:12px}
+  .prof .pn{font-size:18px;font-weight:900;color:var(--acc2)}
+  .prof .pmeta{font-size:12px;color:var(--tx2);margin-top:2px}
+  .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;width:100%}
+  .kv .k{font-size:10.5px;color:var(--tx3);font-weight:700}
+  .kv .v{font-size:13px;font-weight:800;color:var(--tx)}
+
+  .qbtn{display:inline-flex;align-items:center;gap:7px;background:var(--acc);color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit}
+  .qbtn:hover{background:var(--acc2)}
+  .form{display:none;margin:12px 0;background:#fff;border:1px solid var(--bd);border-radius:10px;padding:13px}
+  .form.open{display:block}
+  .frow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+  .ff{display:flex;flex-direction:column;gap:4px}
+  .ff label{font-size:11px;font-weight:700;color:var(--tx2)}
+  .ff input,.ff select,.ff textarea{font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:8px;background:#fff}
+  .pills{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{border:1.5px solid var(--bd);background:#fff;border-radius:18px;padding:5px 12px;font-size:11.5px;font-weight:700;color:var(--tx2);cursor:pointer;font-family:inherit}
+  .pill.on{background:var(--olv);border-color:var(--olv);color:#fff}
+  .pill.support{border-color:rgba(168,90,74,.45)}
+  .pill.support.on{background:var(--red);border-color:var(--red)}
+  .pill.way.on{background:var(--acc);border-color:var(--acc)}
+  .btn-save{background:var(--olv);color:#fff;border:none;border-radius:18px;padding:8px 18px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit}
+
+  .hist .hi{display:flex;gap:10px;padding:9px 4px;border-bottom:1px solid var(--bds)}
+  .hist .hd{font-size:11px;color:var(--tx3);font-weight:700;width:54px;flex-shrink:0}
+  .chip{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:9px;margin-right:4px}
+  .chip.v{background:#f1f5f9;color:#475569}.chip.p{background:#f0f9ff;color:#0369a1}.chip.m{background:#fdf4ff;color:#7e22ce}
+  .chip.goal{background:rgba(122,142,90,.14);color:#4a5a32}.chip.goal.sup{background:rgba(168,90,74,.14);color:#8a3a2a}
+  .hmemo{font-size:12px;color:var(--tx2);margin-top:2px}
+  .empty{padding:16px;text-align:center;color:var(--tx3);font-size:12px}
+
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+  .metric{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:9px 10px;text-align:center}
+  .metric .mn{font-size:10.5px;color:var(--tx2);font-weight:700;min-height:28px;display:flex;align-items:center;justify-content:center}
+  .metric .mv{font-size:22px;font-weight:900;color:var(--acc2)}
+  .metric .mv.zero{color:var(--tx3)}
+  .metric.up{border-color:var(--olv);box-shadow:0 0 0 2px rgba(122,142,90,.12)}
+  .metric .delta{font-size:10px;font-weight:700;color:var(--olv)}
+  .bene{background:rgba(122,142,90,.06);border:1px solid rgba(122,142,90,.3);border-radius:10px;padding:11px 14px;font-size:12px;color:var(--tx2);margin-top:16px}
+  .bene b{color:#4a5a32}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="note">📄 これは<b>モックアップ（提案イメージ）</b>です。ダミーデータで本番には影響しません。<b>顧客リスト（稼働薬局）を取り込んだ場合</b>の見え方です。</div>
+
+  <h1>顧客マスタ取込版 — 顧客別に活動を管理</h1>
+  <div class="sub">稼働薬局リストを取り込むと、顧客名がドロップダウン化＋顧客ごとの活動履歴・導入製品・最終接触が見える。障害対応・操作指導も顧客に紐づけて記録 → 8指標へ自動集計</div>
+
+  <div class="topbar">
+    <span class="imp-chip">📥 顧客マスタ 取込済み 128件</span>
+    <span class="desc">最終取込: 2026/06/01　調剤くんV8 稼働薬局リスト（Excel）</span>
+    <button class="reimp">🔄 リスト再取込</button>
+  </div>
+
+  <div class="grid">
+    <!-- 左: 顧客リスト -->
+    <div class="card">
+      <div class="card-h">🏥 顧客リスト</div>
+      <div class="card-b">
+        <input class="search" id="search" placeholder="🔍 薬局名・地域で検索" oninput="renderList(this.value)">
+        <div class="clist" id="clist"></div>
+      </div>
+    </div>
+
+    <!-- 右: 顧客カルテ -->
+    <div class="card">
+      <div class="card-h">🗂 顧客カルテ <span id="sel-name" style="font-size:12px;font-weight:500;color:var(--tx3);margin-left:auto"></span></div>
+      <div class="card-b" id="profile"></div>
+    </div>
+  </div>
+
+  <!-- 8指標 -->
+  <div class="card" style="margin-top:18px">
+    <div class="card-h">📊 本部長指示・8指標への自動反映（今月・全顧客合算）</div>
+    <div class="card-b">
+      <div class="metrics" id="metrics"></div>
+      <div class="bene">
+        <b>顧客マスタ取込のメリット：</b>① 顧客名がドロップダウンで<b>表記ゆれ・打ち間違いゼロ</b>　② 顧客ごとに<b>導入製品・最終接触・全活動履歴</b>が見える　③ <b>3か月未接触の顧客</b>を抽出してフォロー漏れ防止　④ 障害対応・操作指導が顧客に紐づき<b>サポート品質も可視化</b>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var PURPOSES=['飛込み訪問','Web引き合い対応','代理店・パートナー紹介','既存顧客紹介','定期フォロー訪問','アップセル・リプレース提案','障害対応','操作指導・トレーニング'];
+var SUPPORT=['定期フォロー訪問','障害対応','操作指導・トレーニング'];
+var WAYS=['訪問','電話','メール'];
+// ダミー顧客マスタ
+var CUSTOMERS=[
+  {id:1,name:'さくら調剤薬局',area:'福岡市中央区',prod:'調剤くんV8',since:'2019',last:'06/03',risk:'',hist:[
+    {date:'06/03',way:'電話',purpose:'障害対応',memo:'印刷不具合の問い合わせ対応'},
+    {date:'05/12',way:'訪問',purpose:'定期フォロー訪問',memo:'稼働状況確認'}]},
+  {id:2,name:'みどり薬局 本店',area:'北九州市',prod:'調剤くんV8',since:'2021',last:'05/28',risk:'',hist:[
+    {date:'05/28',way:'訪問',purpose:'アップセル・リプレース提案',memo:'レセプト点検オプション案内'}]},
+  {id:3,name:'あおぞら薬局',area:'久留米市',prod:'調剤くんV8',since:'2017',last:'03/02',risk:'未接触90日超',hist:[
+    {date:'03/02',way:'メール',purpose:'定期フォロー訪問',memo:'年度更新の案内'}]},
+  {id:4,name:'ひまわり調剤 駅前店',area:'熊本市',prod:'調剤くんV8',since:'2022',last:'06/05',risk:'',hist:[
+    {date:'06/05',way:'訪問',purpose:'操作指導・トレーニング',memo:'新人薬剤師へレセコン操作レクチャー'}]},
+  {id:5,name:'なごみ薬局',area:'佐賀市',prod:'調剤くんV8',since:'2020',last:'04/18',risk:'',hist:[
+    {date:'04/18',way:'電話',purpose:'状況確認',memo:'問題なし'}]},
+  {id:6,name:'けやき調剤薬局',area:'大分市',prod:'調剤くんV8',since:'2018',last:'02/10',risk:'未接触90日超',hist:[]},
+  {id:7,name:'つばさ薬局 北口店',area:'長崎市',prod:'調剤くんV8',since:'2023',last:'05/30',risk:'',hist:[]},
+  {id:8,name:'こもれび薬局',area:'宮崎市',prod:'調剤くんV8',since:'2016',last:'05/22',risk:'',hist:[]}
+];
+var selId=1, sel={purpose:null,way:'訪問'};
+var addCounts={}; PURPOSES.forEach(function(p){addCounts[p]=0;});
+var baseCounts={'飛込み訪問':2,'Web引き合い対応':4,'代理店・パートナー紹介':5,'既存顧客紹介':1,'定期フォロー訪問':6,'アップセル・リプレース提案':3,'障害対応':1,'操作指導・トレーニング':1};
+
+function renderList(q){
+  q=q||'';
+  var box=document.getElementById('clist');
+  var list=CUSTOMERS.filter(function(c){return !q||c.name.indexOf(q)>=0||c.area.indexOf(q)>=0;});
+  box.innerHTML=list.map(function(c){
+    return '<div class="citem'+(c.id===selId?' on':'')+'" onclick="selectCust('+c.id+')">'+
+      '<div class="cn">'+c.name+'</div>'+
+      '<div class="cmeta">'+c.area+'・導入'+c.since+'年・最終接触 '+c.last+'</div>'+
+      '<div class="ctags"><span class="tg prod">'+c.prod+'</span>'+
+      (c.risk?'<span class="tg warn">⚠ '+c.risk+'</span>':'<span class="tg ok">フォロー良好</span>')+'</div>'+
+      '</div>';
+  }).join('');
+}
+function selectCust(id){ selId=id; sel.purpose=null; sel.way='訪問'; renderList(document.getElementById('search').value); renderProfile(); }
+
+function renderProfile(){
+  var c=CUSTOMERS.find(function(x){return x.id===selId;});
+  document.getElementById('sel-name').textContent='';
+  var wl={'訪問':'🚶','電話':'📞','メール':'✉️'};
+  var histHtml = c.hist.length ? c.hist.map(function(h){
+    var sup=SUPPORT.indexOf(h.purpose)>=0; var wc=({'訪問':'v','電話':'p','メール':'m'})[h.way]||'v';
+    return '<div class="hi"><div class="hd">'+h.date+'</div><div><div>'+
+      '<span class="chip '+wc+'">'+(wl[h.way]||'🚶')+' '+h.way+'</span>'+
+      (PURPOSES.indexOf(h.purpose)>=0?'<span class="chip goal'+(sup?' sup':'')+'">🎯 '+h.purpose+'</span>':'<span class="chip v">'+h.purpose+'</span>')+
+      '</div><div class="hmemo">'+(h.memo||'')+'</div></div></div>';
+  }).join('') : '<div class="empty">活動履歴はまだありません</div>';
+
+  document.getElementById('profile').innerHTML=
+    '<div class="prof"><div style="flex:1;min-width:200px"><div class="pn">'+c.name+'</div>'+
+      '<div class="pmeta">'+c.area+(c.risk?' ・ <b style="color:var(--red)">⚠ '+c.risk+'</b>':'')+'</div>'+
+      '<div class="kv"><div><div class="k">導入製品</div><div class="v">'+c.prod+'</div></div>'+
+        '<div><div class="k">導入年</div><div class="v">'+c.since+'年</div></div>'+
+        '<div><div class="k">最終接触</div><div class="v">'+c.last+'</div></div>'+
+        '<div><div class="k">活動件数</div><div class="v">'+c.hist.length+'件</div></div></div>'+
+    '</div></div>'+
+    '<button class="qbtn" onclick="document.getElementById(\'rform\').classList.toggle(\'open\')">＋ この顧客に活動を記録</button>'+
+    '<div class="form" id="rform">'+
+      '<div class="frow"><div class="ff" style="width:130px"><label>活動日</label><input type="date" id="r-date" value="2026-06-08"></div>'+
+        '<div class="ff" style="width:120px"><label>担当者</label><select><option>馬場(大)</option><option>山田</option></select></div></div>'+
+      '<div style="margin-bottom:10px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">🎯 目的（8指標）</label>'+
+        '<div class="pills" id="r-purpose"></div></div>'+
+      '<div style="margin-bottom:10px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">手段</label>'+
+        '<div class="pills" id="r-way"></div></div>'+
+      '<div class="ff" style="margin-bottom:10px"><label>メモ</label><textarea id="r-memo" rows="2" placeholder="例）操作説明・次回提案予定"></textarea></div>'+
+      '<div style="text-align:right"><button class="btn-save" onclick="addRec()">✓ 記録する</button></div>'+
+    '</div>'+
+    '<div style="font-size:12px;font-weight:800;color:var(--acc2);margin:14px 0 4px">📜 活動履歴</div>'+
+    '<div class="hist">'+histHtml+'</div>';
+
+  var pc=document.getElementById('r-purpose');
+  PURPOSES.forEach(function(p){ var b=document.createElement('button'); b.className='pill'+(SUPPORT.indexOf(p)>=0?' support':''); b.textContent=(SUPPORT.indexOf(p)>=0?'★ ':'')+p; b.onclick=function(){sel.purpose=p;syncPills();}; b.dataset.p=p; pc.appendChild(b); });
+  var wc=document.getElementById('r-way');
+  WAYS.forEach(function(w){ var b=document.createElement('button'); b.className='pill way'+(w==='訪問'?' on':''); b.textContent=({'訪問':'🚶 訪問','電話':'📞 電話','メール':'✉️ メール'})[w]; b.onclick=function(){sel.way=w;syncPills();}; b.dataset.w=w; wc.appendChild(b); });
+  syncPills();
+}
+function syncPills(){
+  document.querySelectorAll('#r-purpose .pill').forEach(function(b){b.classList.toggle('on',b.dataset.p===sel.purpose);});
+  document.querySelectorAll('#r-way .pill').forEach(function(b){b.classList.toggle('on',b.dataset.w===sel.way);});
+}
+function addRec(){
+  if(!sel.purpose){alert('🎯 目的を選んでください');return;}
+  var c=CUSTOMERS.find(function(x){return x.id===selId;});
+  c.hist.unshift({date:'06/08',way:sel.way,purpose:sel.purpose,memo:document.getElementById('r-memo').value.trim()});
+  c.last='06/08'; c.risk='';
+  addCounts[sel.purpose]++;
+  sel.purpose=null; sel.way='訪問';
+  renderList(document.getElementById('search').value); renderProfile(); renderMetrics();
+}
+function renderMetrics(){
+  var m=document.getElementById('metrics'); m.innerHTML='';
+  PURPOSES.forEach(function(p){
+    var total=(baseCounts[p]||0)+(addCounts[p]||0); var up=addCounts[p]>0;
+    var d=document.createElement('div'); d.className='metric'+(up?' up':'');
+    d.innerHTML='<div class="mn">'+(SUPPORT.indexOf(p)>=0?'★ ':'')+p+'</div><div class="mv'+(total?'':' zero')+'">'+total+'</div>'+(up?'<div class="delta">＋'+addCounts[p]+' 今回</div>':'<div class="delta" style="visibility:hidden">_</div>');
+    m.appendChild(d);
+  });
+}
+renderList(''); renderProfile(); renderMetrics();
+</script>
+</body>
+</html>
