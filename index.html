@@ -1920,8 +1920,12 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-pt .br { font-size:13px; opacity:.85; font-weight:700; }
 #tab-meeting .mt-person-tabs { gap:6px; }
 #tab-meeting .mt-half-tabs { display:flex; gap:3px; background:var(--s3); padding:4px; border-radius:10px; flex-shrink:0; }
-/* スコープ選択バー(左)＋期間トグル(右上に常時表示) */
-#tab-meeting .mt-scope-topbar { display:flex; align-items:flex-start; gap:12px; }
+/* スコープ選択バー(左)＋期間トグル(右上に常時表示)・スクロール追従(sticky) */
+#tab-meeting .mt-scope-topbar {
+  display:flex; align-items:flex-start; gap:12px;
+  position:sticky; top:var(--nav); z-index:100;
+  background:var(--bg); padding:8px 0 8px; border-bottom:1px solid var(--bds);
+}
 #tab-meeting .mt-scope-topbar .mt-scope-wrap { flex:1 1 auto; min-width:0; }
 #tab-meeting .mt-scope-topbar .mt-half-tabs { flex-shrink:0; margin-top:0; }
 @media (max-width:760px){
@@ -16094,6 +16098,9 @@ function renderWonDeals() {
   }
   if (showOnlyUnmatched) wonDeals = wonDeals.filter(d => d.nextAction && d.nextAction.includes('⚠️'));
 
+  // ⭐ この画面(受注済み)ではグループ薬局を集計に含めない(数字・軒数ともカウントしない)
+  wonDeals = wonDeals.filter(d => (d.category || '直販') !== 'グループ薬局');
+
   // ── 集計 ──
   const totalSales = wonDeals.reduce((s,d)=>s+(parseFloat(d.sales)||0),0);
   const totalProfit = wonDeals.reduce((s,d)=>s+(parseFloat(d.sales)||0)-(parseFloat(d.cost)||0),0);
@@ -16140,9 +16147,10 @@ function renderWonDeals() {
   rankingDeals.forEach(d => {
     const sp = people.find(p => p.id === d.spId);
     const key = sp ? sp.name + (sp.branch ? ' (' + sp.branch + ')' : '') : '未割当';
-    if (!byPerson[key]) byPerson[key] = { name: key, count: 0, sales: 0, branch: sp ? sp.branch : '' };
+    if (!byPerson[key]) byPerson[key] = { name: key, count: 0, sales: 0, profit: 0, branch: sp ? sp.branch : '' };
     byPerson[key].count++;
     byPerson[key].sales += parseFloat(d.sales)||0;
+    byPerson[key].profit += (parseFloat(d.sales)||0) - (parseFloat(d.cost)||0);
   });
   const personRanking = Object.values(byPerson).sort((a,b) => b.sales - a.sales).slice(0, 5);
 
@@ -16207,11 +16215,13 @@ function renderWonDeals() {
         name: sp ? sp.name : '未割当',
         branch: sp ? (sp.branch || '') : '',
         count: 0,
-        sales: 0
+        sales: 0,
+        profit: 0
       };
     }
     monthByPerson[key].count++;
     monthByPerson[key].sales += parseFloat(d.sales) || 0;
+    monthByPerson[key].profit += (parseFloat(d.sales) || 0) - (parseFloat(d.cost) || 0);
   });
   const monthRanking = Object.values(monthByPerson).sort((a,b) => b.sales - a.sales);
   const myRankIdx = myId ? monthRanking.findIndex(r => r.id === myId) : -1;
@@ -16246,7 +16256,10 @@ function renderWonDeals() {
           <div style="font-size:18px;color:${medalColor(rank)};font-weight:900;text-align:center">${medalEmoji(rank) || rank}</div>
           <div style="font-weight:${isMe ? 800 : 700};color:var(--tx);font-size:14px">${_esc(p.name)}${isMe ? ' <span style="font-size:11px;background:rgba(200,152,86,.25);color:#6b4a1e;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:4px">YOU</span>' : ''}<div style="font-size:11px;color:var(--tx3);font-weight:500;margin-top:1px">${_esc(p.branch || '—')}</div></div>
           <div style="text-align:right;font-size:13px;color:var(--tx2);font-weight:700">${p.count}件</div>
-          <div style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(p.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+          <div style="text-align:right">
+            <div style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(p.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+            <div style="font-size:12px;font-weight:700;color:#4a5a32;font-variant-numeric:tabular-nums">粗 ${fmtN(Math.round(p.profit||0))}千</div>
+          </div>
         </div>`;
       }).join('')}
       ${showMyExtra && myRank ? `
@@ -16255,7 +16268,10 @@ function renderWonDeals() {
             <div style="font-size:18px;color:var(--tx2);font-weight:900;text-align:center">${myRankIdx + 1}</div>
             <div style="font-weight:800;color:var(--tx);font-size:14px">${_esc(myRank.name)} <span style="font-size:11px;background:rgba(200,152,86,.25);color:#6b4a1e;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:4px">YOU</span><div style="font-size:11px;color:var(--tx3);font-weight:500;margin-top:1px">${_esc(myRank.branch || '—')}</div></div>
             <div style="text-align:right;font-size:13px;color:var(--tx2);font-weight:700">${myRank.count}件</div>
-            <div style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(myRank.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+            <div style="text-align:right">
+              <div style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(myRank.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+              <div style="font-size:12px;font-weight:700;color:#4a5a32;font-variant-numeric:tabular-nums">粗 ${fmtN(Math.round(myRank.profit||0))}千</div>
+            </div>
           </div>
           ${myGap > 0 ? `<div style="text-align:right;font-size:12px;color:#6b4a1e;font-weight:700;margin-top:6px;padding-right:6px">⬆ あと <b style="font-size:13px">${fmtN(Math.round(myGap))}千</b> で ${myRankIdx} 位</div>` : ''}
         </div>` : ''}
@@ -16310,7 +16326,8 @@ function renderWonDeals() {
             </div>
           </div>
           <div style="text-align:right">
-            <div style="font-size:17px;font-weight:900;color:#4a5a32;font-variant-numeric:tabular-nums">+${fmtN(d.sales)}<span style="font-size:11px;color:var(--tx2);font-weight:700;margin-left:1px">千</span></div>
+            <div style="font-size:17px;font-weight:900;color:var(--acc);font-variant-numeric:tabular-nums">売上 +${fmtN(d.sales)}<span style="font-size:11px;color:var(--tx2);font-weight:700;margin-left:1px">千</span></div>
+            <div style="font-size:12px;font-weight:800;color:#4a5a32;font-variant-numeric:tabular-nums">粗利 +${fmtN(Math.round((parseFloat(d.sales)||0)-(parseFloat(d.cost)||0)))}千</div>
             ${isToday ? '<div style="font-size:10px;color:#4a5a32;font-weight:700;margin-top:2px">🎊 ナイス受注</div>' : ''}
           </div>
         </div>`;
@@ -16336,7 +16353,10 @@ function renderWonDeals() {
           <div style="font-style:italic;font-size:20px;color:${PCOLS[b.name]||'#8a5a2e'};font-weight:700;text-align:center">${i+1}</div>
           <div style="font-weight:700;color:var(--tx);font-size:14px">${_esc(b.name)}</div>
           <div style="text-align:right;font-size:13px;color:var(--tx2);font-weight:700">${b.count}件</div>
-          <div style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(b.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+          <div style="text-align:right">
+            <div style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(b.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+            <div style="font-size:12px;font-weight:700;color:#4a5a32;font-variant-numeric:tabular-nums">粗 ${fmtN(Math.round(b.profit||0))}千</div>
+          </div>
         </div>
       `).join('')}
     </div>`;
@@ -16352,7 +16372,10 @@ function renderWonDeals() {
           <div style="font-style:italic;font-size:20px;color:${PCOLS[p.branch]||'#8a5a2e'};font-weight:700;text-align:center">${i+1}</div>
           <div style="font-weight:700;color:var(--tx);font-size:14px">${_esc(p.name)}</div>
           <div style="text-align:right;font-size:13px;color:var(--tx2);font-weight:700">${p.count}件</div>
-          <div style="text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(p.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+          <div style="text-align:right">
+            <div style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx);font-size:16px">${fmtN(Math.round(p.sales))}<span style="font-size:11px;color:var(--tx2);font-weight:600;margin-left:1px">千</span></div>
+            <div style="font-size:12px;font-weight:700;color:#4a5a32;font-variant-numeric:tabular-nums">粗 ${fmtN(Math.round(p.profit||0))}千</div>
+          </div>
         </div>
       `).join('')}
     </div>`;
