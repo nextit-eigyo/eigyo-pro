@@ -77,7 +77,29 @@ table td,table th{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"
 #hdr-r > #fy-sel{order:1}
 #hdr-r > #user-badge{order:2}
 #hdr-r > #sync-wrap{order:3}
+#hdr-r > #presence-wrap{order:3}
 #hdr-r > #save-group{order:4;display:flex;flex-direction:column;align-items:flex-start;gap:0;line-height:1.2}
+/* presence(同時利用者表示) */
+#presence-chip{
+  display:flex;align-items:center;gap:6px;border:1px solid var(--bds);border-radius:9px;
+  padding:5px 11px;cursor:pointer;background:none;font-size:12px;color:var(--tx2);
+  white-space:nowrap;font-family:inherit;font-weight:700;transition:all .15s;
+}
+#presence-chip:hover{border-color:var(--acc);color:var(--acc)}
+#presence-chip .pdot{width:7px;height:7px;border-radius:50%;background:var(--grn);flex-shrink:0;box-shadow:0 0 0 3px rgba(122,142,90,.18)}
+#presence-list{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:9999;min-width:230px;
+  background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);box-shadow:var(--shd);
+  padding:6px;max-height:340px;overflow:auto;
+}
+#presence-list .pres-hd{font-size:11px;font-weight:800;color:var(--tx3);padding:4px 8px 6px}
+.pres-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-size:12px}
+.pres-item:hover{background:var(--s3)}
+.pres-item .pres-nm{font-weight:700;color:var(--tx)}
+.pres-item .pres-br{font-size:10.5px;color:#fff;background:var(--acc2);border-radius:8px;padding:1px 7px}
+.pres-item .pres-fy{font-size:10.5px;color:var(--tx3)}
+.pres-item .pres-tm{margin-left:auto;font-size:10.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.pres-item .pres-me{font-size:10px;color:var(--acc);font-weight:800}
 #hdr-r > #data-mgmt-wrap{order:6}
 #hdr-r > #tab-setup-hdr-btn{order:7}
 /* ヘッダー右のタイル型ボタン(データ管理/設定) — ダッシュボードのナビと同じ上アイコン+下ラベル */
@@ -2371,6 +2393,12 @@ body.has-sidepanel #home-deal-mode {
       <div class="sdot" id="sdot-hdr" style="width:6px;height:6px;border-radius:50%;background:var(--tx3);flex-shrink:0;transition:background .3s"></div>
       <span id="slabel-hdr" style="font-size:11px">同期設定</span>
     </button>
+    <div id="presence-wrap" style="position:relative;display:none" title="いま EIGYO PRO を開いている人">
+      <button id="presence-chip" onclick="togglePresenceList()">
+        <span class="pdot"></span><span id="presence-text">👥 1人</span>
+      </button>
+      <div id="presence-list" style="display:none"></div>
+    </div>
     <select id="fy-sel" onchange="changeFY()"></select>
   </div>
 </div>
@@ -14243,6 +14271,9 @@ function fbStartSync() {
   });
 
   FB.listeners.push(() => FB.dbRef.off('value'));
+
+  // 👥 presence(同時利用者表示)を開始
+  if (typeof _presenceStart === 'function') { try { _presenceStart(); } catch(e){} }
 }
 
 // ── データ書き込み（デバウンス付き） ────────────────────────────
@@ -14342,6 +14373,86 @@ function _doFbWrite() {
   });
 }
 
+// ════════════════════════════════════════════════════════════════
+// 👥 presence(同時利用者表示) — 今 EIGYO PRO を開いている人をヘッダーに表示
+//   Firebase presence パターン: presence/<key> に自分を書き、onDisconnectで自動削除。
+//   一覧を購読してヘッダーチップ＋ドロップダウンに表示。番号データ(data/)とは別ノード=数字に無影響。
+// ════════════════════════════════════════════════════════════════
+var PRES = { key:null, ref:null, listRef:null, hbTimer:null, started:false };
+function _presenceMe(){
+  var name = (typeof _auditUser === 'function' ? _auditUser() : '') || (currentUserRole && currentUserRole.name) || 'ゲスト';
+  var branch = '';
+  try { var pid = (typeof getMyPersonId === 'function') ? getMyPersonId() : null; var p = (D.people||[]).find(function(x){ return x.id === pid; }); if (p) branch = p.branch || ''; } catch(e){}
+  return { name:name, branch:branch, fy:(typeof fy!=='undefined'?fy:''), uid:(FB.user&&FB.user.uid)||'', ts: firebase.database.ServerValue.TIMESTAMP };
+}
+function _presenceStart(){
+  try {
+    if (typeof firebase === 'undefined' || typeof firebase.database !== 'function') return;
+    if (!FB.user) return; // 認証必須(DBルール対策)
+    if (!PRES.key) PRES.key = 'p' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    PRES.ref = firebase.database().ref('presence/' + PRES.key);
+    PRES.listRef = firebase.database().ref('presence');
+    // 接続時に自分を登録＋切断時自動削除
+    firebase.database().ref('.info/connected').on('value', function(snap){
+      if (snap.val() === true && PRES.ref) {
+        try { PRES.ref.onDisconnect().remove(); PRES.ref.set(_presenceMe()).catch(function(err){
+          console.warn('[EIGYO PRO] presence書込み失敗(DBルールでpresenceを許可してください):', err && err.message);
+        }); } catch(e){}
+      }
+    });
+    // 一覧購読 → ヘッダー更新
+    if (!PRES.started) {
+      PRES.listRef.on('value', function(snap){ _renderPresence(snap.val() || {}); });
+      PRES.started = true;
+    }
+    // ハートビート(2分ごとに ts/fy 更新)
+    clearInterval(PRES.hbTimer);
+    PRES.hbTimer = setInterval(function(){ try { if (PRES.ref && FB.connected) PRES.ref.update({ ts: firebase.database.ServerValue.TIMESTAMP, fy:(typeof fy!=='undefined'?fy:'') }); } catch(e){} }, 120000);
+  } catch(e){ console.warn('[EIGYO PRO] presence開始失敗', e); }
+}
+function _presenceStop(){
+  try { if (PRES.ref) PRES.ref.remove(); } catch(e){}
+  try { if (PRES.listRef) PRES.listRef.off(); } catch(e){}
+  try { clearInterval(PRES.hbTimer); } catch(e){}
+  PRES.started = false;
+}
+function _renderPresence(all){
+  try {
+    var wrap = document.getElementById('presence-wrap'); if (!wrap) return;
+    var now = Date.now(), STALE = 5 * 60 * 1000;
+    var arr = Object.keys(all || {}).map(function(k){ return all[k]; })
+      .filter(function(u){ return u && u.name && (!u.ts || (now - u.ts) < STALE); });
+    var n = arr.length;
+    wrap.style.display = n > 0 ? '' : 'none';
+    var txt = document.getElementById('presence-text'); if (txt) txt.textContent = '👥 ' + n + '人';
+    arr.sort(function(a,b){
+      var br = String(a.branch||'').localeCompare(String(b.branch||''), 'ja'); if (br !== 0) return br;
+      return String(a.name||'').localeCompare(String(b.name||''), 'ja');
+    });
+    var list = document.getElementById('presence-list'); if (!list) return;
+    var myKey = PRES.key;
+    var rows = arr.map(function(u){
+      var t = u.ts ? new Date(u.ts) : null; function z(x){ return (x<10?'0':'')+x; }
+      var tm = t ? (z(t.getHours()) + ':' + z(t.getMinutes())) : '';
+      return '<div class="pres-item"><span class="pdot" style="width:7px;height:7px;border-radius:50%;background:var(--grn);flex-shrink:0"></span>'
+        + '<span class="pres-nm">' + _esc(u.name) + '</span>'
+        + (u.branch ? '<span class="pres-br">' + _esc(u.branch) + '</span>' : '')
+        + (u.fy ? '<span class="pres-fy">' + _esc(String(u.fy)) + '年度</span>' : '')
+        + '<span class="pres-tm">' + tm + '</span></div>';
+    }).join('');
+    list.innerHTML = '<div class="pres-hd">いま開いている人（' + n + '）</div>' + (rows || '<div class="pres-item">接続者なし</div>');
+  } catch(e){}
+}
+function togglePresenceList(){
+  var el = document.getElementById('presence-list'); if (!el) return;
+  el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+}
+// 一覧外クリックで閉じる
+document.addEventListener('click', function(e){
+  var w = document.getElementById('presence-wrap');
+  if (w && !w.contains(e.target)) { var l = document.getElementById('presence-list'); if (l) l.style.display = 'none'; }
+});
+
 // ── 同期バッジ表示 ───────────────────────────────────────────────
 var _syncBadgeTimer = null;
 // ヘッダーの「最終更新: 担当者・時刻」表示を更新(Dの_lastBy/_tsから)
@@ -14406,6 +14517,7 @@ function updateAllSyncUI() {
 
 // ── 切断 ────────────────────────────────────────────────────────
 function fbDisconnect() {
+  if (typeof _presenceStop === 'function') { try { _presenceStop(); } catch(e){} }
   FB.listeners.forEach(fn => { try { fn(); } catch(e) {} });
   FB.listeners = [];
   if (FB.auth) FB.auth.signOut().catch(()=>{});
