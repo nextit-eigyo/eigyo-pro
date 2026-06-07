@@ -19081,6 +19081,8 @@ function renderActivityActuals(tb) {
   if (!D.activityActuals) D.activityActuals = {};
   var now = new Date();
   var curMi = now.getMonth() >= 3 ? now.getMonth()-3 : now.getMonth()+9;
+  // 営業活動量タブでは売上テーブルの静的ヘッダー(月/売上予算/...)は不要 → 非表示
+  try { var _ah=document.getElementById('athead'); if(_ah) _ah.style.display='none'; } catch(e){}
   // ⑤ 行動×成果 相関(管理職 & 集計スコープのみ)。専用コンテナへ描画。
   try {
     var _aq = document.getElementById('activity-quadrant');
