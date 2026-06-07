@@ -5495,8 +5495,11 @@ function _mtPersonName(spId){
 function _mtSelectScope(scope){ _meetingState.scope = scope; renderMeeting(); }
 // 経過月(4月〜今月)に絞る。該当無し(下期など未到来)は元のレンジを返す
 function _mtElapsedMis(halfMis){
-  var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
-  var r = halfMis.filter(function(mi){ return mi <= curMi; });
+  // ⭐ 表示中の年度(fy)を考慮: 過去年度は全月表示・当年度は今月まで。
+  //   (旧実装は常に現在暦月で絞り、2025等の過去年度でも7月以降が出ないバグがあった)
+  var cur = _mtMaxElapsedMi();
+  if (cur < 0) return halfMis; // 未来年度(予算確認用に全月)
+  var r = halfMis.filter(function(mi){ return mi <= cur; });
   return r.length ? r : halfMis;
 }
 // ログインユーザー別の既定スコープ(初回表示時のみ。以後はクリック選択を保持)
@@ -5545,10 +5548,19 @@ function _mtScopeSelectorHtml(scope){
   return html;
 }
 
+// ⭐ 表示中の年度(fy)で「経過済みの最大月インデックス」を返す。過去年度=11(全月)/未来=-1/当年度=今月。
+function _mtMaxElapsedMi(){
+  var now=new Date(), ny=now.getFullYear(), nm=now.getMonth()+1;
+  var todayFy=(nm>=4)?ny:ny-1;
+  var curFy=(typeof fy!=='undefined')?fy:todayFy;
+  if (curFy<todayFy) return 11;  // 過去年度: 全月経過済み
+  if (curFy>todayFy) return -1;  // 未来年度: 未経過
+  return (nm>=4)?nm-4:nm+8;        // 当年度: 今月まで
+}
 // ── 期間集計（スコープ × 月レンジ）──
 function _mtPeriodTotals(scope, mis){
   var target = _mtScopeTarget(scope);
-  var now=new Date(); var curMi = now.getMonth()>=3 ? now.getMonth()-3 : now.getMonth()+9;
+  var curMi = _mtMaxElapsedMi();
   var o={bs:0,as:0,bp:0,ap:0,done:0,tot:mis.length};
   mis.forEach(function(mi){
     o.bs += getBudgetValue(target,'s',mi); o.as += getActualValue(target,'s',mi);
