@@ -2116,7 +2116,7 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-chip b { color:var(--acc2); font-weight:900; }
 #tab-meeting .mt-chip.soft b { color:var(--acc); }
 #tab-meeting .mt-brk i { color:var(--tx3); font-style:normal; }
-#tab-meeting .mt-scope-head { display:flex; align-items:baseline; gap:10px; margin:2px 0 2px; font-size:13px; font-weight:800; color:var(--tx); }
+#tab-meeting .mt-scope-head { display:flex; align-items:center; gap:10px; margin:2px 0 2px; font-size:13px; font-weight:800; color:var(--tx); }
 #tab-meeting .mt-scope-head .sub { font-size:11px; color:var(--tx3); font-weight:500; }
 /* 拠点別 月次(全社/営業部): 1行に3ヶ月並ぶグリッド + コンパクト5列 */
 #tab-meeting .mt-rb-wrap { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:4px; align-items:start; }
@@ -2694,10 +2694,6 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ MEETING (営業会議レポート) ════════════════ -->
 <div id="tab-meeting" class="sec">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-    <div class="ptitle" style="margin:0">📅 予実管理</div>
-    <div style="font-size:11px;color:var(--tx3)">案件管理から自動集計。手入力不要。</div>
-  </div>
   <div id="meeting-body"></div>
 </div>
 
@@ -6125,22 +6121,19 @@ function renderMeeting() {
   }
 
   var html = '';
-  // ── 期間切替ツールバー(右上に配置) ─────────
-  html += '<div class="meeting-toolbar">';
-  html += '<div style="flex:1"></div>';
-  html += '<div class="mt-half-tabs">';
+  // ── 期間切替(上期/下期/通期) ─ ヘッダーの余白削減のため年間サマリー見出しの右へ配置 ─────────
+  var _halfTabs = '<div class="mt-half-tabs" style="margin-left:auto">';
   [['h1','上期'],['h2','下期'],['full','通期']].forEach(function(o) {
     var act = (o[0] === half) ? ' active' : '';
-    html += '<button class="mt-ht'+act+'" onclick="_mtSelectHalf(\''+o[0]+'\')">'+o[1]+'</button>';
+    _halfTabs += '<button class="mt-ht'+act+'" onclick="_mtSelectHalf(\''+o[0]+'\')">'+o[1]+'</button>';
   });
-  html += '</div>';
-  html += '</div>';
+  _halfTabs += '</div>';
 
   // ── スコープ選択(全社/営業部/営業所/担当者) + 年間サマリー + 内訳 ─────────
   // 表示専用。万一新ビューで例外が出ても 営業会議タブ全体は壊さない。
   try {
     html += _mtScopeSelectorHtml(scope);
-    html += '<div class="mt-scope-head">'+_esc(_mtScopeLabel(scope))+'<span class="sub">'+fy+'年度 年間サマリー</span></div>';
+    html += '<div class="mt-scope-head">'+_esc(_mtScopeLabel(scope))+'<span class="sub">'+fy+'年度 年間サマリー</span>'+_halfTabs+'</div>';
     html += _mtSummaryCardsHtml(scope);
     if (!scopeIsPerson) {
       html += _mtBreakdownHtml(scope);
