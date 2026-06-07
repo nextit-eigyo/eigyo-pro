@@ -1922,6 +1922,41 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-sum .good { color:#4a5a32; font-weight:900; }
 #tab-meeting .mt-sum .mid  { color:#7a5a2a; font-weight:900; }
 #tab-meeting .mt-sum .bad  { color:var(--red); font-weight:900; }
+/* 📂 月別予実の内訳展開(既定非表示) */
+#tab-meeting .mt-sum td.lbl .mt-brk-tg{
+  display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-right:4px;
+  border-radius:5px;background:var(--s3);color:var(--acc);font-size:11px;font-weight:900;cursor:pointer;
+  border:1px solid var(--bd);vertical-align:middle;transition:background .12s;
+}
+#tab-meeting .mt-sum td.lbl .mt-brk-tg:hover{ background:var(--acc);color:#fff; }
+#tab-meeting .mt-sum tr.mt-mrow:hover td{ background:#fcfbf7; }
+/* 内訳行: mt-sum の中央寄せ・大フォント・色分けを打ち消し左寄せの明細に */
+#tab-meeting .mt-sum tr.mt-brk-row > td{
+  background:#faf8f3 !important;text-align:left;font-weight:400;font-size:13px;padding:0;border-top:none;
+}
+#tab-meeting .mt-brk-box{ padding:10px 14px 12px; }
+#tab-meeting .mt-brk-sec{ margin-bottom:8px; }
+#tab-meeting .mt-brk-h{ display:block;font-size:12px;font-weight:800;color:var(--tx2);margin-bottom:5px;letter-spacing:.02em; }
+#tab-meeting .mt-brk-chip{
+  display:inline-block;margin:0 6px 5px 0;padding:3px 9px;border-radius:12px;background:#fff;border:1px solid var(--bd);
+  font-size:12px;font-weight:700;color:var(--tx2);
+}
+#tab-meeting .mt-brk-chip b{ color:var(--acc);font-weight:900;margin-left:3px; }
+#tab-meeting .mt-brk-chip .g{ color:#7a8e5a;margin-left:1px; }
+#tab-meeting .mt-brk-tbl{ width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(90,75,55,.06); }
+#tab-meeting .mt-brk-tbl th,#tab-meeting .mt-brk-tbl td{ border:1px solid var(--bd);padding:5px 9px;font-size:13px;text-align:center;font-weight:600; }
+#tab-meeting .mt-brk-tbl th{ background:var(--s3);font-weight:800;color:var(--tx2);font-size:12px; }
+#tab-meeting .mt-brk-tbl td.num{ text-align:right;font-variant-numeric:tabular-nums; }
+#tab-meeting .mt-brk-tbl td.ctr{ text-align:center; }
+#tab-meeting .mt-brk-tbl tr.sum td{ background:#fff5b8;font-weight:900; }
+#tab-meeting .mt-brk-tag{
+  display:inline-block;margin-left:5px;padding:1px 6px;border-radius:9px;background:#c89856;color:#fff;
+  font-size:10px;font-weight:800;vertical-align:middle;
+}
+#tab-meeting .mt-brk-foot{ margin-top:8px;font-size:12px;color:var(--tx3);font-weight:600; }
+#tab-meeting .mt-brk-foot b{ color:var(--acc);font-weight:900; }
+#tab-meeting .mt-brk-note{ margin-top:4px;font-size:11.5px;color:var(--tx3); }
+#tab-meeting .mt-brk-empty{ margin:2px 0;font-size:12.5px;color:var(--tx3); }
 /* ⭐ 系列の色分け(全体統一): 藍=売上系 / オリーブ=粗利系 / クリーム=軒数。
    列の並びは全mt-sum表で共通(1=ラベル, 2-4=売上, 5-7=粗利, 8-9=軒数)。
    計(hl-y)行は黄色強調を優先するため :not(.hl-y) で除外。 */
@@ -5629,13 +5664,99 @@ function _mtRegionBranchSectionsHtml(scope, halfMis){
   html += '</div>';
   return html;
 }
+// ════════════════════════════════════════════════════════════════
+// 📂 月別予実の「内訳」展開(既定非表示・クリックで開閉)
+//   各月にどの受注案件(確度5)が反映されているか＋コンポーネント内訳を表示。
+//   馬場さんが「どの案件が計上されているか」を自分で確認できるようにする。
+//   集計には一切影響しない(表示専用・getActualValue等を読むだけ)。
+// ════════════════════════════════════════════════════════════════
+var _mtBrkSeq = 0; // 内訳行のユニークID採番(再描画ごとに増加)
+function _mtToggleBreak(id){
+  var el = document.getElementById(id); if (!el) return;
+  var tg = document.getElementById(id + '_tg');
+  var hidden = (el.style.display === 'none');
+  el.style.display = hidden ? '' : 'none';
+  if (tg) tg.textContent = hidden ? '▾' : '▸';
+}
+// スコープ×月の対象案件: branch/region/all=配下拠点の直販+グループ薬局、person=本人案件(グループ除外)
+function _mtBreakdownDeals(scope, mi){
+  var arr = [];
+  var dmi = function(d){ return (typeof implToFyIdx === 'function') ? implToFyIdx(d.deliveryMonth) : _mtDeliveryMi(d); };
+  if (_mtScopeIsPerson(scope)){
+    (D.deals || []).forEach(function(d){
+      if (d.spId !== scope) return;
+      if (d.category === 'グループ薬局') return; // 個人実績はグループ除外(集計と同ルール)
+      if (dmi(d) !== mi) return;
+      arr.push(d);
+    });
+  } else {
+    var branches = _mtScopeBranches(scope);
+    var pid2br = {}; (D.people || []).forEach(function(p){ pid2br[p.id] = p.branch; });
+    (D.deals || []).forEach(function(d){
+      if (dmi(d) !== mi) return;
+      var br = (d.category === 'グループ薬局') ? (d.groupBranch || pid2br[d.spId]) : pid2br[d.spId];
+      if (branches.indexOf(br) >= 0) arr.push(d);
+    });
+  }
+  arr.sort(function(a, b){
+    var wa = (typeof _countsAsWon === 'function' && _countsAsWon(a)) ? 1 : 0;
+    var wb = (typeof _countsAsWon === 'function' && _countsAsWon(b)) ? 1 : 0;
+    if (wa !== wb) return wb - wa;
+    return (parseFloat(b.sales) || 0) - (parseFloat(a.sales) || 0);
+  });
+  return arr;
+}
+// 1ヶ月分の内訳HTML(コンポーネント内訳＋反映受注案件一覧＋脚注)
+function _mtMonthBreakdownHtml(scope, mi){
+  var target = _mtScopeTarget(scope);
+  var as = getActualValue(target, 's', mi), ap = getActualValue(target, 'p', mi);
+  var isPerson = _mtScopeIsPerson(scope);
+  var h = '<div class="mt-brk-box">';
+  // ① コンポーネント内訳(拠点/地域/全社のみ。単位=千)
+  if (!isPerson && typeof _getBreakdownForMi === 'function'){
+    var bp = _mtScopeBranchParam(scope);
+    var bs = _getBreakdownForMi(bp, 's', mi) || {};
+    var bpr = _getBreakdownForMi(bp, 'p', mi) || {};
+    var chip = function(lbl, sv, pv){ sv = sv || 0; pv = pv || 0; if (sv === 0 && pv === 0) return ''; return '<span class="mt-brk-chip">' + lbl + '<b>' + _mtFmtNum(sv) + '</b><span class="g">/' + _mtFmtNum(pv) + '</span></span>'; };
+    var chips = chip('ソフト', bs.system, bpr.system) + chip('保守', bs.maintenance, bpr.maintenance) + chip('HW', bs.hardware, bpr.hardware) + chip('消耗品', bs.consumables, bpr.consumables) + chip('その他', bs.other, bpr.other);
+    if (chips) h += '<div class="mt-brk-sec"><span class="mt-brk-h">内訳（売上/粗利・千）</span>' + chips + '</div>';
+  }
+  // ② 反映されている受注案件(確度5=計上)
+  var deals = _mtBreakdownDeals(scope, mi);
+  var won = deals.filter(function(d){ return (typeof _countsAsWon === 'function') ? _countsAsWon(d) : false; });
+  var notWon = deals.length - won.length;
+  if (won.length){
+    var sumS = 0, sumP = 0;
+    h += '<div class="mt-brk-sec"><span class="mt-brk-h">反映されている受注案件（確度5・計上）' + won.length + '件</span>';
+    h += '<table class="mt-brk-tbl"><tr><th style="text-align:left">ユーザー名</th><th>担当</th><th>区分</th><th>売上</th><th>粗利</th></tr>';
+    won.forEach(function(d){
+      var sv = parseFloat(d.sales) || 0, cv = parseFloat(d.cost) || 0;
+      var pv = (d.cost === '' || d.cost == null) ? 0 : (sv - cv);
+      sumS += sv; sumP += pv;
+      var overlay = (d._wonAt && parseFloat(d._wonAt) > 1e12);
+      var cat = (d.category || '直販'); var catS = (cat.length > 3) ? cat.slice(0, 3) : cat;
+      var nm = '<a href="#" class="mt-deal-link" onclick="event.preventDefault();_mtOpenDeal(\'' + _esc(String(d.id)) + '\')">' + _esc(d.name || '(無名)') + '</a>';
+      h += '<tr><td>' + nm + (overlay ? ' <span class="mt-brk-tag">取込後上乗せ</span>' : '') + '</td><td class="ctr">' + _esc(_mtPersonName(d.spId)) + '</td><td class="ctr">' + _esc(catS) + '</td><td class="num">' + _mtFmtNum(sv) + '</td><td class="num">' + _mtFmtNum(pv) + '</td></tr>';
+    });
+    h += '<tr class="sum"><td colspan="3">受注案件 計</td><td class="num">' + _mtFmtNum(sumS) + '</td><td class="num">' + _mtFmtNum(sumP) + '</td></tr></table>';
+  } else {
+    h += '<p class="mt-brk-empty">この月に計上（確度5）の受注案件はありません。</p>';
+  }
+  if (notWon > 0) h += '<div class="mt-brk-note">※他に見込み案件 ' + notWon + '件（確度4以下・非計上）</div>';
+  // ③ 脚注(実績合計＝何で構成されるか)
+  h += '<div class="mt-brk-foot">実績合計：売上 <b>' + _mtFmtNum(as) + '</b> ／ 粗利 <b>' + _mtFmtNum(ap) + '</b>（千）'
+    + (isPerson ? '＝担当者ソフト実績' : '＝Excel取込の確定値（保守・HW等含む）＋取込後の手動受注') + '</div>';
+  h += '</div>';
+  return h;
+}
 // ── 経過月 累計テーブル（スコープ版・個人ビューと同形式）──
 // ── スコープ単位の「月別予実」テーブル(実績確認 Table0 相当を営業会議に統合) ──
 //   各月の 売上/粗利 の 予算・実績・達成率・差異 をスコープ合計で表示。
 //   getActualValue/getBudgetValue を読むだけ(集計ロジックは変更しない=数字は実績確認と一致)。
 // 月別予実テーブルのコア(target指定で売上/粗利の予算・実績・達成率・差異を月別に)。
 //   スコープ合計でも担当者単体でも同じ見た目になるよう共通化(案B=担当者ごとに同形式)。
-function _mtMonthlyTableCore(target, halfMis){
+//   scope を渡すと各月にクリックで開く「内訳」行を付与(既定非表示)。
+function _mtMonthlyTableCore(target, halfMis, scope){
   var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
   var moLabels=['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
   function pct(a,b){ return b>0 ? (a/b*100).toFixed(1)+'%' : '—'; }
@@ -5645,9 +5766,17 @@ function _mtMonthlyTableCore(target, halfMis){
     var bp=getBudgetValue(target,'p',mi), ap=getActualValue(target,'p',mi);
     tBS+=bs;tAS+=as;tBP+=bp;tAP+=ap;
     var sA=bs>0?(as/bs*100):0, pA=bp>0?(ap/bp*100):0;
-    rows += '<tr><td class="lbl">'+moLabels[mi]+'</td>'
+    var canBrk = (scope !== undefined && scope !== null);
+    var bid = 'mtbrk_' + (_mtBrkSeq++);
+    var lblCell = canBrk
+      ? '<td class="lbl"><span class="mt-brk-tg" id="'+bid+'_tg" onclick="_mtToggleBreak(\''+bid+'\')" title="この月の内訳(反映案件)を表示/非表示">▸</span> '+moLabels[mi]+'</td>'
+      : '<td class="lbl">'+moLabels[mi]+'</td>';
+    rows += '<tr'+(canBrk?' class="mt-mrow"':'')+'>'+lblCell
       + '<td>'+_mtFmtNum(bs)+'</td><td>'+_mtFmtNum(as)+'</td><td class="'+_mtAchCls(sA)+'"><div>'+pct(as,bs)+'</div>'+_mtFmtDiff(as,bs)+'</td>'
       + '<td>'+_mtFmtNum(bp)+'</td><td>'+_mtFmtNum(ap)+'</td><td class="'+_mtAchCls(pA)+'"><div>'+pct(ap,bp)+'</div>'+_mtFmtDiff(ap,bp)+'</td></tr>';
+    if (canBrk){
+      rows += '<tr class="mt-brk-row" id="'+bid+'" style="display:none"><td colspan="7">'+_mtMonthBreakdownHtml(scope, mi)+'</td></tr>';
+    }
   });
   var tsA=tBS>0?(tAS/tBS*100):0, tpA=tBP>0?(tAP/tBP*100):0;
   rows += '<tr class="hl-y"><td class="lbl">'+halfLbl+'計</td>'
@@ -5659,7 +5788,7 @@ function _mtMonthlyTableCore(target, halfMis){
 function _mtMonthlyTableHtml(scope, halfMis){
   var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
   return '<div class="mt-mem-title">📊 '+_esc(_mtScopeLabel(scope))+' 月別予実（'+halfLbl+'）<span class="hint">各月の売上・粗利の予算/実績/達成率/差異</span></div>'
-    + _mtMonthlyTableCore(_mtScopeTarget(scope), halfMis);
+    + _mtMonthlyTableCore(_mtScopeTarget(scope), halfMis, scope);
 }
 // 案B: 営業所スコープで「担当者ごとに月別予実テーブル」を縦に並べる(月別予実と完全に同じ形式で統一)。
 //   担当者名クリックで個人ビューへドリル。getActualValue/getBudgetValue(個人=D.actuals/D.budgets直接)で数字一致。
@@ -5679,7 +5808,7 @@ function _mtMemberMonthlyTablesHtml(scope, halfMis){
     var pidJs=String(p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     html += '<div class="mt-memtab-panel" data-idx="'+i+'"'+(i===0?'':' style="display:none"')+'>'
       + '<div class="mt-mem-name" title="クリックで'+_esc(p.name||'')+'の案件(個人ビュー)へ" onclick="_mtSelectScope(\''+pidJs+'\')">👤 '+_esc(p.name||'(無名)')+' の案件(個人ビュー)へ <span class="go">▸</span></div>'
-      + _mtMonthlyTableCore({type:'person', id:p.id}, halfMis)
+      + _mtMonthlyTableCore({type:'person', id:p.id}, halfMis, p.id)
       + '</div>';
   });
   return html;
