@@ -9835,6 +9835,28 @@ function addVisit(dealId){
   }
 }
 
+// ⚡ ワンタップ活動記録(今日・1クリックで 訪問/電話/メール を1件記録)
+// → 活動量(営業活動量タブ/カルテ/象限)は案件の活動記録から自動集計されるため、これだけで反映される。
+// 実績(売上)には一切触れない(status=受注にしない=数字事故なし)。
+function quickVisit(dealId, actType){
+  var d=D.deals.find(function(x){return x.id===dealId;}); if(!d) return;
+  if(!d.visits) d.visits=[];
+  var t=new Date();
+  var ds=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  // ステータスは現在のフェーズを引き継ぐ(活動でフェーズを変えない)。終端ステータスは状況確認に。
+  var st=(typeof lstat==='function'?lstat(d):'')||'状況確認';
+  if(['受注','失注','延期'].indexOf(st)>=0) st='状況確認';
+  d.visits.push({date:ds, actType:actType, status:st, reaction:'', reason:'', memo:'', nextDate:d.nextDate||'', waitType:d.waitType||''});
+  d.visits.sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+  d._mod=Date.now();  // 多PC同期マージ保護
+  save();
+  try{ if(typeof _showToast==='function') _showToast('⚡ '+actType+'を記録しました('+ds.slice(5).replace('-','/')+')','ok',2200); }catch(e){}
+  try{
+    if(typeof _refreshDealAfterEdit==='function') _refreshDealAfterEdit(dealId);
+    else if(typeof renderDeals==='function') renderDeals();
+  }catch(e){ try{ if(typeof renderDeals==='function') renderDeals(); }catch(_){} }
+}
+
 function delVisit(dealId,idx){
   const d=D.deals.find(x=>x.id===dealId);if(!d)return;
   if(!confirm('この訪問記録を削除しますか？'))return;
@@ -15646,6 +15668,13 @@ function buildDealBody(d) {
         <span class="dc-sec-title" style="color:var(--acc)"><span class="ic">📝</span>活動を記録 (新規追加)</span>
       </div>
       <div style="padding:11px 14px">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:11px;padding-bottom:10px;border-bottom:1px dashed var(--bd);flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--tx3);font-weight:700">⚡ クイック記録(今日)</span>
+          <button type="button" onclick="quickVisit('${d.id}','訪問')" style="padding:5px 12px;font-size:12px;font-weight:700;border:1px solid rgba(122,142,90,.5);border-radius:14px;background:#fff;color:#4a5a32;cursor:pointer">🚶 訪問</button>
+          <button type="button" onclick="quickVisit('${d.id}','電話')" style="padding:5px 12px;font-size:12px;font-weight:700;border:1px solid rgba(58,90,126,.5);border-radius:14px;background:#fff;color:var(--acc);cursor:pointer">📞 電話</button>
+          <button type="button" onclick="quickVisit('${d.id}','メール')" style="padding:5px 12px;font-size:12px;font-weight:700;border:1px solid rgba(200,152,86,.5);border-radius:14px;background:#fff;color:#8a5a2e;cursor:pointer">✉️ メール</button>
+          <span style="font-size:10px;color:var(--tx3)">1タップで活動量に自動集計</span>
+        </div>
         <div class="vadd" style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
           <div class="ff" style="min-width:110px;flex:0 0 auto"><label>活動日</label><input type="date" id="vd-${d.id}" class="fi" style="padding:6px 9px;font-size:12px"></div>
           <div class="ff" style="min-width:80px;flex:0 0 auto"><label>種別</label>
@@ -15746,6 +15775,12 @@ function buildDealBody_LEGACY(d) {
         <!-- 活動を記録（最頻操作・青枠強調） -->
         <div style="background:rgba(58,90,126,.05);border:1px solid rgba(58,90,126,.25);border-radius:var(--r);padding:11px 13px;margin-bottom:10px">
           <div style="font-size:11px;font-weight:700;color:var(--acc);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">📝 活動を記録</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:9px;padding-bottom:9px;border-bottom:1px dashed var(--bd);flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--tx3);font-weight:700">⚡ クイック記録(今日)</span>
+            <button type="button" onclick="quickVisit('${d.id}','訪問')" style="padding:5px 12px;font-size:12px;font-weight:700;border:1px solid rgba(122,142,90,.5);border-radius:14px;background:#fff;color:#4a5a32;cursor:pointer">🚶 訪問</button>
+            <button type="button" onclick="quickVisit('${d.id}','電話')" style="padding:5px 12px;font-size:12px;font-weight:700;border:1px solid rgba(58,90,126,.5);border-radius:14px;background:#fff;color:var(--acc);cursor:pointer">📞 電話</button>
+            <button type="button" onclick="quickVisit('${d.id}','メール')" style="padding:5px 12px;font-size:12px;font-weight:700;border:1px solid rgba(200,152,86,.5);border-radius:14px;background:#fff;color:#8a5a2e;cursor:pointer">✉️ メール</button>
+          </div>
           <div class="vadd" style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
             <div class="ff" style="min-width:110px;flex:0 0 auto"><label>活動日</label><input type="date" id="vd-${d.id}" class="fi" style="padding:6px 9px;font-size:12px"></div>
             <div class="ff ql-field-sm" style="min-width:80px;flex:0 0 auto"><label>種別</label>
