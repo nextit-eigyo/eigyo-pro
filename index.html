@@ -9671,6 +9671,12 @@ function buildVisitRows(d){
     // 編集フォームの 種別/アクション選択肢
     var actTypeOpts = ['訪問','電話','メール'].map(function(t){return '<option'+(v.actType===t?' selected':'')+'>'+t+'</option>';}).join('');
     var statusOpts = getST().map(function(s){return '<option'+(v.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    // 🎯 目的(8指標) — 自動判定を表示し、編集で1タップ修正可
+    var _isRealAct = (typeof _normVisitType==='function') ? _normVisitType(v.actType||v.status) : (v.actType!=='受注');
+    var _purpose = v.purpose || ((typeof _estimateActivityPurpose==='function') ? _estimateActivityPurpose(d,v) : '');
+    var _purposeAuto = !v.purpose;
+    var purposeTag = (_isRealAct && _purpose) ? '<span style="font-size:10.5px;color:#4a5a32;font-weight:700">🎯 '+_esc(_purpose)+(_purposeAuto?' <span style="color:var(--tx3);font-weight:500">(自動)</span>':'')+'</span>' : '';
+    var purposeOpts = ((D.activityTypes)||[]).map(function(t){return '<option'+(_purpose===t?' selected':'')+'>'+_esc(t)+'</option>';}).join('');
 
     return ''+
       '<div class="dc-visit-item" id="vi-'+dealId+'-'+i+'">'+
@@ -9683,6 +9689,7 @@ function buildVisitRows(d){
             '<span class="date">'+_esc(v.date||'')+'</span>'+
             '<span class="type">'+actTypeIcon+' '+_esc(v.actType||'訪問')+'</span>'+
             statusTag+
+            purposeTag+
             reasonTag+
             nextTag+
           '</div>'+
@@ -9693,6 +9700,9 @@ function buildVisitRows(d){
             '<div><label>活動日</label><input type="date" value="'+_esc(v.date||'')+'" oninput="_updVisitField(\''+dealId+'\','+i+',\'date\',this.value)"></div>'+
             '<div><label>種別</label><select onchange="_updVisitField(\''+dealId+'\','+i+',\'actType\',this.value)">'+actTypeOpts+'</select></div>'+
             '<div><label>アクション</label><select onchange="_updVisitField(\''+dealId+'\','+i+',\'status\',this.value)">'+statusOpts+'</select></div>'+
+          '</div>'+
+          '<div class="es-row">'+
+            '<div style="flex:1"><label>🎯 目的(評価指標)'+(_purposeAuto?' <span style="color:var(--tx3);font-weight:400">※自動判定中</span>':'')+'</label><select onchange="_updVisitField(\''+dealId+'\','+i+',\'purpose\',this.value)">'+purposeOpts+'</select></div>'+
           '</div>'+
           '<div class="es-row">'+
             '<div style="flex:1"><label>補足メモ</label><textarea rows="3" oninput="_updVisitField(\''+dealId+'\','+i+',\'memo\',this.value)">'+_esc(v.memo||'')+'</textarea></div>'+
@@ -19092,6 +19102,55 @@ function _activityAutoMap(){
   return map;
 }
 
+// 🎯 活動の「目的」(本部長指示の8指標)を案件属性から自動推定する(下書き)。
+// 優先: 内容キーワード > 流入経路(route) > 案件種別(dealType) > 既定。営業は履歴で1タップ修正可。
+function _estimateActivityPurpose(d, v){
+  var T=(D.activityTypes)||[];
+  function has(x){return T.indexOf(x)>=0;}
+  var st=((v&&v.status)||'');
+  var memo=(((v&&v.memo)||'')+' '+st);
+  // 1) 活動内容のキーワード(最も確度が高い)
+  if(/障害|トラブル|不具合|故障|エラー|クレーム/.test(memo) && has('障害対応')) return '障害対応';
+  if(/操作|指導|トレーニング|研修|レクチャ|使い方|説明会|レク/.test(memo) && has('操作指導・トレーニング')) return '操作指導・トレーニング';
+  if(/定期訪問/.test(st) && has('定期フォロー訪問')) return '定期フォロー訪問';
+  // 2) 流入経路(route)
+  var r=((d&&d.route)||'');
+  if(/ホームページ|web|ＨＰ|HP|問い合わせ|問合せ/i.test(r) && has('Web引き合い対応')) return 'Web引き合い対応';
+  if((r==='既存顧客紹介' || (/紹介/.test(r) && /既存|顧客/.test(r))) && has('既存顧客紹介')) return '既存顧客紹介';
+  if(/アステム|東邦|クレオ|メディセオ|スズケン|卸|代理店|パートナー|販社/.test(r) && has('代理店・パートナー紹介')) return '代理店・パートナー紹介';
+  // 3) 案件種別(dealType)
+  var dt=((d&&d.dealType)||'');
+  if(/他社入替|リプレース/.test(dt) && has('アップセル・リプレース提案')) return 'アップセル・リプレース提案';
+  if(/新規開局/.test(dt) && has('飛込み訪問')) return '飛込み訪問';
+  if(/既存|バージョンアップ/.test(dt) && has('定期フォロー訪問')) return '定期フォロー訪問';
+  // 4) 既定: 受注済/実績反映済の既存客=定期フォロー、それ以外=飛込み
+  var isExisting=(d&&(d.actualsReflected || (typeof _countsAsWon==='function' && _countsAsWon(d))));
+  if(isExisting && has('定期フォロー訪問')) return '定期フォロー訪問';
+  return has('飛込み訪問')?'飛込み訪問':(T[0]||'飛込み訪問');
+}
+
+// 全案件のvisitsを走査し、目的(8指標)別の月別カウント {spId:{目的:[12]}} を返す。
+// 実活動(手段=訪問/電話/メール)のみ・当年度・担当者ひも付き。purpose未設定は推定で補完。
+function _activityPurposeMap(){
+  var T=(D.activityTypes)||[];
+  var map={};
+  (D.deals||[]).forEach(function(d){
+    if(!d||!d.visits||!d.visits.length) return;
+    var sp=d.spId; if(!sp||sp==='office') return;
+    d.visits.forEach(function(v){
+      if(!v) return;
+      var ch=_normVisitType(v.actType||v.type||v.status); if(!ch) return; // 受注マーカー等は除外
+      var mi=_visitDateToFyMi(v.date); if(mi==null) return;
+      var purpose=v.purpose||_estimateActivityPurpose(d,v);
+      if(T.indexOf(purpose)<0) purpose=(T[0]||'飛込み訪問');
+      if(!map[sp]) map[sp]={};
+      if(!map[sp][purpose]) map[sp][purpose]=Array(12).fill(0);
+      map[sp][purpose][mi]++;
+    });
+  });
+  return map;
+}
+
 // 📥 案件の活動記録から自動集計した 訪問/電話/メール の月別テーブル(閲覧用)。
 // 本部長指示の8カテゴリ手入力テーブルとは別枠で併記する(B案)。targetPeople=対象担当者(1名でも配列)。
 function _activityAutoBlockHtml(targetPeople, curMi){
@@ -19226,6 +19285,8 @@ function renderActivityActuals(tb) {
   }
   if (!D.activityBudgets[p.id]) D.activityBudgets[p.id] = {};
   if (!D.activityActuals[p.id]) D.activityActuals[p.id] = {};
+  // 実績は案件の活動記録(目的=自動判定)から集計。手入力ではなく自動・閲覧用。
+  var pMine = (typeof _activityPurposeMap==='function' ? (_activityPurposeMap()[p.id]||{}) : {});
 
   // テーブルヘッダー
   var thead = '<thead><tr style="background:var(--s3)">' +
@@ -19248,17 +19309,14 @@ function renderActivityActuals(tb) {
         'value="' + (D.activityBudgets[p.id][at][i] || '') + '" placeholder="—" readonly></td>';
     }).join('');
     var aCells = ML.map(function(m, i) {
-      var av = D.activityActuals[p.id][at][i] || '';
+      var avN = (pMine[at] && pMine[at][i]) || 0;
       var bv = parseFloat(D.activityBudgets[p.id][at][i]) || 0;
-      var avN = parseFloat(av) || 0;
       var bg = bv > 0 ? (avN >= bv ? 'rgba(122,142,90,.08)' : 'rgba(168,90,74,.05)') : '';
-      return '<td style="text-align:center;padding:2px;background:' + bg + '">' +
-        '<input type="number" style="width:100%;text-align:center;background:none;border:none;font-size:12px;font-weight:700;color:var(--tx)" ' +
-        'value="' + av + '" placeholder="0" onchange="_saveActAct(\'' + p.id + '\',\'' + atSafe + '\',' + i + ',this.value)"></td>';
+      return '<td style="text-align:center;padding:2px;background:' + bg + ';font-size:12px;font-weight:700;color:var(--tx)">' + (avN > 0 ? avN : '—') + '</td>';
     }).join('');
     var rCells = ML.map(function(m, i) {
       var bv = parseFloat(D.activityBudgets[p.id][at][i]) || 0;
-      var av = parseFloat(D.activityActuals[p.id][at][i]) || 0;
+      var av = (pMine[at] && pMine[at][i]) || 0;
       var r = bv > 0 ? Math.round(av / bv * 100) : null;
       var col = r === null ? 'var(--tx3)' : r >= 100 ? 'var(--grn)' : r >= 80 ? 'var(--amb)' : 'var(--red)';
       return '<td style="text-align:center;padding:2px;font-size:12px;font-weight:700;color:' + col + '">' + (r !== null ? r + '%' : '—') + '</td>';
@@ -19277,7 +19335,7 @@ function renderActivityActuals(tb) {
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
         '<span style="background:' + getBranchColor(p.branch) + ';color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700">' + (p.branch || '—') + '</span>' +
         '<span style="font-size:15px;font-weight:900">' + p.name + '</span>' +
-        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 実績は各セルに直接入力 → 自動保存　目標は 設定→予算→営業活動量</span>' +
+        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 実績は<b>案件の活動記録から自動判定</b>(目的を自動推定)＝入力不要。違う時は履歴で目的を1タップ修正。目標は 設定→予算</span>' +
       '</div>' +
       '<div style="overflow-x:auto">' +
         '<table style="width:100%;min-width:750px;border-collapse:collapse;font-size:11px">' +
@@ -19333,16 +19391,17 @@ function _renderActivityActualsAggregate(tb, people, actTypes, curMi, mode) {
     }).join('') +
     '</tr></thead>';
 
-  // テーブル本体(活動種別ごとに、選ばれた担当者全員の月別合計を計算)
+  // テーブル本体(活動種別ごとに、選ばれた担当者全員の月別合計を計算。実績は目的別の自動集計)
+  var pmapAgg = (typeof _activityPurposeMap==='function') ? _activityPurposeMap() : {};
   var tbody = actTypes.map(function(at) {
     var bSum = Array(12).fill(0);
     var aSum = Array(12).fill(0);
     targetPeople.forEach(function(tp) {
       var bArr = (D.activityBudgets[tp.id] && D.activityBudgets[tp.id][at]) || [];
-      var aArr = (D.activityActuals[tp.id] && D.activityActuals[tp.id][at]) || [];
+      var aArr = (pmapAgg[tp.id] && pmapAgg[tp.id][at]) || [];
       for (var i = 0; i < 12; i++) {
         bSum[i] += parseFloat(bArr[i]) || 0;
-        aSum[i] += parseFloat(aArr[i]) || 0;
+        aSum[i] += aArr[i] || 0;
       }
     });
     var bCells = bSum.map(function(v) {
@@ -19372,7 +19431,7 @@ function _renderActivityActualsAggregate(tb, people, actTypes, curMi, mode) {
         '<span style="background:var(--acc);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700">' + scopeIcon + ' ' + scopeLabel + '</span>' +
         '<span style="font-size:15px;font-weight:900">合計</span>' +
         '<span style="font-size:11px;color:var(--tx3)">(' + targetPeople.length + '名分の合算)</span>' +
-        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 合計表示は読み取り専用。個別編集は担当者タブを選択してください</span>' +
+        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 実績は案件の活動記録から自動判定(目的を自動推定)。修正は担当者の活動履歴で</span>' +
       '</div>' +
       '<div style="overflow-x:auto">' +
         '<table style="width:100%;min-width:750px;border-collapse:collapse;font-size:11px">' +
