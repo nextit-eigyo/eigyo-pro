@@ -2440,12 +2440,6 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ DEALS ════════════════ -->
 <div id="tab-deals" class="sec on">
-  <!-- ヘッダー -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
-    <div class="ptitle" style="margin-bottom:0">📊 営業ホーム</div>
-    <button class="btn pr" onclick="openAddDealModal()" style="padding:8px 18px;font-size:14px;font-weight:700">＋ 案件追加</button>
-  </div>
-
   <!-- 案件モード / 数字モード 切替: サブタブで切替するため非表示
        (要素は JS から参照されるため display:none で残置) -->
   <div style="display:none">
@@ -2456,10 +2450,13 @@ body.has-sidepanel #home-deal-mode {
   <div id="home-deal-mode">
   <!-- ===== 案件モード内 固定ヘッダー（サブタブ＋フィルターバー） ===== -->
   <div class="deal-mode-sticky">
-  <!-- メインサブタブ（進行中 / 受注済み） -->
-  <div style="display:flex;gap:3px;background:var(--s3);border-radius:12px;padding:3px;margin-bottom:12px;width:fit-content">
-    <button class="btn sm active" id="deal-sub-active"   onclick="setDealSubTab('active')"  style="font-size:13px;padding:7px 14px">📋 進行中案件</button>
-    <button class="btn sm"        id="deal-sub-won"      onclick="setDealSubTab('won')"     style="font-size:13px;padding:7px 14px">🏆 受注済み</button>
+  <!-- メインサブタブ（進行中 / 受注済み）＋ 案件追加(右) -->
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <div style="display:flex;gap:3px;background:var(--s3);border-radius:12px;padding:3px;width:fit-content">
+      <button class="btn sm active" id="deal-sub-active"   onclick="setDealSubTab('active')"  style="font-size:13px;padding:7px 14px">📋 進行中案件</button>
+      <button class="btn sm"        id="deal-sub-won"      onclick="setDealSubTab('won')"     style="font-size:13px;padding:7px 14px">🏆 受注済み</button>
+    </div>
+    <button class="btn pr" onclick="openAddDealModal()" style="padding:8px 18px;font-size:14px;font-weight:700">＋ 案件追加</button>
   </div>
 
   <!-- フィルターバー（進行中用） -->
@@ -16431,9 +16428,8 @@ function renderWonDeals() {
     </div>`;
   }).join('');
 
-  // 最終HTML組み立て
+  // 最終HTML組み立て(累積受注実績カードは非表示=馬場さん要望。予実管理の年間サマリーと重複のため)
   el.innerHTML = `
-    ${cumHtml}
     ${chartHtml}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       ${branchRankHtml}
