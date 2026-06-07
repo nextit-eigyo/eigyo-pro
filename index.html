@@ -2633,19 +2633,6 @@ body.has-sidepanel #home-deal-mode {
 </div>
 
 <div id="tab-actuals" class="sec">
-  <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:6px">
-    <div style="display:flex;align-items:center;gap:6px">
-      <span id="actuals-size-ctrl" style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:11px;color:var(--tx3)">文字サイズ：</span>
-        <div style="display:flex;gap:3px;background:var(--s3);border-radius:8px;padding:3px">
-          <button id="actuals-size-s" class="btn sm active" onclick="setActualsSize('s')" style="font-size:11px;min-width:32px">小</button>
-          <button id="actuals-size-m" class="btn sm"        onclick="setActualsSize('m')" style="font-size:11px;min-width:32px">中</button>
-          <button id="actuals-size-l" class="btn sm"        onclick="setActualsSize('l')" style="font-size:11px;min-width:32px">大</button>
-        </div>
-      </span>
-    </div>
-  </div>
-
   <!-- 大項目タブ（売上 / 営業活動量）→ このタブは営業活動量専用化したため非表示。売上の実績確認は営業会議へ統合。 -->
   <div id="act-main-toggle" style="display:none;gap:4px;margin-bottom:12px;border-bottom:2px solid var(--bds)">
     <button id="act-main-tab-sales"    onclick="setActMainTab('sales')"
@@ -2658,7 +2645,17 @@ body.has-sidepanel #home-deal-mode {
     </button>
   </div>
 
-  <div class="ptabs" id="aptabs"></div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="ptabs" id="aptabs" style="flex:1;margin-bottom:0"></div>
+    <span id="actuals-size-ctrl" style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <span style="font-size:11px;color:var(--tx3)">文字サイズ：</span>
+      <div style="display:flex;gap:3px;background:var(--s3);border-radius:8px;padding:3px">
+        <button id="actuals-size-s" class="btn sm active" onclick="setActualsSize('s')" style="font-size:11px;min-width:32px">小</button>
+        <button id="actuals-size-m" class="btn sm"        onclick="setActualsSize('m')" style="font-size:11px;min-width:32px">中</button>
+        <button id="actuals-size-l" class="btn sm"        onclick="setActualsSize('l')" style="font-size:11px;min-width:32px">大</button>
+      </div>
+    </span>
+  </div>
   <div class="ptabs" id="aptabs-people" style="margin-top:4px;border-top:1px solid var(--bds);padding-top:6px"></div>
   <div id="actuals-summary" style="margin:14px 0 12px"></div>
   <div id="actuals-2col" class="ac-2col">
@@ -2687,14 +2684,14 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ KPT REVIEW ════════════════ -->
 <div id="tab-kpt" class="sec">
-  <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-    <div style="display:flex;align-items:center;gap:8px">
+  <!-- 担当者タブ + 期選択(右端) -->
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <div class="ptabs" id="kpt-ptabs" style="margin-bottom:0;flex:1"></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
       <label style="font-size:11px;color:var(--tx3)">期：</label>
       <select id="kpt-term-sel" class="fi" style="width:auto" onchange="renderKPT()"></select>
     </div>
   </div>
-  <!-- 担当者タブ -->
-  <div class="ptabs" id="kpt-ptabs" style="margin-bottom:12px"></div>
   <!-- 内容エリア -->
   <div id="kpt-body"></div>
 </div>
@@ -2748,9 +2745,6 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ TASKS ════════════════ -->
 <div id="tab-tasks" class="sec">
-  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;flex-wrap:wrap;gap:10px">
-    <button class="btn pr" onclick="openTaskModal()" style="padding:8px 18px;font-size:13px">＋ タスク追加</button>
-  </div>
   <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:13px">
     <div class="ptabs" id="task-person-tabs" style="margin-bottom:0"></div>
     <div style="display:flex;gap:2px;background:var(--s3);border-radius:9px;padding:2px;margin-left:4px">
@@ -2760,6 +2754,7 @@ body.has-sidepanel #home-deal-mode {
     <select id="task-type-filter" class="fi" style="width:auto;padding:5px 10px;font-size:11px" onchange="renderTasks()"><option value="">全種別</option><option value="営業">📞 営業</option><option value="作業">🔧 作業</option></select>
     <select id="task-priority-filter" class="fi" style="width:auto;padding:5px 10px;font-size:11px" onchange="renderTasks()"><option value="">全重要度</option><option value="高">🔴 高</option><option value="中">🟡 中</option><option value="低">🟢 低</option></select>
     <label class="tog" style="font-size:11px"><input type="checkbox" id="task-show-done" onchange="renderTasks()"><span>完了済みも表示</span></label>
+    <button class="btn pr" onclick="openTaskModal()" style="padding:7px 16px;font-size:13px;margin-left:auto">＋ タスク追加</button>
   </div>
   <div class="tk-stat-row" id="task-stats"></div>
   <div id="task-board-view"></div>
