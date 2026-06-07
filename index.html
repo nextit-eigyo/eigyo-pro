@@ -7977,24 +7977,44 @@ function _yoyMonthDealList(ds, dsFy, key, mi) {
   return out;
 }
 // 案件リスト → HTMLテーブル
-function _yoyDealListHtml(title, deals) {
+// 案件の所属拠点・担当者名を、指定データセット(ds=今年D/前年prev)から解決
+function _yoyDealBranchSp(d, ds){
+  var sp = ((ds && ds.people) || []).find(function(p){ return p && p.id === d.spId; });
+  var spName = sp ? (sp.name || '(無名)') : (d.spId === 'office' ? '(拠点共通)' : '(担当未設定)');
+  var br = (d.category === 'グループ薬局') ? (d.groupBranch || (sp && sp.branch) || '') : (sp && sp.branch || '');
+  return { br: br || '(拠点未設定)', sp: spName };
+}
+// 内訳リスト: ①営業所 ②担当者 の順でグループ化して表示(東/西全体でも拠点ごとにまとまる)。
+function _yoyDealListHtml(title, deals, ds) {
   if (!deals || !deals.length) return '<div style="font-size:12px;color:var(--tx3);margin:4px 0">' + title + '：該当なし</div>';
-  var rows = deals.slice().sort(function (a, b) { return (parseFloat(b.sales) || 0) - (parseFloat(a.sales) || 0); }).map(function (d) {
-    var s = parseFloat(d.sales) || 0, c = parseFloat(d.cost) || 0;
-    var dt = String(d.dealType || ''); var tag = /新規/.test(dt) ? '新規' : (/既存/.test(dt) ? '既存' : (dt ? dt : '—'));
-    var mo = d.deliveryMonth ? String(d.deliveryMonth).slice(5) + '月' : '';
-    return '<tr style="border-top:1px solid var(--bds)">'
+  ds = ds || D;
+  var border = {}; ((typeof getBranchMaster === 'function' ? getBranchMaster() : (D.branchMaster||[])) || []).forEach(function(b,i){ if(b&&b.name) border[b.name]=i; });
+  var ann = deals.map(function(d){ var bs=_yoyDealBranchSp(d, ds); return { d:d, br:bs.br, sp:bs.sp }; });
+  ann.sort(function(a,b){
+    var ai=(a.br in border)?border[a.br]:999, bi=(b.br in border)?border[b.br]:999;
+    if(ai!==bi) return ai-bi;
+    if(a.br!==b.br) return a.br.localeCompare(b.br,'ja');
+    if(a.sp!==b.sp) return a.sp.localeCompare(b.sp,'ja');
+    return (parseFloat(b.d.sales)||0)-(parseFloat(a.d.sales)||0);
+  });
+  var rows='', curBr=null;
+  ann.forEach(function(x){
+    if(x.br!==curBr){ curBr=x.br; rows += '<tr><td colspan="6" style="padding:6px 9px;background:var(--s3);font-weight:800;font-size:12px;color:var(--tx2);border-top:2px solid var(--bds)">🏢 '+_esc(curBr)+'</td></tr>'; }
+    var d=x.d, s=parseFloat(d.sales)||0, c=parseFloat(d.cost)||0;
+    var dt=String(d.dealType||''); var tag=/新規/.test(dt)?'新規':(/既存/.test(dt)?'既存':(dt?dt:'—'));
+    rows += '<tr style="border-top:1px solid var(--bds)">'
       + '<td style="padding:6px 9px;text-align:left;word-break:break-all">' + _esc(d.name || '(無名)') + '</td>'
+      + '<td style="padding:6px 9px;text-align:left;color:var(--tx2);font-size:12px;font-weight:600">' + _esc(x.sp) + '</td>'
       + '<td style="padding:6px 9px;text-align:left;color:var(--tx3);font-size:12px">' + _esc((d.category || '').slice(0, 5)) + '</td>'
       + '<td style="padding:6px 9px;text-align:left;color:var(--tx3);font-size:12px">' + _esc(tag) + '</td>'
       + '<td style="padding:6px 9px;text-align:right">' + _yoyFmt(s) + '</td>'
       + '<td style="padding:6px 9px;text-align:right;color:var(--tx2)">' + _yoyFmt(s - c) + '</td></tr>';
-  }).join('');
+  });
   var tot = deals.reduce(function (a, d) { return a + (parseFloat(d.sales) || 0); }, 0);
   return '<div style="font-size:13px;font-weight:900;color:var(--tx);margin:8px 0 2px">' + title + '（' + deals.length + '件・売上計 ' + _yoyFmt(tot) + '千）</div>'
     + '<table style="border-collapse:collapse;width:100%;table-layout:fixed;font-size:13px;background:var(--s1)">'
-    + '<colgroup><col style="width:42%"><col style="width:11%"><col style="width:11%"><col style="width:18%"><col style="width:18%"></colgroup>'
-    + '<thead><tr style="color:var(--tx3);font-size:12px"><th style="text-align:left;padding:4px 9px">薬局名</th><th style="text-align:left;padding:4px 9px">区分</th><th style="text-align:left;padding:4px 9px">種別</th><th style="text-align:right;padding:4px 9px">売上(千)</th><th style="text-align:right;padding:4px 9px">粗利(千)</th></tr></thead>'
+    + '<colgroup><col style="width:34%"><col style="width:13%"><col style="width:11%"><col style="width:11%"><col style="width:15.5%"><col style="width:15.5%"></colgroup>'
+    + '<thead><tr style="color:var(--tx3);font-size:12px"><th style="text-align:left;padding:4px 9px">薬局名</th><th style="text-align:left;padding:4px 9px">担当</th><th style="text-align:left;padding:4px 9px">区分</th><th style="text-align:left;padding:4px 9px">種別</th><th style="text-align:right;padding:4px 9px">売上(千)</th><th style="text-align:right;padding:4px 9px">粗利(千)</th></tr></thead>'
     + '<tbody>' + rows + '</tbody></table>';
 }
 
@@ -8100,8 +8120,8 @@ function renderYoy() {
     var _prevL = _yoyCountDealList(prev, fy - 1, prevKey, elapsed, _yoyExpandCount);
     html += '<div style="background:var(--s2);border:1px solid var(--acc);border-radius:12px;padding:14px 16px;margin-bottom:18px">'
       + '<div style="font-weight:900;font-size:13px;margin-bottom:2px">🏪 ' + _cLbl + ' の内訳（' + perLabel + '・V8システムのみ）</div>'
-      + _yoyDealListHtml('今年（' + fy + '年度）', _nowL)
-      + _yoyDealListHtml('前年（' + (fy - 1) + '年度）', _prevL)
+      + _yoyDealListHtml('今年（' + fy + '年度）', _nowL, D)
+      + _yoyDealListHtml('前年（' + (fy - 1) + '年度）', _prevL, prev)
       + '</div>';
   }
 
@@ -8153,8 +8173,8 @@ function renderYoy() {
       var _mPrev = _yoyMonthDealList(prev, fy - 1, prevKey, mi);
       html += '<tr><td colspan="9" style="padding:10px 16px;background:var(--s3);border-bottom:1px solid var(--bds)">'
         + '<div style="font-weight:900;font-size:14px;margin-bottom:2px">' + ML[mi] + ' の受注案件（スコープ内）</div>'
-        + _yoyDealListHtml('今年（' + fy + '年度）' + ML[mi], _mNow)
-        + _yoyDealListHtml('前年（' + (fy - 1) + '年度）' + ML[mi], _mPrev)
+        + _yoyDealListHtml('今年（' + fy + '年度）' + ML[mi], _mNow, D)
+        + _yoyDealListHtml('前年（' + (fy - 1) + '年度）' + ML[mi], _mPrev, prev)
         + '<div style="font-size:12px;color:var(--tx3);margin-top:6px">※ 拠点/全社では月別合計に保守料・HW・消耗品など案件以外も含むため、案件売上計と一致しないことがあります（担当者スコープは概ね一致）。</div>'
         + '</td></tr>';
     }
