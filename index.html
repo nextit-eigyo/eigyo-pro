@@ -828,6 +828,18 @@ tr:hover td{background:rgba(90,123,158,.02)}
   #backup-banner{top:48px;font-size:13px;padding:8px 36px 8px 12px}
 }
 
+/* ── 同期ブロック常設バナー(別PCの更新未受信で保存停止中) ── */
+#sync-block-banner{
+  display:none;position:fixed;top:0;left:0;right:0;z-index:9998;
+  align-items:center;justify-content:center;gap:14px;
+  background:#a85a4a;color:#fff;padding:9px 16px;font-size:13px;font-weight:700;
+  box-shadow:0 2px 10px rgba(0,0,0,.2);
+}
+#sync-block-banner .sbb-btn{
+  background:#fff;color:#a85a4a;border:none;border-radius:8px;padding:5px 14px;
+  font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;
+}
+#sync-block-banner .sbb-btn:hover{ background:#ffe9e2; }
 /* ── トースト通知 ── */
 #toast-wrap{
   position:fixed;bottom:70px;right:16px;z-index:900;
@@ -9318,7 +9330,7 @@ function addDeal(){
   const newD={id,spId,name:'',pref:'',deliveryMonth:'',activationMonth:'',originMonth,sales:'',cost:'',memo:'',category,visits:[]};
   // ⭐グループ薬局は受注確定(本部一括契約)前提のため確度5(受注)を初期値に(doAddDealと同仕様・クイック追加漏れ修正)
   if(category==='グループ薬局'){ newD.probability=5; newD.phase='受注'; }
-  newD._cre = Date.now(); // 作成時刻(受信時の新規案件保護用)
+  newD._cre = Date.now(); newD._mod = newD._cre; // 作成/編集時刻(受信時の保護用)
   D.deals.push(newD);
   if(typeof _auditDealAdd==='function')_auditDealAdd(D.deals[D.deals.length-1],'クイック追加');
   save();renderDeals();
@@ -13146,7 +13158,7 @@ function cloneDeal(id) {
     visits: [],
     originMonth: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`,
     deliveryMonth: '', activationMonth: '', nextAction: '',
-    _cre: now.getTime() // 作成時刻(受信時の新規案件保護用)
+    _cre: now.getTime(), _mod: now.getTime() // 作成/編集時刻(受信時の保護用)
   });
   D.deals.push(clone);
   if(typeof _auditDealAdd==='function')_auditDealAdd(clone,'複製');
@@ -14005,11 +14017,113 @@ function _collectLocalNewDeals(remote) {
     return add.length;
   } catch(e) { console.warn('[EIGYO PRO] 新規案件保護に失敗', e); return 0; }
 }
+// 🛡 P2: 受信(D=remote)時に「前回同期以降に自分が新規作成/編集した案件」を remote に合流。
+//   判定は _mod/_cre（編集/作成のローカル時刻）が FB.lastApplyWall（最後に同期を取り込んだ時刻）より新しいか。
+//   ⭐フェイルセーフ: 取りこぼしても従来挙動(=今より悪化しない)。番号(branchActuals等)には一切触れない。
+//   同じ案件idがremoteにもある場合は「自分の未同期編集」を優先（同一案件の同時編集は後勝ち）。
+function _mergeLocalDealChanges(remote) {
+  try {
+    if (!remote || !Array.isArray(remote.deals) || typeof D === 'undefined' || !D || !Array.isArray(D.deals)) return 0;
+    var since = FB.lastApplyWall || 0;
+    var now = Date.now(), WIN = 30 * 60 * 1000;
+    var rIdx = {}; remote.deals.forEach(function(d, i){ if (d && d.id) rIdx[d.id] = i; });
+    var cnt = 0;
+    D.deals.forEach(function(ld){
+      if (!ld || !ld.id) return;
+      var mod = parseFloat(ld._mod) || 0, cre = parseFloat(ld._cre) || 0;
+      // 「前回同期以降に編集」or「直近30分以内に作成(=新規)」なら自分の未同期変更とみなし保護
+      var changed = (since > 0 && (mod > since || cre > since)) || (cre && (now - cre) < WIN);
+      if (!changed) return;
+      if (ld.id in rIdx) remote.deals[rIdx[ld.id]] = ld; // remoteにも有る→自分の編集で上書き
+      else remote.deals.push(ld);                         // remoteに無い→自分の新規/編集を追加
+      cnt++;
+    });
+    if (cnt) console.warn('[EIGYO PRO] 受信時に未同期のローカル案件(新規/編集)を保護:', cnt + '件');
+    return cnt;
+  } catch(e) { console.warn('[EIGYO PRO] 案件マージ失敗', e); return 0; }
+}
+// 受信適用の共通処理(リスナーと復帰時soft再同期の両方から呼ぶ)。
+function _fbApplyRemote(remote, remoteTs) {
+  if (remote.deals && !Array.isArray(remote.deals)) {
+    remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
+  }
+  var _preserved = _mergeLocalDealChanges(remote); // 未同期の新規/編集案件を保護
+  D = remote;
+  _localSave({preserveTs:true});
+  FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
+  sanitizeD();
+  if (typeof _hideSyncBlockBanner === 'function') _hideSyncBlockBanner();
+  rebuildAll();
+  setTimeout(showPersonSelectDialog, 500);
+  showSyncBadge('受信');
+  if (_preserved > 0) {
+    setTimeout(function(){ try { fbWrite(true); } catch(e){} }, 1500);
+    if (typeof _showToast === 'function') _showToast('🛡 未同期だった案件 ' + _preserved + ' 件を保護しました', 'ok', 5000);
+  }
+  console.log('[EIGYO PRO] Firebase受信完了', {remoteTs, deals: (D.deals||[]).length, preserved:_preserved});
+}
+// 🔄 P1: 復帰時(ノートを開く/タブ復帰/再接続)に最新を取り直す soft 再同期。
+//   once('value)で読み、自分のエコーでなく remoteが新しければ自動受信(未同期案件は保護)。
+var _softResyncBusy = false; var _lastSoftResync = 0;
+function _softResync(reason) {
+  try {
+    if (_softResyncBusy) return;
+    var now = Date.now();
+    if (now - _lastSoftResync < 2500) return; // スロットル(フォーカス連発を抑止)
+    if (!FB.dbRef || FB.mode !== 'firebase' || !FB.connected) return;
+    _lastSoftResync = now;
+    _softResyncBusy = true;
+    FB.dbRef.once('value').then(function(snap){
+      _softResyncBusy = false;
+      var remote = snap.val(); if (!remote) return;
+      if (remote._wid && FB.clientId && remote._wid === FB.clientId) return; // 自分のエコー
+      var rTs = remote._ts || 0;
+      if (rTs > (FB.lastRemoteTs || 0)) {
+        console.log('[EIGYO PRO] 復帰再同期(' + (reason||'') + ') → 新しいリモートを受信', {rTs, lastRemoteTs:FB.lastRemoteTs});
+        FB.firstFireDone = true; // 確認ダイアログ無しで自動受信
+        _fbApplyRemote(remote, rTs);
+      }
+    }).catch(function(){ _softResyncBusy = false; });
+  } catch(e) { _softResyncBusy = false; }
+}
+// ⚠ P1: 別PCの新しい更新で保存がブロックされた時の「常設バナー」。静かな作業ロスを防ぐ。
+function _showSyncBlockBanner(msg) {
+  try {
+    var el = document.getElementById('sync-block-banner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'sync-block-banner';
+      el.innerHTML = '<span class="sbb-msg"></span> <button class="sbb-btn" onclick="forceResyncFromFirebase()">🔥 今すぐ受信</button>';
+      document.body.appendChild(el);
+    }
+    var m = el.querySelector('.sbb-msg'); if (m) m.textContent = msg || '⚠️ 別PCの新しい更新があります。保存が一時停止中です。';
+    el.style.display = 'flex';
+  } catch(e){}
+}
+function _hideSyncBlockBanner() {
+  try { var el = document.getElementById('sync-block-banner'); if (el) el.style.display = 'none'; } catch(e){}
+}
+// 🔄 P1: 復帰系イベントで soft 再同期を発火(一度だけ登録)。
+//   ・visibilitychange(visible): ノートを開いた/タブに戻った瞬間
+//   ・online: ネット復帰
+//   ・focus: ウィンドウ復帰
+//   スリープ帰宅→翌朝開封 の「古いローカルで上書き」事故を、開いた瞬間の最新取り込みで防ぐ。
+function _installWakeResync() {
+  try {
+    var fire = function(reason){ if (typeof _softResync === 'function') _softResync(reason); };
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) fire('visible'); });
+    window.addEventListener('online', function(){ fire('online'); });
+    window.addEventListener('focus', function(){ fire('focus'); });
+    console.log('[EIGYO PRO] 復帰時の自動再同期フックを登録');
+  } catch(e){}
+}
 function fbStartSync() {
   const key = 'eigyo3_' + fy;
   FB.dbRef = firebase.database().ref('data/' + key);
   // 同期開始(ログイン/年度切替)ごとに同期状態をリセット(初回確認・誤ブロック防止)
   FB.firstFireDone = false; FB.staleDeclined = false; FB.lastRemoteTs = 0;
+  FB.lastApplyWall = Date.now(); // 案件マージの基準時刻(これ以降の編集=未同期として保護)
+  if (!FB._wakeHooked) { _installWakeResync(); FB._wakeHooked = true; } // 復帰時の自動再同期を一度だけ登録
 
   // 接続状態監視
   firebase.database().ref('.info/connected').on('value', snap => {
@@ -14056,6 +14170,8 @@ function fbStartSync() {
         _localSave({preserveTs:true});
         FB.lastRemoteTs = remoteTs;
         FB.staleDeclined = false;
+        FB.lastApplyWall = Date.now(); // 自分の書込み成立=ここまでの自分の変更は同期済み(マージ基準を前進)
+        if (typeof _hideSyncBlockBanner === 'function') _hideSyncBlockBanner();
         _updateLastUpd();
         return;
       }
@@ -14088,7 +14204,7 @@ function fbStartSync() {
         }
         D = remote;
         _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
-        FB.lastRemoteTs = remoteTs; FB.staleDeclined = false;
+        FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
         sanitizeD();
         rebuildAll();
         setTimeout(showPersonSelectDialog, 500);
@@ -14099,41 +14215,21 @@ function fbStartSync() {
 
       // ③ タイムスタンプ比較による通常同期
       if (remoteTs > localTs) {
-        // 受信処理(共通)
-        var _applyRemote = function(){
-          if (remote.deals && !Array.isArray(remote.deals)) {
-            remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
-          }
-          // 🛡 未同期のローカル新規案件を保護(リロード/受信で消えるのを防止)
-          var _preserved = _collectLocalNewDeals(remote);
-          D = remote;
-          _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
-          FB.lastRemoteTs = remoteTs; FB.staleDeclined = false;
-          sanitizeD();
-          rebuildAll();
-          setTimeout(showPersonSelectDialog, 500);
-          showSyncBadge('受信');
-          // 保護した新規案件をFirebaseへ書き戻して恒久化
-          if (_preserved > 0) {
-            setTimeout(function(){ try { fbWrite(true); } catch(e){} }, 1500);
-            if (typeof _showToast === 'function') _showToast('🛡 未同期だった新規案件 ' + _preserved + ' 件を保護しました', 'ok', 5000);
-          }
-          console.log('[EIGYO PRO] Firebase受信完了', {remoteTs, deals: (D.deals||[]).length, preserved:_preserved});
-        };
         // ★ Feature1: 起動後の初回検出のみ「受信しますか？」を確認(以降のリアルタイム更新は自動受信)
         if (_isFirstFire) {
           var _who  = remote._lastBy || '別PC';
           var _when = remote._ts ? new Date(remote._ts).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
           if (confirm('別のPCで更新があります（' + _who + (_when ? (' / ' + _when) : '') + '）。\n最新データを受信しますか？\n\n[OK]＝受信する　[キャンセル]＝今は受信しない')) {
             console.log('[EIGYO PRO] 起動時の別PC更新 → ユーザー承認で受信');
-            _applyRemote();
+            _fbApplyRemote(remote, remoteTs);
           } else {
             FB.staleDeclined = true; // 受信を見送り → 古いデータでの上書きをブロック(Feature2)
             fbSetStatus('warn', '⚠️ 最新を未受信。保存は一時停止中（🔥強制再受信で取得）');
+            if (typeof _showSyncBlockBanner === 'function') _showSyncBlockBanner('⚠️ 別PCの最新を未受信です。保存は一時停止中。');
             console.log('[EIGYO PRO] 起動時の別PC更新 → ユーザーが受信を見送り');
           }
         } else {
-          _applyRemote();
+          _fbApplyRemote(remote, remoteTs);
         }
       } else {
         console.log('[EIGYO PRO] 同期不要（ローカルが最新）');
@@ -14192,6 +14288,8 @@ function _doFbWrite() {
       fbSetStatus('warn', '⚠️ 別PCが新しいデータに更新済み。上書きを中止しました（🔥強制再受信で最新取得を）');
       console.warn('[EIGYO PRO] 書込み中止: 別PCが新しい/未受信', {remoteTs:_rTs, lastRemoteTs:FB.lastRemoteTs, staleDeclined:FB.staleDeclined});
       if (typeof _showToast === 'function') _showToast('⚠️ 別PCの新しい更新が未受信のため保存を中止しました。🔥Firebaseから強制再受信してください', 'warn', 7000);
+      if (typeof _showSyncBlockBanner === 'function') _showSyncBlockBanner('⚠️ 別PCの新しい更新があり、保存が一時停止中です。');
+      if (typeof _softResync === 'function') setTimeout(function(){ _softResync('write-block'); }, 300); // 自動で最新を取り直す
       return;
     }
 
@@ -14236,7 +14334,7 @@ function _doFbWrite() {
     D._lastBy = (typeof _auditUser === 'function') ? _auditUser() : ((currentUserRole && currentUserRole.name) || '');  // ヘッダー「最終更新:誰」用
     var _payload = Object.assign({}, D, { _ts: firebase.database.ServerValue.TIMESTAMP });
     FB.dbRef.set(_payload)
-      .then(() => showSyncBadge('保存'))
+      .then(() => { showSyncBadge('保存'); if (typeof _hideSyncBlockBanner === 'function') _hideSyncBlockBanner(); })
       .catch(e => fbSetStatus('error', '書き込みエラー: ' + e.message));
   }).catch(function(e) {
     // 読み取り失敗時も書き込みしない
@@ -15585,6 +15683,7 @@ function _refreshViewsAfterDealUpdate() {
 function updDeal(id, field, val) {
   const d = (D.deals||[]).find(x => x.id === id);
   if (!d) return;
+  d._mod = Date.now(); // 編集時刻(多PC受信時に自分の未同期編集を保護するため)
   // 操作ログ(編集): 変更前の値を記録(同一項目の連続入力は内部でまとめる)
   if (typeof _auditDealEdit === 'function') _auditDealEdit(d, field, d[field], val);
 
@@ -16804,7 +16903,7 @@ function doAddDeal() {
     newDeal.phase = '受注';
   }
   if (!D.deals) D.deals = [];
-  newDeal._cre = Date.now(); // 作成時刻(受信時の新規案件保護用)
+  newDeal._cre = Date.now(); newDeal._mod = newDeal._cre; // 作成/編集時刻(受信時の保護用)
   D.deals.unshift(newDeal); // 先頭に追加
   if(typeof _auditDealAdd==='function')_auditDealAdd(newDeal);
   save();
