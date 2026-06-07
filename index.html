@@ -3416,6 +3416,8 @@ body.has-sidepanel #home-deal-mode {
       <option value="h2">下期</option>
     </select>
   </div>
+  <!-- ③ 勝率サマリー(管理職のみ) -->
+  <div id="kyogou-winrate"></div>
   <!-- Summary cards -->
   <div id="kyogou-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px"></div>
   <!-- 2-col detail -->
@@ -13558,6 +13560,51 @@ function renderKyogou() {
 
   const sorted = Object.entries(stats).sort((a,b) => b[1].total - a[1].total);
   const totalWithComp = sorted.reduce((s,[,v]) => s + v.total, 0);
+
+  // ── ③ 勝率・失注サマリー(管理職のみ) ──────────────────────────
+  try {
+    var _wrEl = document.getElementById('kyogou-winrate');
+    if (_wrEl) {
+      if (typeof _isManagerRole === 'function' && _isManagerRole()) {
+        var sd = allDeals.filter(function(d){ return spIds.includes(d.spId) && _dealInPeriod(d); });
+        var won=0, lost=0, lostSales=0;
+        var g = { nyukae:{w:0,l:0}, shinki:{w:0,l:0} };
+        sd.forEach(function(d){
+          var c = d.category||'直販'; if (c==='販売店') return; // 販売店は対象外
+          var ls = lstat(d);
+          var isWon = (ls==='受注'), isLost = (ls==='失注');
+          if (!isWon && !isLost) return; // 決着済みのみ(勝率の分母)
+          if (isWon) won++; else { lost++; lostSales += parseFloat(d.sales)||0; }
+          var dt = String(d.dealType||'');
+          var grp = /入替|入れ替え/.test(dt) ? 'nyukae' : (/新規/.test(dt) ? 'shinki' : null);
+          if (grp){ if (isWon) g[grp].w++; else g[grp].l++; }
+        });
+        var decided = won + lost;
+        var wr = decided>0 ? Math.round(won/decided*100) : 0;
+        var wrNy = (g.nyukae.w+g.nyukae.l)>0 ? Math.round(g.nyukae.w/(g.nyukae.w+g.nyukae.l)*100) : null;
+        var wrSk = (g.shinki.w+g.shinki.l)>0 ? Math.round(g.shinki.w/(g.shinki.w+g.shinki.l)*100) : null;
+        var wcol = function(p){ return p>=60?'#4a5a32':(p>=40?'#8a5a2a':'#a85a4a'); };
+        if (decided === 0) {
+          _wrEl.innerHTML = '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:var(--tx3)">⚔ 勝率・失注分析（管理職）：この期間に決着（受注/失注）した案件がありません。</div>';
+        } else {
+          _wrEl.innerHTML =
+            '<div style="background:linear-gradient(135deg,rgba(90,123,158,.05),rgba(168,90,74,.03));border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:14px">'
+            + '<div style="font-size:14px;font-weight:900;color:var(--tx);margin-bottom:10px">⚔ 勝率・失注分析 <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:6px">受注/失注で決着した案件・販売店除く・管理職表示</span></div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">'
+            + '<div style="background:var(--s1);border:1px solid var(--bds);border-radius:10px;padding:12px 14px"><div style="font-size:11px;color:var(--tx2);font-weight:700;margin-bottom:4px">勝率（受注/決着）</div><div style="font-size:28px;font-weight:900;color:'+wcol(wr)+';font-variant-numeric:tabular-nums">'+wr+'<span style="font-size:13px;color:var(--tx2);margin-left:2px">%</span></div><div style="font-size:11.5px;color:var(--tx3);margin-top:4px">受注 '+won+' / 失注 '+lost+'</div></div>'
+            + '<div style="background:var(--s1);border:1px solid var(--bds);border-radius:10px;padding:12px 14px"><div style="font-size:11px;color:var(--tx2);font-weight:700;margin-bottom:6px">種別別 勝率</div>'
+              + '<div style="font-size:13px;margin-bottom:3px">他社入替 <b style="color:'+(wrNy!==null?wcol(wrNy):'var(--tx3)')+';font-size:16px">'+(wrNy!==null?wrNy+'%':'—')+'</b> <span style="font-size:11px;color:var(--tx3)">('+g.nyukae.w+'/'+(g.nyukae.w+g.nyukae.l)+')</span></div>'
+              + '<div style="font-size:13px">新規開局 <b style="color:'+(wrSk!==null?wcol(wrSk):'var(--tx3)')+';font-size:16px">'+(wrSk!==null?wrSk+'%':'—')+'</b> <span style="font-size:11px;color:var(--tx3)">('+g.shinki.w+'/'+(g.shinki.w+g.shinki.l)+')</span></div></div>'
+            + '<div style="background:var(--s1);border:1px solid var(--bds);border-radius:10px;padding:12px 14px"><div style="font-size:11px;color:var(--tx2);font-weight:700;margin-bottom:4px">失注</div><div style="font-size:28px;font-weight:900;color:#a85a4a;font-variant-numeric:tabular-nums">'+lost+'<span style="font-size:13px;color:var(--tx2);margin-left:2px">件</span></div><div style="font-size:11.5px;color:var(--tx3);margin-top:4px">逸失 約 '+fmtN(Math.round(lostSales))+'千</div></div>'
+            + '</div>'
+            + '<div style="font-size:11px;color:var(--tx3);margin-top:8px">競合別の勝率は下の競合カードを参照。<b>勝率が低い競合・種別</b>に提案/価格の手を打つ材料に。</div>'
+            + '</div>';
+        }
+      } else {
+        _wrEl.innerHTML = '';
+      }
+    }
+  } catch(e){ console.warn('勝率サマリー描画失敗', e); }
 
   // Summary cards
   const sumEl = document.getElementById('kyogou-summary');
