@@ -1956,6 +1956,8 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-brk-foot{ margin-top:8px;font-size:12px;color:var(--tx3);font-weight:600; }
 #tab-meeting .mt-brk-foot b{ color:var(--acc);font-weight:900; }
 #tab-meeting .mt-brk-note{ margin-top:4px;font-size:11.5px;color:var(--tx3); }
+#tab-meeting .mt-brk-note2{ margin-top:3px;font-size:11.5px;color:var(--tx3);font-weight:500;line-height:1.5; }
+#tab-meeting .mt-brk-note2 b{ color:var(--acc2);font-weight:800; }
 #tab-meeting .mt-brk-empty{ margin:2px 0;font-size:12.5px;color:var(--tx3); }
 /* ⭐ 系列の色分け(全体統一): 藍=売上系 / オリーブ=粗利系 / クリーム=軒数。
    列の並びは全mt-sum表で共通(1=ラベル, 2-4=売上, 5-7=粗利, 8-9=軒数)。
@@ -5731,7 +5733,7 @@ function _mtMonthBreakdownHtml(scope, mi){
     h += '<table class="mt-brk-tbl"><tr><th style="text-align:left">ユーザー名</th><th>担当</th><th>区分</th><th>売上</th><th>粗利</th></tr>';
     won.forEach(function(d){
       var sv = parseFloat(d.sales) || 0, cv = parseFloat(d.cost) || 0;
-      var pv = (d.cost === '' || d.cost == null) ? 0 : (sv - cv);
+      var pv = sv - cv; // 集計と同じ扱い: 原価空欄=0 → 粗利=売上(applyDealToActualsと一致)
       sumS += sv; sumP += pv;
       var overlay = (d._wonAt && parseFloat(d._wonAt) > 1e12);
       var cat = (d.category || '直販'); var catS = (cat.length > 3) ? cat.slice(0, 3) : cat;
@@ -5743,9 +5745,15 @@ function _mtMonthBreakdownHtml(scope, mi){
     h += '<p class="mt-brk-empty">この月に計上（確度5）の受注案件はありません。</p>';
   }
   if (notWon > 0) h += '<div class="mt-brk-note">※他に見込み案件 ' + notWon + '件（確度4以下・非計上）</div>';
-  // ③ 脚注(実績合計＝何で構成されるか)
-  h += '<div class="mt-brk-foot">実績合計：売上 <b>' + _mtFmtNum(as) + '</b> ／ 粗利 <b>' + _mtFmtNum(ap) + '</b>（千）'
-    + (isPerson ? '＝担当者ソフト実績' : '＝Excel取込の確定値（保守・HW等含む）＋取込後の手動受注') + '</div>';
+  // ③ 脚注(実績合計＝何で構成されるか／受注案件計との差の説明)
+  h += '<div class="mt-brk-foot">実績合計：売上 <b>' + _mtFmtNum(as) + '</b> ／ 粗利 <b>' + _mtFmtNum(ap) + '</b>（千）';
+  if (isPerson){
+    h += '＝担当者ソフト実績</div>';
+  } else {
+    h += '<div class="mt-brk-note2">＝ Excel取込の確定値（ソフト＋<b>保守料</b>＋HW＋消耗品）＋取込後の手動受注。'
+      + '「受注案件 計」は案件管理の受注のみの合計で、<b>保守料・HW・消耗品は含みません</b>（このため実績とは一致しません）。'
+      + '粗利は原価空欄を「原価0」として計算（集計と同じ）。</div></div>';
+  }
   h += '</div>';
   return h;
 }
