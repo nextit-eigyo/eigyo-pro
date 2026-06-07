@@ -2633,8 +2633,7 @@ body.has-sidepanel #home-deal-mode {
 </div>
 
 <div id="tab-actuals" class="sec">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-    <div class="ptitle" style="margin:0">📞 営業活動量</div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:6px">
     <div style="display:flex;align-items:center;gap:6px">
       <span id="actuals-size-ctrl" style="display:flex;align-items:center;gap:6px">
         <span style="font-size:11px;color:var(--tx3)">文字サイズ：</span>
@@ -2688,8 +2687,7 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ KPT REVIEW ════════════════ -->
 <div id="tab-kpt" class="sec">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-    <div class="ptitle" style="margin:0">📝 個人別KPTレビュー</div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:8px">
     <div style="display:flex;align-items:center;gap:8px">
       <label style="font-size:11px;color:var(--tx3)">期：</label>
       <select id="kpt-term-sel" class="fi" style="width:auto" onchange="renderKPT()"></select>
@@ -2708,16 +2706,11 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ 前年比較 (YoY) ════════════════ -->
 <div id="tab-yoy" class="sec">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-    <div class="ptitle" style="margin:0">📊 前年比較</div>
-    <div style="font-size:11px;color:var(--tx3)">今年度 × 前年度を自動集計。スコープを切り替えて確認できます。</div>
-  </div>
   <div id="yoy-body"></div>
 </div>
 
 <!-- ════════════════ REPORT ════════════════ -->
 <div id="tab-report" class="sec">
-  <div class="ptitle">📝 振り返りシート</div>
   <div class="rctrl">
     <div class="ff">
       <label>営業所</label>
@@ -2755,8 +2748,7 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ TASKS ════════════════ -->
 <div id="tab-tasks" class="sec">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-    <div class="ptitle" style="margin-bottom:0">✅ タスク管理</div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;flex-wrap:wrap;gap:10px">
     <button class="btn pr" onclick="openTaskModal()" style="padding:8px 18px;font-size:13px">＋ タスク追加</button>
   </div>
   <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:13px">
@@ -3346,7 +3338,6 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════════════ REFERRAL ════════════════ -->
 <div id="tab-referral" class="sec">
-  <div class="ptitle">🤝 紹介拠点 活動管理</div>
   <div class="ptabs" id="ref-ptabs"></div>
   <div class="ref-grid" id="ref-list"></div>
 </div>
@@ -3358,7 +3349,6 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════ 📋 月末振り返りシート (㉔) ════════ -->
 <div id="tab-furikaeri" class="sec">
-  <div class="ptitle">📋 月末振り返りシート</div>
   <div style="background:rgba(90,123,158,.04);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:12px;color:var(--tx3);line-height:1.7">
     💡 各拠点が毎月末に提出する「中計進捗レビューシート」を自動生成します。<br>
     自動入力: 売上/粗利の目標・実績、進行中案件、グループ薬局の納品予定 など<br>
@@ -3384,7 +3374,6 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════ 競合分析 ════════ -->
 <div id="tab-kyogou" class="sec">
-  <div class="ptitle">⚔ 競合分析ダッシュボード</div>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
     <div class="ptabs" id="kyogou-branch-tabs" style="margin-bottom:0"></div>
     <select id="kyogou-period" class="fi" style="width:auto;padding:5px 10px;font-size:12px" onchange="renderKyogou()">
@@ -3405,7 +3394,6 @@ body.has-sidepanel #home-deal-mode {
 
 <!-- ════════ 月次レポート ════════ -->
 <div id="tab-monthly" class="sec">
-  <div class="ptitle">📄 月次 / 週次レポート自動生成</div>
   <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
     <div class="ff">
       <label>レポート種別</label>
