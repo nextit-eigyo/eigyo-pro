@@ -1920,6 +1920,30 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-pt .br { font-size:13px; opacity:.85; font-weight:700; }
 #tab-meeting .mt-person-tabs { gap:6px; }
 #tab-meeting .mt-half-tabs { display:flex; gap:3px; background:var(--s3); padding:4px; border-radius:10px; flex-shrink:0; }
+/* 🗂 ④ 担当者カルテ */
+#tab-karte .krt-card{ background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;box-shadow:0 2px 12px rgba(90,75,55,.07) }
+#tab-karte .krt-head{ display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px }
+#tab-karte .krt-name{ font-size:20px;font-weight:900;color:var(--tx) }
+#tab-karte .krt-br{ font-size:12px;color:var(--tx3);font-weight:700 }
+#tab-karte .krt-pill{ font-size:11px;font-weight:800;padding:3px 10px;border-radius:10px }
+#tab-karte .krt-pill.g{ background:rgba(122,142,90,.16);color:#4a5a32 }
+#tab-karte .krt-pill.y{ background:rgba(200,152,86,.18);color:#8a5a2a }
+#tab-karte .krt-pill.r{ background:rgba(168,90,74,.15);color:#7a3525 }
+#tab-karte .krt-kpi{ display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px }
+@media(max-width:820px){ #tab-karte .krt-kpi{ grid-template-columns:1fr 1fr } }
+#tab-karte .krt-box{ background:var(--s2);border:1px solid var(--bds);border-radius:10px;padding:11px 13px }
+#tab-karte .krt-box .l{ font-size:11px;color:var(--tx2);font-weight:700;margin-bottom:4px }
+#tab-karte .krt-box .v{ font-size:24px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums }
+#tab-karte .krt-box .v .u{ font-size:12px;color:var(--tx2);font-weight:700;margin-left:2px }
+#tab-karte .krt-box .s{ font-size:11px;color:var(--tx3);margin-top:5px }
+#tab-karte .krt-2col{ display:grid;grid-template-columns:1fr 1fr;gap:16px }
+@media(max-width:820px){ #tab-karte .krt-2col{ grid-template-columns:1fr } }
+#tab-karte .krt-lbl{ font-size:11px;color:var(--tx2);font-weight:700;margin-bottom:6px }
+#tab-karte .krt-spark{ display:flex;align-items:flex-end;gap:4px;height:46px }
+#tab-karte .krt-spark > i{ flex:1;background:var(--acc);border-radius:3px 3px 0 0;opacity:.85;min-height:2px }
+#tab-karte .krt-chip{ display:inline-block;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:9px;background:var(--s3);color:var(--tx2);margin:0 6px 6px 0 }
+#tab-karte .krt-chip.good{ background:rgba(122,142,90,.16);color:#4a5a32 }
+#tab-karte .krt-chip.bad{ background:rgba(168,90,74,.13);color:#7a3525 }
 /* ⑤ 行動×成果 相関(象限) */
 #activity-quadrant .aq-wrap{ background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:12px 0 14px;box-shadow:0 2px 10px rgba(90,75,55,.06) }
 #activity-quadrant .aq-h{ font-size:14px;font-weight:900;color:var(--tx);margin-bottom:10px }
@@ -3425,6 +3449,15 @@ body.has-sidepanel #home-deal-mode {
     <div class="card" id="kyogou-detail-left"></div>
     <div class="card" id="kyogou-detail-right"></div>
   </div>
+</div>
+
+<!-- ════════ 🗂 担当者カルテ (管理職向け・1on1/評価支援) ════════ -->
+<div id="tab-karte" class="sec">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+    <div style="font-size:11px;color:var(--tx3)">担当者を選択 →</div>
+    <div id="karte-person-tabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+  <div id="karte-body"></div>
 </div>
 
 <!-- ════════ 月次レポート ════════ -->
@@ -8298,6 +8331,75 @@ function renderYoy() {
   body.innerHTML = html;
 }
 
+// ════════════════════════════════════════════════════════
+// 🗂 ④ 担当者カルテ(管理職向け・1on1/評価支援)
+//   予実/前年比/活動量/新規軒数/月次推移/強み・課題を1枚に。役割で閲覧範囲を制御。
+// ════════════════════════════════════════════════════════
+var _karteSpId = null;
+function _karteElapsedMis(){
+  var max = (typeof _mtMaxElapsedMi==='function') ? _mtMaxElapsedMi() : 11;
+  if (max < 0) max = 11;
+  var arr=[]; for (var i=0;i<=max;i++) arr.push(i); return arr;
+}
+function _karteSelect(id){ _karteSpId=id; renderKarte(); }
+function renderKarte(){
+  var tabs=document.getElementById('karte-person-tabs'), body=document.getElementById('karte-body');
+  if(!tabs||!body) return;
+  var all=ap();
+  var mySp=(typeof _getCurrentSpId==='function')?_getCurrentSpId():null;
+  var mgr=(typeof _isManagerRole==='function'&&_isManagerRole());
+  var people = mgr ? all : all.filter(function(p){return p.id===mySp;});
+  if(!people.length){ tabs.innerHTML=''; body.innerHTML='<div class="empty" style="padding:30px;text-align:center;color:var(--tx3)">表示できる担当者がいません</div>'; return; }
+  if(!_karteSpId || !people.find(function(p){return p.id===_karteSpId;})) _karteSpId = (mySp&&people.find(function(p){return p.id===mySp;}))?mySp:people[0].id;
+  tabs.innerHTML = people.map(function(p){
+    var on=p.id===_karteSpId;
+    return '<button onclick="_karteSelect(\''+_esc(String(p.id))+'\')" style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:9px;cursor:pointer;border:1px solid '+(on?'var(--acc)':'var(--bd)')+';background:'+(on?'var(--acc)':'#fff')+';color:'+(on?'#fff':'var(--tx2)')+'">'+_esc(p.name||'(無名)')+(p.branch?'<span style="font-size:10px;opacity:.8;margin-left:4px">'+_esc(p.branch)+'</span>':'')+'</button>';
+  }).join('');
+  body.innerHTML=_karteCardHtml(people.find(function(x){return x.id===_karteSpId;}));
+}
+function _karteCardHtml(p){
+  if(!p) return '';
+  var t={type:'person',id:p.id};
+  var mis=_karteElapsedMis(), H1=[0,1,2,3,4,5];
+  var as=0,bs=0,ap2=0,bp=0;
+  mis.forEach(function(mi){ as+=getActualValue(t,'s',mi); bs+=getBudgetValue(t,'s',mi); ap2+=getActualValue(t,'p',mi); bp+=getBudgetValue(t,'p',mi); });
+  var prevS=0; if(typeof _yoyPrevActual==='function') mis.forEach(function(mi){ prevS+=_yoyPrevActual(t,'s',mi); });
+  var yoyPct=prevS>0?Math.round(as/prevS*100):null;
+  var rs=bs>0?Math.round(as/bs*100):0;
+  var newCnt=(typeof _mtCountNewDeals==='function')?_mtCountNewDeals(p.id,mis):0;
+  var act=0, aobj=(D.activityActuals||{})[p.id]||{}; Object.keys(aobj).forEach(function(at){var arr=aobj[at]||[];mis.forEach(function(mi){act+=parseFloat(arr[mi])||0;});});
+  var won=0,opp=0,stall=0,stallSales=0, nowT=Date.now();
+  (D.deals||[]).forEach(function(d){ if(d.spId!==p.id)return; var c=d.category||'直販'; if(c==='販売店'||c==='グループ薬局')return; var pr=(typeof getProb==='function')?getProb(d):3; if(pr>=2)opp++; if(pr>=5)won++;
+    if(pr>=2&&pr<5){ var lv=(d.visits&&d.visits.length)?d.visits[d.visits.length-1].date:''; var days=lv?Math.floor((nowT-new Date(lv).getTime())/86400000):999; if(days>=21){stall++;stallSales+=parseFloat(d.sales)||0;} } });
+  var conv=opp>0?Math.round(won/opp*100):0;
+  var sv=H1.map(function(mi){return getActualValue(t,'s',mi);}); var mx=Math.max.apply(null,sv.concat([1])); var pk=Math.max.apply(null,sv);
+  var spark=sv.map(function(v){var h=Math.round(v/mx*100); return '<i style="height:'+h+'%'+((v===pk&&v>0)?';background:var(--acc2)':'')+'"></i>';}).join('');
+  var chips='';
+  if(newCnt>=4) chips+='<span class="krt-chip good">新規開拓が強い(新規'+newCnt+'件)</span>';
+  if(conv>=60) chips+='<span class="krt-chip good">受注転換率が高い('+conv+'%)</span>';
+  if(conv>0&&conv<40) chips+='<span class="krt-chip bad">提案→受注の転換が低い('+conv+'%)</span>';
+  if(stall>0) chips+='<span class="krt-chip bad">停滞案件'+stall+'件(計'+fmtN(Math.round(stallSales))+'千)</span>';
+  if(rs>=100) chips+='<span class="krt-chip good">予算達成('+rs+'%)</span>';
+  else if(rs>0&&rs<80) chips+='<span class="krt-chip bad">予算進捗が遅れ('+rs+'%)</span>';
+  if(act===0) chips+='<span class="krt-chip">活動量の入力が少ない</span>';
+  if(!chips) chips='<span class="krt-chip">データ蓄積中</span>';
+  var pcl=function(p){return p>=100?'g':(p>=80?'y':'r');};
+  return '<div class="krt-card">'
+   +'<div class="krt-head"><span class="krt-name">'+_esc(p.name||'(無名)')+'</span><span class="krt-br">'+_esc(p.branch||'')+'</span>'
+     +'<span class="krt-pill '+pcl(rs)+'">達成率 '+rs+'%</span>'
+     +(yoyPct!==null?'<span class="krt-pill '+(yoyPct>=100?'g':'r')+'">前年比 売上 '+yoyPct+'%</span>':'')
+     +'<span style="margin-left:auto;font-size:11px;color:var(--tx3)">'+fy+'年度 経過月まで / 自動集計</span></div>'
+   +'<div class="krt-kpi">'
+     +'<div class="krt-box"><div class="l">売上実績</div><div class="v">'+fmtN(Math.round(as))+'<span class="u">千</span></div><div class="s">予算 '+fmtN(Math.round(bs))+' / '+(bs-as>0?'残 '+fmtN(Math.round(bs-as)):'<span style="color:#4a5a32">達成</span>')+'</div></div>'
+     +'<div class="krt-box"><div class="l">粗利実績</div><div class="v" style="color:#4a5a32">'+fmtN(Math.round(ap2))+'<span class="u">千</span></div><div class="s">粗利率 '+(as>0?Math.round(ap2/as*100):0)+'%</div></div>'
+     +'<div class="krt-box"><div class="l">新規軒数</div><div class="v" style="color:var(--acc)">'+newCnt+'<span class="u">件</span></div><div class="s">受注 '+won+' / 商談 '+opp+'</div></div>'
+     +'<div class="krt-box"><div class="l">活動量(訪問等)</div><div class="v">'+act+'<span class="u">件</span></div><div class="s">受注転換 '+conv+'%</div></div>'
+   +'</div>'
+   +'<div class="krt-2col">'
+     +'<div><div class="krt-lbl">月次 売上推移(上期)</div><div class="krt-spark">'+spark+'</div><div style="font-size:11px;color:var(--tx3);margin-top:4px">4月→9月の売上実績(千)。最大月を強調。</div></div>'
+     +'<div><div class="krt-lbl">強み / 課題(データから)</div><div class="krt-chips">'+chips+'</div><div style="font-size:11px;color:var(--tx3);margin-top:8px">※ 1on1・評価の客観的根拠に。停滞案件は案件タブで詳細確認。</div></div>'
+   +'</div></div>';
+}
 function renderOfficeBudget(){
   if(!D.officeBudget)D.officeBudget={s:Array(12).fill(''),p:Array(12).fill('')};
   const ob=D.officeBudget;
@@ -11785,6 +11887,7 @@ function showTab(name,btn){
   if(name==='import')initImportCtrl();
   if(name==='furikaeri'){initFurikaeriCtrl();renderFurikaeri();}
   if(name==='yoy'){renderYoy();}
+  if(name==='karte'){renderKarte();}
 }
 
 // ════════════════════════════════════════════════════════
@@ -24708,6 +24811,7 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-kyogou-btn" onclick="showTab('kyogou',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">⚔ 競合分析</button>
   <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
   <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
+  <button class="htab" id="tab-karte-btn" onclick="showTab('karte',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🗂 担当者カルテ</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
 <div id="memo-full-modal">
