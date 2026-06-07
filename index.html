@@ -2381,11 +2381,10 @@ body.has-sidepanel #home-deal-mode {
       <button class="hdr-tile" onclick="toggleDataMenu()"><span class="st-ic">💾</span><span class="st-lab">データ管理 ▾</span></button>
       <div id="data-menu" style="display:none">
         <!-- 日常使用 (営業担当者を含む全員) -->
-        <button class="dmitem" onclick="applyAllWonToActuals();closeDataMenu()">🔄 受注実績を再計算</button>
         <button class="dmitem" onclick="forceResyncFromFirebase();closeDataMenu()" title="他PCで変更したのに反映されない時の応急処置。ローカルキャッシュを消してFirebaseから最新を強制受信します。">🔥 Firebaseから強制再受信</button>
         <hr style="margin:0;border-color:var(--bds)">
-        <!-- 管理用(バックアップ/復元/リセット)は 設定 → その他 → データ管理 に集約 -->
-        <button class="dmitem" onclick="showTab('setup',document.getElementById('tab-setup-btn'));showCfgGroup('other');showCfgTab('datamgmt',document.getElementById('cfg-tab-datamgmt'));closeDataMenu()" style="font-size:11px;color:var(--tx3)">⚙ バックアップ/復元/リセット → 設定へ</button>
+        <!-- 管理用(受注実績の再計算/バックアップ/復元/リセット)は 設定→その他→データ管理(パスワード保護) に集約 -->
+        <button class="dmitem" onclick="showTab('setup',document.getElementById('tab-setup-btn'));showCfgGroup('other');showCfgTab('datamgmt',document.getElementById('cfg-tab-datamgmt'));closeDataMenu()" style="font-size:11px;color:var(--tx3)">⚙ 受注実績の再計算/バックアップ/復元/リセット → 設定へ</button>
       </div>
     </div>
     <input type="file" id="import-json-file" accept=".json" style="display:none" onchange="importFromFile(this)">
@@ -3275,11 +3274,15 @@ body.has-sidepanel #home-deal-mode {
     <div class="card" style="max-width:1100px">
       <div class="card-title" style="margin-bottom:6px">💾 データ管理(管理者用)</div>
       <div style="font-size:12px;color:var(--tx3);line-height:1.6;margin-bottom:14px">
-        バックアップの取得・復元・データリセットなど、運用上重要な操作です。<br>
-        ※ 日常使用する「受注実績の再計算」「Firebaseから強制再受信」はヘッダの 💾 データ管理 メニューにあります。<br>
+        バックアップの取得・復元・データリセット・受注実績の再計算など、運用上重要な操作です。<br>
+        ※ 数字を作り直す「受注実績を再計算」は誤操作リスクがあるため、<strong>このパスワード保護画面に集約</strong>しました（ヘッダのメニューからは廃止）。<br>
         ※ 上記の自動バックアップ履歴とは別に、<strong>JSONファイル形式</strong>での明示的なバックアップも可能です。
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn" onclick="if(confirm('受注実績を再計算します。\n案件管理の受注(確度5)から担当者実績(D.actuals)を作り直します。\n\n🛡 直前に自動バックアップを取得します。実行しますか？'))applyAllWonToActuals();" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left;color:var(--acc);border-color:rgba(90,123,158,.4)">
+          🔄 受注実績を再計算
+          <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">案件の受注から担当者実績を再構築（管理者用・通常は不要）</span>
+        </button>
         <button class="btn pr" onclick="exportData()" style="padding:11px 14px;font-size:13px;font-weight:700;text-align:left">
           💾 バックアップ保存(JSON ファイル)
           <span style="font-size:11px;color:var(--tx3);font-weight:500;margin-left:8px">現在のデータを JSON でダウンロード</span>
