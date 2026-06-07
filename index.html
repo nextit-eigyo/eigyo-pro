@@ -1920,6 +1920,21 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-pt .br { font-size:13px; opacity:.85; font-weight:700; }
 #tab-meeting .mt-person-tabs { gap:6px; }
 #tab-meeting .mt-half-tabs { display:flex; gap:3px; background:var(--s3); padding:4px; border-radius:10px; flex-shrink:0; }
+/* ⑤ 行動×成果 相関(象限) */
+#activity-quadrant .aq-wrap{ background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:12px 0 14px;box-shadow:0 2px 10px rgba(90,75,55,.06) }
+#activity-quadrant .aq-h{ font-size:14px;font-weight:900;color:var(--tx);margin-bottom:10px }
+#activity-quadrant .aq-h .sub{ font-size:11px;color:var(--tx3);font-weight:500;margin-left:6px }
+#activity-quadrant .aq-quad{ position:relative;height:300px;background:var(--s2);border:1px solid var(--bds);border-radius:8px }
+#activity-quadrant .aq-axis{ position:absolute;background:var(--bd) }
+#activity-quadrant .aq-v{ top:0;bottom:0;width:1px }
+#activity-quadrant .aq-h2{ left:0;right:0;height:1px }
+#activity-quadrant .aq-ql{ position:absolute;font-size:10.5px;font-weight:800;line-height:1.3 }
+#activity-quadrant .aq-ql span{ font-size:9.5px;font-weight:500;color:var(--tx3) }
+#activity-quadrant .aq-pt{ position:absolute;transform:translate(-50%,-50%);text-align:center;z-index:2 }
+#activity-quadrant .aq-b{ width:15px;height:15px;border-radius:50%;margin:0 auto;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.22) }
+#activity-quadrant .aq-nm{ font-size:10.5px;font-weight:700;color:var(--tx2);margin-top:2px;white-space:nowrap;background:rgba(255,255,255,.7);border-radius:4px;padding:0 3px }
+#activity-quadrant .aq-foot{ font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.6 }
+#activity-quadrant .aq-foot b{ color:var(--ol,#4a5a32) }
 /* 🎯 着地見込みセクション */
 #tab-meeting .mt-land{ background:linear-gradient(135deg,rgba(90,123,158,.05),rgba(200,152,86,.03)); border:1px solid var(--bd); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 #tab-meeting .mt-land-h{ font-size:14px; font-weight:900; color:var(--tx); margin-bottom:10px; }
@@ -2679,6 +2694,7 @@ body.has-sidepanel #home-deal-mode {
     </span>
   </div>
   <div class="ptabs" id="aptabs-people" style="margin-top:4px;border-top:1px solid var(--bds);padding-top:6px"></div>
+  <div id="activity-quadrant"></div>
   <div id="actuals-summary" style="margin:14px 0 12px"></div>
   <div id="actuals-2col" class="ac-2col">
   <div id="actuals-table-wrap">
@@ -18850,6 +18866,59 @@ function setHomeMode(mode) {
 // caSp が -1/'region_xxx'/'branch_xxx' → 該当する全担当者の合計を表示(読み取り専用)
 //   → 合計モードは _renderActivityActualsAggregate() に委譲
 
+// ⭐⑤ 行動×成果 相関(管理職向け): 活動量(横) × 受注転換率(縦) の4象限。targetPeople=対象担当者。
+function _activityQuadrantHtml(targetPeople, curMi){
+  var getProbL = (typeof getProb==='function') ? getProb : function(){return 3;};
+  var fyNow = (typeof fy!=='undefined') ? fy : new Date().getFullYear();
+  // 過去年度なら全月、当年度は経過月まで
+  var maxMi = (typeof _mtMaxElapsedMi==='function') ? _mtMaxElapsedMi() : curMi;
+  if (maxMi < 0) maxMi = 11;
+  var rows = [];
+  targetPeople.forEach(function(p){
+    if (!p || !p.id) return;
+    // 活動量 = activityActuals 全種別×経過月 の合計
+    var act = 0; var aobj = (D.activityActuals||{})[p.id] || {};
+    Object.keys(aobj).forEach(function(at){ var arr=aobj[at]||[]; for (var i=0;i<=maxMi&&i<12;i++) act += parseFloat(arr[i])||0; });
+    // 受注/商談(V8直販・販売店/グループ除外・当年度)
+    var won=0, opp=0;
+    (D.deals||[]).forEach(function(d){
+      if (!d || d.spId !== p.id) return;
+      var c = d.category||'直販'; if (c==='販売店'||c==='グループ薬局') return;
+      var mi = (typeof implToFyIdx==='function') ? implToFyIdx(d.deliveryMonth) : 0;
+      // 計上月が当年度の案件のみ(未設定も含める=パイプライン)
+      var pr = getProbL(d);
+      if (pr>=2) opp++;
+      if (pr>=5) won++;
+    });
+    var rate = opp>0 ? Math.round(won/opp*100) : 0;
+    if (act===0 && opp===0) return; // 活動も案件も無い人は除外
+    rows.push({name:p.name||'(無名)', branch:p.branch||'', act:act, rate:rate, won:won, opp:opp});
+  });
+  if (rows.length < 2) return ''; // 比較対象が少なければ非表示
+  var maxAct = Math.max.apply(null, rows.map(function(r){return r.act;})) || 1;
+  var med = function(arr){ var a=arr.slice().sort(function(x,y){return x-y;}); var n=a.length; return n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2; };
+  var medAct = med(rows.map(function(r){return r.act;}));
+  var medRate = med(rows.map(function(r){return r.rate;}));
+  var BR={'神戸':'#5a7b9e','福岡':'#7a8e5a','高知':'#c89856','東京':'#8a5a2e','新潟':'#a85a4a'};
+  var col=function(br){ var k=Object.keys(BR).find(function(x){return (br||'').indexOf(x)>=0;}); return k?BR[k]:'#8a7e6a'; };
+  var pts = rows.map(function(r){
+    var x = 10 + (r.act/maxAct)*80;          // 10〜90%
+    var y = 90 - (Math.min(r.rate,100)/100)*80; // 上=高転換率
+    return '<div class="aq-pt" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%"><div class="aq-b" style="background:'+col(r.branch)+'"></div><div class="aq-nm">'+_esc(r.name)+'</div></div>';
+  }).join('');
+  return '<div class="aq-wrap">'
+    + '<div class="aq-h">📈 行動 × 成果 相関 <span class="sub">活動量(横) × 受注転換率(縦)／管理職表示・経過月まで</span></div>'
+    + '<div class="aq-quad">'
+    + '<div class="aq-axis aq-v" style="left:'+(10+(medAct/maxAct)*80).toFixed(1)+'%"></div>'
+    + '<div class="aq-axis aq-h2" style="top:'+(90-(Math.min(medRate,100)/100)*80).toFixed(1)+'%"></div>'
+    + '<div class="aq-ql" style="right:6px;top:4px;text-align:right;color:#4a5a32">★理想<br><span>活動多・転換高</span></div>'
+    + '<div class="aq-ql" style="left:6px;top:4px;color:var(--tx3)">効率型<br><span>活動少・転換高</span></div>'
+    + '<div class="aq-ql" style="right:6px;bottom:4px;text-align:right;color:#8a5a2a">提案力に課題<br><span>活動多・転換低</span></div>'
+    + '<div class="aq-ql" style="left:6px;bottom:4px;color:#a85a4a">要テコ入れ<br><span>活動少・転換低</span></div>'
+    + pts + '</div>'
+    + '<div class="aq-foot">点=担当者（色=拠点）。中央線は中央値。<b>右上＝手本</b>／<b>右下＝提案・クロージング指導</b>／<b>左下＝まず活動量</b>。「量か質か」で指導を切り分け。</div>'
+    + '</div>';
+}
 function renderActivityActuals(tb) {
   if (!tb) return;
   const people = ap();
@@ -18862,6 +18931,19 @@ function renderActivityActuals(tb) {
   if (!D.activityActuals) D.activityActuals = {};
   var now = new Date();
   var curMi = now.getMonth() >= 3 ? now.getMonth()-3 : now.getMonth()+9;
+  // ⑤ 行動×成果 相関(管理職 & 集計スコープのみ)。専用コンテナへ描画。
+  try {
+    var _aq = document.getElementById('activity-quadrant');
+    if (_aq){
+      var _isAgg = (caSp === -1) || (typeof caSp==='string' && (caSp.startsWith('region_')||caSp.startsWith('branch_')));
+      if (_isAgg && typeof _isManagerRole==='function' && _isManagerRole()){
+        var _tp = people;
+        if (typeof caSp==='string' && caSp.startsWith('region_')){ var _rn=caSp.slice(7); var _bm=(typeof getBranchMaster==='function'?getBranchMaster():(D.branchMaster||[])); var _tbs=_bm.filter(function(b){return (b.region||'西日本')===_rn;}).map(function(b){return b.name;}); _tp=people.filter(function(pp){return _tbs.indexOf(pp.branch)>=0;}); }
+        else if (typeof caSp==='string' && caSp.startsWith('branch_')){ var _bn=caSp.slice(7); _tp=people.filter(function(pp){return pp.branch===_bn;}); }
+        _aq.innerHTML = _activityQuadrantHtml(_tp, curMi);
+      } else { _aq.innerHTML = ''; }
+    }
+  } catch(e){ console.warn('行動×成果 相関の描画失敗', e); }
 
   // caSp の値判定(売上タブと共通のパターン)
   const isAll = (caSp === -1);
