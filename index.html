@@ -5680,6 +5680,17 @@ function _mtToggleBreak(id){
   el.style.display = hidden ? '' : 'none';
   if (tg) tg.textContent = hidden ? '▾' : '▸';
 }
+// スコープ配下の「取込後の手動受注(_wonAt上乗せ)」合計。getActualValueと同条件
+//   (branchActuals>0 のインポート済み月のみ上乗せ)で集計し、内訳のソフトに加算する。
+function _mtScopeManualExtra(scope, field, mi){
+  if (typeof _manualExtraForBranch !== 'function') return 0;
+  var t = 0;
+  _mtScopeBranches(scope).forEach(function(bn){
+    var brVal = (D.branchActuals && D.branchActuals[bn]) ? (parseFloat((D.branchActuals[bn][field] || [])[mi]) || 0) : 0;
+    if (brVal > 0) t += _manualExtraForBranch(bn, field, mi); // 確定月のみ(=getActualValueと一致)
+  });
+  return t;
+}
 // スコープ×月の対象案件: branch/region/all=配下拠点の直販+グループ薬局、person=本人案件(グループ除外)
 function _mtBreakdownDeals(scope, mi){
   var arr = [];
@@ -5719,6 +5730,10 @@ function _mtMonthBreakdownHtml(scope, mi){
     var bp = _mtScopeBranchParam(scope);
     var bs = _getBreakdownForMi(bp, 's', mi) || {};
     var bpr = _getBreakdownForMi(bp, 'p', mi) || {};
+    // ⭐ 取込後の手動受注(本町等の_wonAt上乗せ)はExcelソフト確定値に未含のためソフトに加算。
+    //   → ソフトchipが実績と整合し、下の「受注案件 計」とも一致する。
+    bs.system = (bs.system || 0) + _mtScopeManualExtra(scope, 's', mi);
+    bpr.system = (bpr.system || 0) + _mtScopeManualExtra(scope, 'p', mi);
     var chip = function(lbl, sv, pv){ sv = sv || 0; pv = pv || 0; if (sv === 0 && pv === 0) return ''; return '<span class="mt-brk-chip">' + lbl + '<b>' + _mtFmtNum(sv) + '</b><span class="g">/' + _mtFmtNum(pv) + '</span></span>'; };
     var chips = chip('ソフト', bs.system, bpr.system) + chip('保守', bs.maintenance, bpr.maintenance) + chip('HW', bs.hardware, bpr.hardware) + chip('消耗品', bs.consumables, bpr.consumables) + chip('その他', bs.other, bpr.other);
     if (chips) h += '<div class="mt-brk-sec"><span class="mt-brk-h">内訳（売上/粗利・千）</span>' + chips + '</div>';
