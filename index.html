@@ -1920,6 +1920,14 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-pt .br { font-size:13px; opacity:.85; font-weight:700; }
 #tab-meeting .mt-person-tabs { gap:6px; }
 #tab-meeting .mt-half-tabs { display:flex; gap:3px; background:var(--s3); padding:4px; border-radius:10px; flex-shrink:0; }
+/* スコープ選択バー(左)＋期間トグル(右上に常時表示) */
+#tab-meeting .mt-scope-topbar { display:flex; align-items:flex-start; gap:12px; }
+#tab-meeting .mt-scope-topbar .mt-scope-wrap { flex:1 1 auto; min-width:0; }
+#tab-meeting .mt-scope-topbar .mt-half-tabs { flex-shrink:0; margin-top:0; }
+@media (max-width:760px){
+  #tab-meeting .mt-scope-topbar { flex-direction:column; }
+  #tab-meeting .mt-scope-topbar .mt-half-tabs { align-self:flex-end; }
+}
 #tab-meeting .mt-ht {
   background:transparent; border:none; padding:7px 18px;
   border-radius:7px; font-size:13.5px; font-weight:800; cursor:pointer; color:var(--tx2);
@@ -6132,8 +6140,9 @@ function renderMeeting() {
   // ── スコープ選択(全社/営業部/営業所/担当者) + 年間サマリー + 内訳 ─────────
   // 表示専用。万一新ビューで例外が出ても 営業会議タブ全体は壊さない。
   try {
-    html += _mtScopeSelectorHtml(scope);
-    html += '<div class="mt-scope-head">'+_esc(_mtScopeLabel(scope))+'<span class="sub">'+fy+'年度 年間サマリー</span>'+_halfTabs+'</div>';
+    // スコープ選択バー(全社/拠点)の右上に 上期/下期/通期 トグルを常時表示(青枠位置)
+    html += '<div class="mt-scope-topbar">'+_mtScopeSelectorHtml(scope)+_halfTabs+'</div>';
+    html += '<div class="mt-scope-head">'+_esc(_mtScopeLabel(scope))+'<span class="sub">'+fy+'年度 年間サマリー</span></div>';
     html += _mtSummaryCardsHtml(scope);
     if (!scopeIsPerson) {
       html += _mtBreakdownHtml(scope);
