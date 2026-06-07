@@ -1920,6 +1920,28 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-pt .br { font-size:13px; opacity:.85; font-weight:700; }
 #tab-meeting .mt-person-tabs { gap:6px; }
 #tab-meeting .mt-half-tabs { display:flex; gap:3px; background:var(--s3); padding:4px; border-radius:10px; flex-shrink:0; }
+/* 🎯 着地見込みセクション */
+#tab-meeting .mt-land{ background:linear-gradient(135deg,rgba(90,123,158,.05),rgba(200,152,86,.03)); border:1px solid var(--bd); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+#tab-meeting .mt-land-h{ font-size:14px; font-weight:900; color:var(--tx); margin-bottom:10px; }
+#tab-meeting .mt-land-h .sub{ font-size:11px; color:var(--tx3); font-weight:500; margin-left:6px; }
+#tab-meeting .mt-land-cards{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+@media(max-width:820px){ #tab-meeting .mt-land-cards{ grid-template-columns:1fr; } }
+#tab-meeting .mt-land-card{ background:var(--s1); border:1px solid var(--bds); border-radius:10px; padding:12px 14px; }
+#tab-meeting .mt-land-card .t{ font-size:11px; color:var(--tx2); font-weight:700; margin-bottom:5px; letter-spacing:.03em; }
+#tab-meeting .mt-land-card .v{ font-size:26px; font-weight:900; line-height:1; font-variant-numeric:tabular-nums; }
+#tab-meeting .mt-land-card .v .u{ font-size:13px; color:var(--tx2); font-weight:700; margin-left:2px; }
+#tab-meeting .mt-land-card .d{ font-size:11.5px; color:var(--tx2); margin-top:7px; }
+#tab-meeting .mt-land-card .d2{ font-size:11px; color:var(--tx3); margin-top:3px; }
+#tab-meeting .mt-land-pill{ font-size:11px; font-weight:800; padding:2px 8px; border-radius:9px; vertical-align:middle; }
+#tab-meeting .mt-land-pill.p-g{ background:rgba(122,142,90,.16); color:#4a5a32; }
+#tab-meeting .mt-land-pill.p-y{ background:rgba(200,152,86,.18); color:#8a5a2a; }
+#tab-meeting .mt-land-pill.p-r{ background:rgba(168,90,74,.15); color:#7a3525; }
+#tab-meeting .mt-land-tbl{ width:100%; border-collapse:collapse; font-size:13px; background:var(--s1); border-radius:8px; overflow:hidden; }
+#tab-meeting .mt-land-tbl th{ background:var(--s3); color:var(--tx2); font-weight:800; font-size:11.5px; padding:7px 10px; text-align:left; border-bottom:2px solid var(--bds); }
+#tab-meeting .mt-land-tbl td{ padding:8px 10px; border-bottom:1px solid var(--bds); font-variant-numeric:tabular-nums; }
+#tab-meeting .mt-land-tbl .num{ text-align:right; }
+#tab-meeting .mt-land-tbl .ctr{ text-align:center; }
+#tab-meeting .mt-land-foot{ font-size:11px; color:var(--tx3); margin-top:7px; }
 /* スコープ選択バー(左)＋期間トグル(右上に常時表示)・スクロール追従(sticky) */
 #tab-meeting .mt-scope-topbar {
   display:flex; align-items:flex-start; gap:12px;
@@ -5561,6 +5583,74 @@ function _mtPeriodTotals(scope, mis){
   });
   return o;
 }
+// ⭐ 管理職判定(super_admin=全社 / region_admin=地域)。管理職向け詳細(拠点横断の信号等)の出し分け用。
+function _isManagerRole(){
+  var r = (typeof currentUserRole==='object' && currentUserRole) ? (currentUserRole.role||'staff') : 'staff';
+  return r==='super_admin' || r==='region_admin';
+}
+// 残り期間(未経過月)の加重パイプライン見込み(確度2-4)。確定(確度5)は実績側で集計済みのため除外。
+function _mtPipelineForecast(scope, field, halfMis){
+  var maxEl = _mtMaxElapsedMi(); var fset = {};
+  halfMis.forEach(function(mi){ if (mi > maxEl) fset[mi]=1; });
+  if (!Object.keys(fset).length) return 0;
+  var isPerson = _mtScopeIsPerson(scope);
+  var branches = _mtScopeBranches(scope);
+  var pid2br = {}; (D.people||[]).forEach(function(p){ pid2br[p.id]=p.branch; });
+  var sum = 0;
+  (D.deals||[]).forEach(function(d){
+    if (!d) return;
+    var prob = (typeof getProb==='function') ? getProb(d) : 3;
+    if (prob < 2 || prob >= 5) return;            // 見込み=確度2〜4のみ(5は実績/1は除外)
+    var mi = (typeof implToFyIdx==='function') ? implToFyIdx(d.deliveryMonth) : -1;
+    if (!fset[mi]) return;
+    if (isPerson){ if (d.spId !== scope || d.category==='グループ薬局') return; }
+    else { var br = (d.category==='グループ薬局') ? (d.groupBranch||pid2br[d.spId]) : pid2br[d.spId]; if (branches.indexOf(br) < 0) return; }
+    var sv = parseFloat(d.sales)||0, cv = parseFloat(d.cost)||0;
+    var w = (typeof getProbDef==='function') ? (getProbDef(prob).weight||0) : 0;
+    sum += ((field==='s') ? sv : (sv-cv)) * w / 100;
+  });
+  return Math.round(sum);
+}
+// 🎯 着地見込みセクション(実績＋加重パイプライン)。拠点別信号は管理職(全社/地域)のみ表示。
+function _mtLandingHtml(scope, halfMis){
+  var target = _mtScopeTarget(scope);
+  var halfLbl = (halfMis.length===12) ? '通期' : (halfMis[0]===0 ? '上期' : '下期');
+  var budS=0,budP=0,actS=0,actP=0;
+  halfMis.forEach(function(mi){ budS+=getBudgetValue(target,'s',mi); budP+=getBudgetValue(target,'p',mi); actS+=getActualValue(target,'s',mi); actP+=getActualValue(target,'p',mi); });
+  var pipeS=_mtPipelineForecast(scope,'s',halfMis), pipeP=_mtPipelineForecast(scope,'p',halfMis);
+  var landS=Math.round(actS)+pipeS, landP=Math.round(actP)+pipeP;
+  var pctS=budS>0?Math.round(landS/budS*100):0, pctP=budP>0?Math.round(landP/budP*100):0;
+  var gapS=Math.round(budS-landS), gapP=Math.round(budP-landP);
+  var col=function(p){ return p>=100?'#4a5a32':(p>=90?'#8a5a2a':'#a85a4a'); };
+  var pillc=function(p){ return p>=100?'p-g':(p>=90?'p-y':'p-r'); };
+  var f=function(n){ return _mtFmtNum(n); };
+  var h='<div class="mt-land">';
+  h+='<div class="mt-land-h">🎯 '+halfLbl+' 着地見込み <span class="sub">実績＋進行中案件(確度別の加重)からの予測</span></div>';
+  h+='<div class="mt-land-cards">';
+  h+='<div class="mt-land-card"><div class="t">売上 着地見込み</div><div class="v" style="color:'+col(pctS)+'">'+f(landS)+'<span class="u">千</span> <span class="mt-land-pill '+pillc(pctS)+'">'+pctS+'%</span></div>'
+   +'<div class="d">予算 '+f(budS)+'千 ／ '+(gapS>0?'<b style="color:#a85a4a">▼'+f(gapS)+'千 未達見込み</b>':'<b style="color:#4a5a32">▲'+f(-gapS)+'千 超過見込み</b>')+'</div>'
+   +'<div class="d2">実績 '+f(Math.round(actS))+' ＋ 見込み '+f(pipeS)+'</div></div>';
+  h+='<div class="mt-land-card"><div class="t">粗利 着地見込み</div><div class="v" style="color:'+col(pctP)+'">'+f(landP)+'<span class="u">千</span> <span class="mt-land-pill '+pillc(pctP)+'">'+pctP+'%</span></div>'
+   +'<div class="d">予算 '+f(budP)+'千 ／ '+(gapP>0?'<b style="color:#a85a4a">▼'+f(gapP)+'千</b>':'<b style="color:#4a5a32">▲'+f(-gapP)+'千</b>')+'</div>'
+   +'<div class="d2">実績 '+f(Math.round(actP))+' ＋ 見込み '+f(pipeP)+'</div></div>';
+  h+='<div class="mt-land-card"><div class="t">予算到達まで（売上）</div>'+(gapS>0?'<div class="v" style="color:#5a7b9e">あと '+f(gapS)+'<span class="u">千</span></div><div class="d">進行中の確度UP・新規仕込みで埋める</div>':'<div class="v" style="color:#4a5a32">達成見込み ✓</div><div class="d">超過 '+f(-gapS)+'千</div>')+'</div>';
+  h+='</div>';
+  if (!_mtScopeIsPerson(scope) && _isManagerRole() && (scope==='all' || (typeof scope==='string' && scope.indexOf('region_')===0))){
+    var branches=_mtScopeBranches(scope);
+    h+='<div class="mt-land-h" style="margin-top:10px">🚦 拠点別 着地信号 <span class="sub">'+halfLbl+'着地 vs 予算（管理職表示）</span></div>';
+    h+='<table class="mt-land-tbl"><tr><th>拠点</th><th class="num">予算</th><th class="num">実績</th><th class="num">着地見込</th><th class="num">予算差</th><th class="ctr">信号</th></tr>';
+    branches.forEach(function(bn){
+      var bb=0,ba=0; halfMis.forEach(function(mi){ bb+=getBudgetValue(bn,'s',mi); ba+=getActualValue(bn,'s',mi); });
+      var bp=_mtPipelineForecast('branch_'+bn,'s',halfMis); var bl=Math.round(ba)+bp;
+      var pc=bb>0?Math.round(bl/bb*100):0; var g=Math.round(bb-bl);
+      var c=pc>=100?'#7a8e5a':(pc>=90?'#c89856':'#a85a4a');
+      h+='<tr><td>'+_esc(bn)+'</td><td class="num">'+f(bb)+'</td><td class="num">'+f(Math.round(ba))+'</td><td class="num" style="font-weight:800">'+f(bl)+'</td><td class="num" style="color:'+(g>0?'#a85a4a':'#4a5a32')+'">'+(g>0?'▼'+f(g):'▲'+f(-g))+'</td><td class="ctr"><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:'+c+'"></span></td></tr>';
+    });
+    h+='</table><div class="mt-land-foot">🟢達成見込 ／ 🟡射程圏(90%↑) ／ 🔴未達リスク(90%未満)。会議冒頭の危険度共有に。</div>';
+  }
+  h+='</div>';
+  return h;
+}
 // ── 年間サマリー 3カード ──
 function _mtSummaryCardsHtml(scope){
   var H1=[0,1,2,3,4,5], H2=[6,7,8,9,10,11], FY12=[0,1,2,3,4,5,6,7,8,9,10,11];
@@ -6128,6 +6218,7 @@ function renderMeeting() {
     html += '<div class="mt-scope-topbar">'+_mtScopeSelectorHtml(scope)+_halfTabs+'</div>';
     html += '<div class="mt-scope-head">'+_esc(_mtScopeLabel(scope))+'<span class="sub">'+fy+'年度 年間サマリー</span></div>';
     html += _mtSummaryCardsHtml(scope);
+    html += _mtLandingHtml(scope, halfMis); // 🎯 着地見込み(実績＋加重パイプライン)＋拠点別信号(管理職)
     if (!scopeIsPerson) {
       html += _mtBreakdownHtml(scope);
       // ① 月別予実(スコープ合計)を年間サマリー直下に配置(全スコープ共通)
