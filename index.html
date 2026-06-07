@@ -5725,6 +5725,7 @@ function _mtMonthBreakdownHtml(scope, mi){
   var as = getActualValue(target, 's', mi), ap = getActualValue(target, 'p', mi);
   var isPerson = _mtScopeIsPerson(scope);
   var h = '<div class="mt-brk-box">';
+  var _softS = null, _softP = null; // ソフト確定値(Excel+上乗せ)。受注案件計との差注記に使う
   // ① コンポーネント内訳(拠点/地域/全社のみ。単位=千)
   if (!isPerson && typeof _getBreakdownForMi === 'function'){
     var bp = _mtScopeBranchParam(scope);
@@ -5734,6 +5735,7 @@ function _mtMonthBreakdownHtml(scope, mi){
     //   → ソフトchipが実績と整合し、下の「受注案件 計」とも一致する。
     bs.system = (bs.system || 0) + _mtScopeManualExtra(scope, 's', mi);
     bpr.system = (bpr.system || 0) + _mtScopeManualExtra(scope, 'p', mi);
+    _softS = bs.system; _softP = bpr.system;
     var chip = function(lbl, sv, pv){ sv = sv || 0; pv = pv || 0; if (sv === 0 && pv === 0) return ''; return '<span class="mt-brk-chip">' + lbl + '<b>' + _mtFmtNum(sv) + '</b><span class="g">/' + _mtFmtNum(pv) + '</span></span>'; };
     var chips = chip('ソフト', bs.system, bpr.system) + chip('保守', bs.maintenance, bpr.maintenance) + chip('HW', bs.hardware, bpr.hardware) + chip('消耗品', bs.consumables, bpr.consumables) + chip('その他', bs.other, bpr.other);
     if (chips) h += '<div class="mt-brk-sec"><span class="mt-brk-h">内訳（売上/粗利・千）</span>' + chips + '</div>';
@@ -5756,6 +5758,12 @@ function _mtMonthBreakdownHtml(scope, mi){
       h += '<tr><td>' + nm + (overlay ? ' <span class="mt-brk-tag">取込後上乗せ</span>' : '') + '</td><td class="ctr">' + _esc(_mtPersonName(d.spId)) + '</td><td class="ctr">' + _esc(catS) + '</td><td class="num">' + _mtFmtNum(sv) + '</td><td class="num">' + _mtFmtNum(pv) + '</td></tr>';
     });
     h += '<tr class="sum"><td colspan="3">受注案件 計</td><td class="num">' + _mtFmtNum(sumS) + '</td><td class="num">' + _mtFmtNum(sumP) + '</td></tr></table>';
+    // 受注案件計(アプリ) と ソフト確定値(Excel+上乗せ) の差注記。差がある＝アプリ案件の過不足/原価差。
+    if (_softS != null && (Math.round(sumS) !== Math.round(_softS) || Math.round(sumP) !== Math.round(_softP))){
+      var dS = Math.round(sumS - _softS), dP = Math.round(sumP - _softP);
+      var sgn = function(n){ return (n > 0 ? '+' : '') + n.toLocaleString(); };
+      h += '<div class="mt-brk-note">※ 受注案件計（アプリ）と <b>ソフト確定値（Excel）'+_mtFmtNum(_softS)+'/'+_mtFmtNum(_softP)+'</b> の差：売上 '+sgn(dS)+' ／ 粗利 '+sgn(dP)+'（実績はExcel確定値が基準。差はアプリ案件の過不足・原価差）</div>';
+    }
   } else {
     h += '<p class="mt-brk-empty">この月に計上（確度5）の受注案件はありません。</p>';
   }
