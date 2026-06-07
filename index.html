@@ -19092,6 +19092,30 @@ function _activityAutoMap(){
   return map;
 }
 
+// 📥 案件の活動記録から自動集計した 訪問/電話/メール の月別テーブル(閲覧用)。
+// 本部長指示の8カテゴリ手入力テーブルとは別枠で併記する(B案)。targetPeople=対象担当者(1名でも配列)。
+function _activityAutoBlockHtml(targetPeople, curMi){
+  if(typeof _activityAutoMap!=='function') return '';
+  var amap=_activityAutoMap();
+  var thead='<thead><tr style="background:rgba(122,142,90,.12)">' +
+    '<th style="text-align:left;padding:5px 8px;min-width:120px">手段</th>' +
+    ML.map(function(m,i){ return '<th style="text-align:center;padding:4px 2px;min-width:40px;font-weight:'+(i===curMi?900:400)+';color:'+(i===curMi?'var(--acc)':'var(--tx3)')+'">'+m+'</th>'; }).join('') +
+    '<th style="text-align:center;padding:4px 6px;min-width:42px;color:#4a5a32">計</th></tr></thead>';
+  var grand=0;
+  var rows=ACT_VISIT_TYPES.map(function(t){
+    var sum=Array(12).fill(0);
+    targetPeople.forEach(function(p){ if(!p||!p.id)return; var arr=(amap[p.id]&&amap[p.id][t])||[]; for(var i=0;i<12;i++) sum[i]+=arr[i]||0; });
+    var tot=sum.reduce(function(s,v){return s+v;},0); grand+=tot;
+    var icon=t==='訪問'?'🚶':t==='電話'?'📞':'✉️';
+    var cells=sum.map(function(v,i){ return '<td style="text-align:center;padding:2px;font-size:12px;font-weight:700;color:'+(v>0?'var(--tx)':'var(--tx3)')+(i===curMi?';background:rgba(90,123,158,.06)':'')+'">'+(v>0?v:'—')+'</td>'; }).join('');
+    return '<tr style="border-bottom:1px solid var(--bds)"><td style="padding:5px 8px;font-weight:700">'+icon+' '+t+'</td>'+cells+'<td style="text-align:center;padding:2px 6px;font-size:12px;font-weight:800;color:#4a5a32">'+(tot>0?tot:'—')+'</td></tr>';
+  }).join('');
+  return '<div style="margin-top:16px;border:1px solid rgba(122,142,90,.35);border-radius:8px;overflow:hidden">' +
+    '<div style="background:rgba(122,142,90,.12);padding:7px 12px;font-size:12px;font-weight:800;color:#4a5a32">📥 案件の活動記録から自動集計（訪問/電話/メール）　<span style="font-weight:500;color:var(--tx3)">案件カードに記録すると自動反映・入力不要（合計'+grand+'件）</span></div>' +
+    '<div style="overflow-x:auto;padding:6px"><table style="width:100%;min-width:700px;border-collapse:collapse;font-size:11px">'+thead+'<tbody>'+rows+'</tbody></table></div>' +
+    '</div>';
+}
+
 // ⭐⑤ 行動×成果 相関(管理職向け): 活動量(横) × 受注転換率(縦) の4象限。targetPeople=対象担当者。
 function _activityQuadrantHtml(targetPeople, curMi){
   var getProbL = (typeof getProb==='function') ? getProb : function(){return 3;};
@@ -19201,49 +19225,46 @@ function renderActivityActuals(tb) {
     return;
   }
   if (!D.activityBudgets[p.id]) D.activityBudgets[p.id] = {};
-  var amap = _activityAutoMap();
-  var aMine = amap[p.id] || {};
+  if (!D.activityActuals[p.id]) D.activityActuals[p.id] = {};
 
   // テーブルヘッダー
   var thead = '<thead><tr style="background:var(--s3)">' +
-    '<th style="text-align:left;padding:5px 8px;min-width:120px">活動種別</th>' +
+    '<th style="text-align:left;padding:5px 8px;min-width:160px">活動種別</th>' +
     '<th style="width:30px;font-size:12px;color:var(--tx3)"></th>' +
     ML.map(function(m, i) {
       return '<th style="text-align:center;padding:4px 2px;min-width:46px;font-weight:' +
         (i === curMi ? 900 : 400) + ';color:' + (i === curMi ? 'var(--acc)' : 'var(--tx3)') + '">' + m + '</th>';
     }).join('') +
-    '<th style="text-align:center;padding:4px 6px;min-width:42px;color:var(--tx3)">計</th>' +
     '</tr></thead>';
 
-  // テーブル本体(実績=案件の活動記録から自動集計・閲覧用 / 目標=設定→予算)
-  var tbody = ACT_VISIT_TYPES.map(function(at) {
+  // テーブル本体
+  var tbody = actTypes.map(function(at) {
     if (!D.activityBudgets[p.id][at]) D.activityBudgets[p.id][at] = Array(12).fill('');
-    var aArr = aMine[at] || Array(12).fill(0);
-    var aTot = 0, bTot = 0;
+    if (!D.activityActuals[p.id][at]) D.activityActuals[p.id][at] = Array(12).fill('');
+    var atSafe = at.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     var bCells = ML.map(function(m, i) {
-      var bv = parseFloat(D.activityBudgets[p.id][at][i]) || 0; bTot += bv;
-      return '<td style="text-align:center;padding:2px 1px;background:rgba(90,123,158,.04);font-size:12px;color:var(--tx3)">' + (bv > 0 ? bv : '—') + '</td>';
-    }).join('') + '<td style="text-align:center;padding:2px 4px;background:rgba(90,123,158,.06);font-size:12px;color:var(--tx3);font-weight:700">' + (bTot > 0 ? bTot : '—') + '</td>';
-    var aCells = ML.map(function(m, i) {
-      var av = aArr[i] || 0; aTot += av;
-      var bv = parseFloat(D.activityBudgets[p.id][at][i]) || 0;
-      var bg = bv > 0 ? (av >= bv ? 'rgba(122,142,90,.08)' : 'rgba(168,90,74,.05)') : '';
-      return '<td style="text-align:center;padding:2px 1px;background:' + bg + ';font-size:12px;font-weight:700;color:var(--tx)">' + (av > 0 ? av : '—') + '</td>';
+      return '<td style="text-align:center;padding:2px;background:rgba(90,123,158,.04)">' +
+        '<input type="number" style="width:100%;text-align:center;background:none;border:none;font-size:12px;color:var(--tx3)" ' +
+        'value="' + (D.activityBudgets[p.id][at][i] || '') + '" placeholder="—" readonly></td>';
     }).join('');
-    aCells += '<td style="text-align:center;padding:2px 4px;background:rgba(122,142,90,.10);font-size:12px;font-weight:800;color:#4a5a32">' + (aTot > 0 ? aTot : '—') + '</td>';
+    var aCells = ML.map(function(m, i) {
+      var av = D.activityActuals[p.id][at][i] || '';
+      var bv = parseFloat(D.activityBudgets[p.id][at][i]) || 0;
+      var avN = parseFloat(av) || 0;
+      var bg = bv > 0 ? (avN >= bv ? 'rgba(122,142,90,.08)' : 'rgba(168,90,74,.05)') : '';
+      return '<td style="text-align:center;padding:2px;background:' + bg + '">' +
+        '<input type="number" style="width:100%;text-align:center;background:none;border:none;font-size:12px;font-weight:700;color:var(--tx)" ' +
+        'value="' + av + '" placeholder="0" onchange="_saveActAct(\'' + p.id + '\',\'' + atSafe + '\',' + i + ',this.value)"></td>';
+    }).join('');
     var rCells = ML.map(function(m, i) {
       var bv = parseFloat(D.activityBudgets[p.id][at][i]) || 0;
-      var av = aArr[i] || 0;
+      var av = parseFloat(D.activityActuals[p.id][at][i]) || 0;
       var r = bv > 0 ? Math.round(av / bv * 100) : null;
       var col = r === null ? 'var(--tx3)' : r >= 100 ? 'var(--grn)' : r >= 80 ? 'var(--amb)' : 'var(--red)';
       return '<td style="text-align:center;padding:2px;font-size:12px;font-weight:700;color:' + col + '">' + (r !== null ? r + '%' : '—') + '</td>';
     }).join('');
-    var rTot = bTot > 0 ? Math.round(aTot / bTot * 100) : null;
-    var rTotCol = rTot === null ? 'var(--tx3)' : rTot >= 100 ? 'var(--grn)' : rTot >= 80 ? 'var(--amb)' : 'var(--red)';
-    rCells += '<td style="text-align:center;padding:2px 4px;font-size:12px;font-weight:800;color:' + rTotCol + '">' + (rTot !== null ? rTot + '%' : '—') + '</td>';
-    var icon = at === '訪問' ? '🚶' : at === '電話' ? '📞' : '✉️';
     return '<tr>' +
-      '<td rowspan="3" style="padding:6px 8px;font-weight:700;border-bottom:2px solid var(--bd);vertical-align:middle">' + icon + ' ' + at + '</td>' +
+      '<td rowspan="3" style="padding:6px 8px;font-weight:600;border-bottom:2px solid var(--bd);vertical-align:middle">' + at + '</td>' +
       '<td style="font-size:12px;color:var(--tx3);padding:2px 4px;background:rgba(90,123,158,.04)">目標</td>' + bCells + '</tr>' +
       '<tr><td style="font-size:12px;color:var(--acc);padding:2px 4px;font-weight:700">実績</td>' + aCells + '</tr>' +
       '<tr style="border-bottom:2px solid var(--bd)"><td style="font-size:12px;color:var(--tx3);padding:2px 4px">達成率</td>' + rCells + '</tr>';
@@ -19256,13 +19277,14 @@ function renderActivityActuals(tb) {
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
         '<span style="background:' + getBranchColor(p.branch) + ';color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700">' + (p.branch || '—') + '</span>' +
         '<span style="font-size:15px;font-weight:900">' + p.name + '</span>' +
-        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 実績は<b>案件の活動記録(訪問/電話/メール)から自動集計</b>＝入力不要。目標は 設定→予算→営業活動量</span>' +
+        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 実績は各セルに直接入力 → 自動保存　目標は 設定→予算→営業活動量</span>' +
       '</div>' +
       '<div style="overflow-x:auto">' +
         '<table style="width:100%;min-width:750px;border-collapse:collapse;font-size:11px">' +
           thead + '<tbody>' + tbody + '</tbody>' +
         '</table>' +
       '</div>' +
+      _activityAutoBlockHtml([p], curMi) +
     '</div></td></tr>';
 }
 
@@ -19311,17 +19333,16 @@ function _renderActivityActualsAggregate(tb, people, actTypes, curMi, mode) {
     }).join('') +
     '</tr></thead>';
 
-  // テーブル本体(訪問/電話/メールごとに、選ばれた担当者全員の月別合計を計算。実績は案件から自動集計)
-  var _amapAgg = _activityAutoMap();
-  var tbody = ACT_VISIT_TYPES.map(function(at) {
+  // テーブル本体(活動種別ごとに、選ばれた担当者全員の月別合計を計算)
+  var tbody = actTypes.map(function(at) {
     var bSum = Array(12).fill(0);
     var aSum = Array(12).fill(0);
     targetPeople.forEach(function(tp) {
       var bArr = (D.activityBudgets[tp.id] && D.activityBudgets[tp.id][at]) || [];
-      var aArr = (_amapAgg[tp.id] && _amapAgg[tp.id][at]) || [];
+      var aArr = (D.activityActuals[tp.id] && D.activityActuals[tp.id][at]) || [];
       for (var i = 0; i < 12; i++) {
         bSum[i] += parseFloat(bArr[i]) || 0;
-        aSum[i] += aArr[i] || 0;
+        aSum[i] += parseFloat(aArr[i]) || 0;
       }
     });
     var bCells = bSum.map(function(v) {
@@ -19338,9 +19359,8 @@ function _renderActivityActualsAggregate(tb, people, actTypes, curMi, mode) {
       var col = r === null ? 'var(--tx3)' : r >= 100 ? 'var(--grn)' : r >= 80 ? 'var(--amb)' : 'var(--red)';
       return '<td style="text-align:center;padding:2px;font-size:12px;font-weight:700;color:' + col + '">' + (r !== null ? r + '%' : '—') + '</td>';
     }).join('');
-    var icon = at === '訪問' ? '🚶' : at === '電話' ? '📞' : '✉️';
     return '<tr>' +
-      '<td rowspan="3" style="padding:6px 8px;font-weight:700;border-bottom:2px solid var(--bd);vertical-align:middle">' + icon + ' ' + at + '</td>' +
+      '<td rowspan="3" style="padding:6px 8px;font-weight:600;border-bottom:2px solid var(--bd);vertical-align:middle">' + at + '</td>' +
       '<td style="font-size:12px;color:var(--tx3);padding:2px 4px;background:rgba(90,123,158,.04)">目標</td>' + bCells + '</tr>' +
       '<tr><td style="font-size:12px;color:var(--acc);padding:2px 4px;font-weight:700">実績</td>' + aCells + '</tr>' +
       '<tr style="border-bottom:2px solid var(--bd)"><td style="font-size:12px;color:var(--tx3);padding:2px 4px">達成率</td>' + rCells + '</tr>';
@@ -19352,13 +19372,14 @@ function _renderActivityActualsAggregate(tb, people, actTypes, curMi, mode) {
         '<span style="background:var(--acc);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700">' + scopeIcon + ' ' + scopeLabel + '</span>' +
         '<span style="font-size:15px;font-weight:900">合計</span>' +
         '<span style="font-size:11px;color:var(--tx3)">(' + targetPeople.length + '名分の合算)</span>' +
-        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 実績は案件の活動記録(訪問/電話/メール)から自動集計</span>' +
+        '<span style="font-size:11px;color:var(--tx3);margin-left:auto">💡 合計表示は読み取り専用。個別編集は担当者タブを選択してください</span>' +
       '</div>' +
       '<div style="overflow-x:auto">' +
         '<table style="width:100%;min-width:750px;border-collapse:collapse;font-size:11px">' +
           thead + '<tbody>' + tbody + '</tbody>' +
         '</table>' +
       '</div>' +
+      _activityAutoBlockHtml(targetPeople, curMi) +
     '</div></td></tr>';
 }
 
@@ -22729,7 +22750,7 @@ function renderActivityBudget() {
   const el = document.getElementById('activity-budget-list');
   if (!el) return;
   const people = ap();
-  const actTypes = (typeof ACT_VISIT_TYPES!=='undefined') ? ACT_VISIT_TYPES : ['訪問','電話','メール'];
+  const actTypes = D.activityTypes || [];
   if (!D.activityBudgets) D.activityBudgets = {};
 
   el.innerHTML = people.map(function(p) {
@@ -22737,7 +22758,6 @@ function renderActivityBudget() {
     var rows = actTypes.map(function(at) {
       if (!D.activityBudgets[p.id][at]) D.activityBudgets[p.id][at] = Array(12).fill('');
       var atSafe = at.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      var icon = at === '訪問' ? '🚶' : at === '電話' ? '📞' : at === 'メール' ? '✉️' : '';
       var cells = ML.map(function(m, i) {
         return '<td style="text-align:center;padding:2px"><input type="number" class="w90" style="min-width:50px" value="' +
           (D.activityBudgets[p.id][at][i]||'') + '" placeholder="0" ' +
@@ -22746,7 +22766,7 @@ function renderActivityBudget() {
           'onkeydown="budgetTableEnterNav.call(this,event)">' +
         '</td>';
       }).join('');
-      return '<tr><td style="padding:4px 8px;font-size:12px;font-weight:600;min-width:120px">' + icon + ' ' + at + '</td>' + cells + '</tr>';
+      return '<tr><td style="padding:4px 8px;font-size:12px;font-weight:600;min-width:160px">' + at + '</td>' + cells + '</tr>';
     }).join('');
 
     return '<div style="margin-bottom:16px">' +
