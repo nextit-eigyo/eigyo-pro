@@ -14379,16 +14379,21 @@ function _doFbWrite() {
 //   一覧を購読してヘッダーチップ＋ドロップダウンに表示。番号データ(data/)とは別ノード=数字に無影響。
 // ════════════════════════════════════════════════════════════════
 var PRES = { key:null, ref:null, listRef:null, hbTimer:null, started:false };
+function _presenceAuthUser(){
+  try { if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return firebase.auth().currentUser; } catch(e){}
+  return FB.user || null;
+}
 function _presenceMe(){
   var name = (typeof _auditUser === 'function' ? _auditUser() : '') || (currentUserRole && currentUserRole.name) || 'ゲスト';
   var branch = '';
   try { var pid = (typeof getMyPersonId === 'function') ? getMyPersonId() : null; var p = (D.people||[]).find(function(x){ return x.id === pid; }); if (p) branch = p.branch || ''; } catch(e){}
-  return { name:name, branch:branch, fy:(typeof fy!=='undefined'?fy:''), uid:(FB.user&&FB.user.uid)||'', ts: firebase.database.ServerValue.TIMESTAMP };
+  var au = _presenceAuthUser();
+  return { name:name, branch:branch, fy:(typeof fy!=='undefined'?fy:''), uid:(au&&au.uid)||'', ts: firebase.database.ServerValue.TIMESTAMP };
 }
 function _presenceStart(){
   try {
     if (typeof firebase === 'undefined' || typeof firebase.database !== 'function') return;
-    if (!FB.user) return; // 認証必須(DBルール対策)
+    if (!_presenceAuthUser()) return; // 認証必須(DBルール対策)。FB.userが未設定でもauth().currentUserで判定
     if (!PRES.key) PRES.key = 'p' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
     PRES.ref = firebase.database().ref('presence/' + PRES.key);
     PRES.listRef = firebase.database().ref('presence');
