@@ -15119,6 +15119,7 @@ function buildDealBody(d) {
 
   // ── 現在開いてるタブ(デフォルト: 🎯 次の動き) ──
   var curTab = (window._dealTabState && window._dealTabState[d.id]) || 'next';
+  if (curTab === 'price') curTab = 'basic'; // 金額・日程タブは基本情報へ統合(旧状態の救済)
   function pCls(key) { return 'dt-pane' + (curTab === key ? ' active' : ''); }
   function tCls(key) { return 'dt-tab' + (curTab === key ? ' active' : ''); }
 
@@ -15157,15 +15158,14 @@ function buildDealBody(d) {
 
     <!-- ━━━ 水平タブバー(案①) ━━━ -->
     <div class="dt-tabbar">
-      <button class="${tCls('next')}" data-tab="next" onclick="_switchDealTab('${d.id}','next')">🎯 次の動き</button>
       <button class="${tCls('basic')}" data-tab="basic" onclick="_switchDealTab('${d.id}','basic')">🏥 基本情報</button>
-      <button class="${tCls('price')}" data-tab="price" onclick="_switchDealTab('${d.id}','price')">💰 金額・日程</button>
       <button class="${tCls('product')}" data-tab="product" onclick="_switchDealTab('${d.id}','product')">📦 商品・案件</button>
-      <button class="${tCls('memo')}" data-tab="memo" onclick="_switchDealTab('${d.id}','memo')">💬 メモ</button>
       <button class="${tCls('history')}" data-tab="history" onclick="_switchDealTab('${d.id}','history')">📜 履歴 <span class="tab-badge">${(d.visits||[]).length}</span></button>
+      <button class="${tCls('next')}" data-tab="next" onclick="_switchDealTab('${d.id}','next')">🎯 次の動き</button>
+      <button class="${tCls('memo')}" data-tab="memo" onclick="_switchDealTab('${d.id}','memo')">💬 メモ</button>
     </div>
 
-    <!-- ━━━ 🏥 基本情報 (タブ: basic) ━━━ -->
+    <!-- ━━━ 🏥 基本情報＋金額・日程＋受注確度 (タブ: basic / 統合) ━━━ -->
     <div class="${pCls('basic')}" data-pane="basic">
     <div class="dc-section">
       ${secHeader('basic','🏥','基本情報',d.id)}
@@ -15191,15 +15191,9 @@ function buildDealBody(d) {
             </select>
           </div>
         </div>
-      </div>
-    </div>
 
-    </div>
-    <!-- ━━━ 💰 金額・日程 (タブ: price) ━━━ -->
-    <div class="${pCls('price')}" data-pane="price">
-    <div class="dc-section">
-      ${secHeader('price','💰','金額・日程',d.id)}
-      <div class="dc-sec-content">
+        <!-- 金額・日程(統合) -->
+        <div style="margin:13px 0 7px;padding-top:11px;border-top:1px dashed var(--bds);font-size:11px;font-weight:700;color:var(--tx2)">💰 金額・日程 <span style="font-size:11px;font-weight:500;color:var(--tx3)">※1万円以上で自動千円変換</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
           <div class="ff"><label>売上(千円)</label>
             <input type="number" class="fi" value="${d.sales}" placeholder="0"
@@ -15215,7 +15209,12 @@ function buildDealBody(d) {
           <div class="ff"><label>計上月(納品月)</label><input type="month" class="fi" value="${dm_d}" oninput="updDeal('${d.id}','deliveryMonth',this.value)"></div>
           <div class="ff"><label>稼働月</label><input type="month" class="fi" value="${dm_a}" oninput="updDeal('${d.id}','activationMonth',this.value)"></div>
         </div>
-        <p style="font-size:10.5px;color:var(--tx3);margin:5px 0 0">💡 1万円以上で自動千円変換</p>
+
+        <!-- 受注確度(統合) -->
+        <div style="margin:13px 0 7px;padding-top:11px;border-top:1px dashed var(--bds);font-size:11px;font-weight:700;color:var(--tx2)">📊 受注確度・ステージ</div>
+        <select class="fs" onchange="updDeal('${d.id}','probability',parseInt(this.value))" style="font-size:13px;font-weight:600;width:100%">
+          ${PROB_DEFS.map(function(p){var cur=getProb(d);return '<option value="'+p.rank+'"'+(cur===p.rank?' selected':'')+'>'+p.rank+'. '+_esc(p.label)+' ('+p.weight+'%) — '+_esc(p.desc)+'</option>';}).join('')}
+        </select>
       </div>
     </div>
 
@@ -15367,13 +15366,6 @@ function buildDealBody(d) {
             placeholder="課題の詳細(例:価格は△△円までなら検討)"
             style="font-size:12px;padding:6px 9px"
             oninput="updDeal('${d.id}','issueMemo',this.value)">
-        </div>
-        <!-- 確度バー -->
-        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:linear-gradient(90deg,rgba(90,123,158,.08),rgba(138,90,46,.05));border-radius:var(--r);border:1px solid rgba(90,123,158,.15)">
-          <span style="font-size:11px;font-weight:700;color:var(--acc);white-space:nowrap">📊 受注確度</span>
-          <select class="fs" onchange="updDeal('${d.id}','probability',parseInt(this.value))" style="font-size:13px;font-weight:600;flex:1">
-            ${PROB_DEFS.map(function(p){var cur=getProb(d);return '<option value="'+p.rank+'"'+(cur===p.rank?' selected':'')+'>'+p.rank+'. '+_esc(p.label)+' ('+p.weight+'%) — '+_esc(p.desc)+'</option>';}).join('')}
-          </select>
         </div>
       </div>
     </div>
