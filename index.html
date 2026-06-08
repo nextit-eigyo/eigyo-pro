@@ -14482,18 +14482,38 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-02'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-02=Phase1 案件トランザクション)
+var APP_VERSION = '2026-06-08-03'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-03=版ゲート安全自動リロード)
+var _pendingNewVer = null;
+// 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
+function _safeToReload(){
+  try {
+    var ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return false; // 入力中
+    if (typeof FB !== 'undefined' && FB.writeDebounce) return false; // 保存待ち(デバウンス中)
+    var nodes = document.querySelectorAll('#add-deal-modal, .modal, [id$="-modal"], [id$="-dialog"], .dialog');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i]; if (!el || el.id === 'version-banner') continue;
+      var cs = getComputedStyle(el);
+      if (cs.display !== 'none' && cs.visibility !== 'hidden' && el.offsetParent !== null && el.getBoundingClientRect().height > 0) return false; // モーダル表示中
+    }
+    return true;
+  } catch(e){ return false; }
+}
+function _maybeAutoReload(){
+  try { if (_pendingNewVer && _safeToReload()) location.reload(); } catch(e){}
+}
 function _showVersionBanner(v){
   try {
     if (document.getElementById('version-banner')) return;
     var el = document.createElement('div');
     el.id = 'version-banner';
     el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#a85a4a;color:#fff;padding:10px 16px;text-align:center;font-weight:700;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.35)';
-    el.innerHTML = '🔄 新しいバージョン(' + (v || '') + ')が公開されています。最新の安全機能で動くため再読込してください。 ' +
-      '<button onclick="location.reload(true)" style="margin-left:10px;padding:5px 14px;border:0;border-radius:6px;background:#fff;color:#a85a4a;font-weight:800;cursor:pointer">今すぐ再読込</button>';
+    el.innerHTML = '🔄 新しいバージョン(' + (v || '') + ')があります。安全な区切りで自動更新します(入力中は保護)。 ' +
+      '<button onclick="location.reload(true)" style="margin-left:10px;padding:5px 14px;border:0;border-radius:6px;background:#fff;color:#a85a4a;font-weight:800;cursor:pointer">今すぐ更新</button>';
     document.body.appendChild(el);
   } catch(e){}
 }
+var _verIdleTimer = null;
 function _versionGateStart(){
   try {
     if (typeof firebase === 'undefined' || typeof firebase.database !== 'function') return;
@@ -14505,8 +14525,14 @@ function _versionGateStart(){
     }).catch(function(){});
     ref.on('value', function(s){
       var v = s.val();
-      if (v && String(v) > String(APP_VERSION)) _showVersionBanner(v); // 新しい版が出たら再読込促し
+      if (v && String(v) > String(APP_VERSION)) { _pendingNewVer = v; _showVersionBanner(v); } // 新版検出→バナー＋自動更新待機
     });
+    // ⭐自動リロードは「自然な区切り」だけ: タブに戻った時 / しばらく無操作の時(スリープ明けの古いタブ対策)。
+    //   いきなり操作中に画面を奪わない。入力中/モーダル/保存中は _safeToReload で延期(打ちかけ保護)。
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) _maybeAutoReload(); });
+    var _armIdle = function(){ clearTimeout(_verIdleTimer); _verIdleTimer = setTimeout(_maybeAutoReload, 180000); }; // 3分無操作で安全なら更新
+    ['mousemove','keydown','click','touchstart','scroll'].forEach(function(ev){ document.addEventListener(ev, _armIdle, {passive:true}); });
+    _armIdle();
   } catch(e){}
 }
 function fbStartSync() {
