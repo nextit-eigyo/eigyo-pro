@@ -14482,7 +14482,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-01'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。
+var APP_VERSION = '2026-06-08-02'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-02=Phase1 案件トランザクション)
 function _showVersionBanner(v){
   try {
     if (document.getElementById('version-banner')) return;
@@ -14687,6 +14687,57 @@ function _mergeDealsById(remoteDeals, localDeals, since){
   });
   return map;
 }
+// ⭐Phase1: 案件をFirebaseトランザクションでアトミックにマージ書込み(同時追加の取りこぼし根絶)。
+//   dealsは配列のまま=Phase0(set/array)と互換・移行不要。失敗時は set() 全置換へフォールバック(フェイルセーフ)。
+function _phase1Fallback(){
+  try {
+    var _payload = Object.assign({}, D, { _ts: firebase.database.ServerValue.TIMESTAMP });
+    FB.dbRef.set(_payload)
+      .then(function(){ showSyncBadge('保存'); if (typeof _hideSyncBlockBanner==='function') _hideSyncBlockBanner(); })
+      .catch(function(e){ fbSetStatus('error','書き込みエラー: '+e.message); });
+  } catch(e){ console.warn('[EIGYO PRO] fallback set失敗', e); }
+}
+// writeRest=true: 通常(案件＋非案件キー＋meta)。 writeRest=false: stale時(案件＋metaのみ=数字は書かず他PCの数字を守る)。
+function _phase1Write(remote, writeRest){
+  try {
+    if (!FB.clientId) FB.clientId = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    FB.wseq = (FB.wseq || 0) + 1;
+    D._wid = FB.clientId; D._wseq = FB.wseq;
+    D._lastBy = (typeof _auditUser === 'function') ? _auditUser() : ((currentUserRole && currentUserRole.name) || '');
+    _localSave();
+    var _since = FB.lastApplyWall || 0;
+    var _localDeals = (D.deals || []).slice();
+    var _combTomb = _tombMerge(remote && remote._deletedDeals, D._deletedDeals);
+    D._deletedDeals = _combTomb;
+    // 1) 案件: トランザクションでアトミックにマージ(別PCが間に書いても再実行で取りこぼさない=同時追加に強い)
+    FB.dbRef.child('deals').transaction(function(curr){
+      var rArr = curr ? (Array.isArray(curr) ? curr.filter(Boolean) : Object.values(curr).filter(function(x){return x&&x.id;})) : [];
+      var map = _mergeDealsById(rArr, _localDeals, _since);
+      _applyTombstones(map, Object.assign({}, _combTomb));
+      return Object.values(map);
+    }, function(err, committed){
+      if (err) {
+        console.warn('[EIGYO PRO] 案件transaction失敗', err);
+        if (writeRest) { _phase1Fallback(); } else { fbSetStatus('warn','⚠️ 案件保存に失敗。🔥強制再受信してください'); }
+        return;
+      }
+      // 2) meta＋(通常時のみ)非案件キーを update(パス単位マージ・dealsノードは触らない)
+      var _upd = { _ts: firebase.database.ServerValue.TIMESTAMP, _wid: D._wid, _wseq: D._wseq, _lastBy: D._lastBy, _deletedDeals: D._deletedDeals || {} };
+      if (writeRest) {
+        Object.keys(D).forEach(function(k){
+          if (k === 'deals' || k === '_ts' || k === '_wid' || k === '_wseq' || k === '_lastBy' || k === '_deletedDeals') return;
+          _upd[k] = D[k];
+        });
+      }
+      FB.dbRef.update(_upd)
+        .then(function(){ showSyncBadge(writeRest ? '保存' : '案件のみ保存'); if (typeof _hideSyncBlockBanner==='function' && writeRest) _hideSyncBlockBanner(); })
+        .catch(function(e){ fbSetStatus('error','書き込みエラー: '+e.message); });
+    });
+  } catch(e){
+    console.warn('[EIGYO PRO] Phase1書込み失敗', e);
+    if (writeRest) _phase1Fallback();
+  }
+}
 function _doFbWrite() {
   if (!FB.dbRef) return;
 
@@ -14717,10 +14768,12 @@ function _doFbWrite() {
     var _rTs = (remote && remote._ts) || 0;
     var _ownEcho = !!(remote && remote._wid && FB.clientId && remote._wid === FB.clientId);
     if (!_ownEcho && (FB.staleDeclined || ((FB.lastRemoteTs||0) > 0 && _rTs > FB.lastRemoteTs))) {
-      fbSetStatus('warn', '⚠️ 別PCが新しいデータに更新済み。上書きを中止しました（🔥強制再受信で最新取得を）');
-      console.warn('[EIGYO PRO] 書込み中止: 別PCが新しい/未受信', {remoteTs:_rTs, lastRemoteTs:FB.lastRemoteTs, staleDeclined:FB.staleDeclined});
-      if (typeof _showToast === 'function') _showToast('⚠️ 別PCの新しい更新が未受信のため保存を中止しました。🔥Firebaseから強制再受信してください', 'warn', 7000);
-      if (typeof _showSyncBlockBanner === 'function') _showSyncBlockBanner('⚠️ 別PCの新しい更新があり、保存が一時停止中です。');
+      // ⭐Phase1: 数字(非案件)は守る(書かない)が、案件はトランザクションで安全に同期。
+      //   → 「保存停止」で案件まで止まるフリクションを解消(他拠点の同時編集向け)。数字は要再受信。
+      console.warn('[EIGYO PRO] stale: 数字は保留・案件のみトランザクション同期', {remoteTs:_rTs, lastRemoteTs:FB.lastRemoteTs, staleDeclined:FB.staleDeclined});
+      _phase1Write(remote, false); // 案件＋metaのみ(数字キーは書かない=別PCの数字を踏み潰さない)
+      fbSetStatus('warn', '⚠️ 別PCが新しい。案件は同期しましたが、数字の保存は保留中です（🔥強制再受信で最新を取得してください）');
+      if (typeof _showSyncBlockBanner === 'function') _showSyncBlockBanner('⚠️ 別PCの新しい更新があります。案件は同期済み／数字の保存は一時停止中。');
       if (typeof _softResync === 'function') setTimeout(function(){ _softResync('write-block'); }, 300); // 自動で最新を取り直す
       return;
     }
@@ -14770,25 +14823,10 @@ function _doFbWrite() {
       }
     } catch(e){ console.warn('[EIGYO PRO] B4案件マージ失敗(従来動作で継続)', e); }
 
-    // 安全確認OK → 書き込み実行
-    // _localSave()でD._tsを更新してからFirebaseに書き込む
-    // save()を呼ぶとfbWriteが再度呼ばれ無限ループになるため_localSave()を使用
-    _localSave();
-    // ⭐ サーバタイムスタンプ化（clock skew 根治）:
-    //   _ts を各PCのローカル時計ではなくサーバ時刻(ServerValue.TIMESTAMP)で打つ。
-    //   これにより受信判定 remoteTs>localTs が全端末でサーバ時刻基準になり、
-    //   時計ズレで他PCの更新(予算変更等)を誤って受信拒否する問題が解消する。
-    //   併せて書込み元ID(_wid)と連番(_wseq)を付与し、自分の書込みのエコー受信を
-    //   識別して無駄な再描画・「受信」表示を抑止する。
-    if (!FB.clientId) FB.clientId = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
-    FB.wseq = (FB.wseq || 0) + 1;
-    D._wid = FB.clientId;
-    D._wseq = FB.wseq;
-    D._lastBy = (typeof _auditUser === 'function') ? _auditUser() : ((currentUserRole && currentUserRole.name) || '');  // ヘッダー「最終更新:誰」用
-    var _payload = Object.assign({}, D, { _ts: firebase.database.ServerValue.TIMESTAMP });
-    FB.dbRef.set(_payload)
-      .then(() => { showSyncBadge('保存'); if (typeof _hideSyncBlockBanner === 'function') _hideSyncBlockBanner(); })
-      .catch(e => fbSetStatus('error', '書き込みエラー: ' + e.message));
+    // 安全確認OK → ⭐Phase1で書込み: 案件はトランザクション(アトミックマージ)、非案件＋metaはupdate。
+    //   _phase1Write 内で _localSave・_wid/_wseq/_lastBy・_ts(ServerValue) を付与する。
+    //   失敗時は set() 全置換へフォールバック(フェイルセーフ)。
+    _phase1Write(remote, true);
   }).catch(function(e) {
     // 読み取り失敗時も書き込みしない
     fbSetStatus('error', '安全チェックエラー: ' + e.message);
