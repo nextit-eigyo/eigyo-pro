@@ -1981,6 +1981,11 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-land-tbl .num{ text-align:right; }
 #tab-meeting .mt-land-tbl .ctr{ text-align:center; }
 #tab-meeting .mt-land-foot{ font-size:11px; color:var(--tx3); margin-top:7px; }
+/* 営業活動量タブ: 拠点/担当者の選択バーをスクロール追従(sticky) */
+#tab-actuals .act-scope-sticky {
+  position:sticky; top:var(--nav); z-index:90;
+  background:var(--bg); padding:6px 0 6px; margin-bottom:4px; border-bottom:1px solid var(--bds);
+}
 /* スコープ選択バー(左)＋期間トグル(右上に常時表示)・スクロール追従(sticky) */
 #tab-meeting .mt-scope-topbar {
   display:flex; align-items:flex-start; gap:12px;
@@ -2706,6 +2711,7 @@ body.has-sidepanel #home-deal-mode {
     </button>
   </div>
 
+  <div class="act-scope-sticky">
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <div class="ptabs" id="aptabs" style="flex:1;margin-bottom:0"></div>
     <span id="actuals-size-ctrl" style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -2718,6 +2724,7 @@ body.has-sidepanel #home-deal-mode {
     </span>
   </div>
   <div class="ptabs" id="aptabs-people" style="margin-top:4px;border-top:1px solid var(--bds);padding-top:6px"></div>
+  </div><!-- /.act-scope-sticky -->
   <div id="activity-quadrant"></div>
   <div id="support-act-wrap"></div>
   <div id="actuals-summary" style="margin:14px 0 12px"></div>
@@ -14485,7 +14492,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-04'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-04=案件なし活動記録 supportActivities)
+var APP_VERSION = '2026-06-08-05'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-05=営業活動量タブの選択バーsticky化)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
