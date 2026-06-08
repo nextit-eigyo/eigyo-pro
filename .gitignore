@@ -24,3 +24,6 @@ Thumbs.db
 *.bak.*
 PROJECT_STATUS.md.bak.*
 design-mockup.html
+
+# 月次売上管理表(突合点検用に置いた元データ・本番リポジトリに含めない)
+月次売上/

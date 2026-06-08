@@ -7107,6 +7107,17 @@ function sanitizeD() {
     D.deals = Object.values(D.deals);
   }
   if (!D.deals)        D.deals = [];
+  // ⭐B4: 削除記録(tombstone)の初期化＋古い記録の剪定(60日)。多PCで「削除」を正しく伝播するため。
+  if (!D._deletedDeals || typeof D._deletedDeals !== 'object') D._deletedDeals = {};
+  try {
+    var _tNow = Date.now(), _tKeep = 60 * 24 * 60 * 60 * 1000;
+    Object.keys(D._deletedDeals).forEach(function(id){
+      var t = parseFloat(D._deletedDeals[id]) || 0;
+      if (!t || (_tNow - t) > _tKeep) delete D._deletedDeals[id];
+    });
+  } catch(e){}
+  // ⭐A2: _cre/_mod を持たない旧案件に番兵(=1)を付与。受信マージで「古い=同期済み」と正しく扱う。
+  try { D.deals.forEach(function(d){ if (d && d.id){ if (!d._cre) d._cre = 1; if (!d._mod) d._mod = d._cre; } }); } catch(e){}
   if (!D.people)       D.people = [];
   if (!D.actuals)      D.actuals = {};
   if (!D.budgets)      D.budgets = {};
@@ -9879,6 +9890,8 @@ function delDeal(id){
   if(!confirm('この案件を削除しますか？'))return;
   var _del=(D.deals||[]).find(d=>d.id===id);
   if(_del && typeof _auditDealDelete==='function')_auditDealDelete(_del);
+  if(!D._deletedDeals)D._deletedDeals={};
+  D._deletedDeals[id]=Date.now(); // ⭐B4: 削除を記録(マージ復活防止＋他PCへ削除を伝播)
   D.deals=D.deals.filter(d=>d.id!==id);save();renderDeals();
 }
 
@@ -14387,7 +14400,16 @@ function _fbApplyRemote(remote, remoteTs) {
   if (remote.deals && !Array.isArray(remote.deals)) {
     remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
   }
+  // ⭐B4: ローカルで削除した案件(tombstone)を保持し、受信データにも適用(削除が受信で復活しないように)
+  var _localTomb = (typeof D!=='undefined' && D && D._deletedDeals) ? D._deletedDeals : {};
   var _preserved = _mergeLocalDealChanges(remote); // 未同期の新規/編集案件を保護
+  try {
+    var _tomb = _tombMerge(remote._deletedDeals, _localTomb);
+    var _m = {}; (remote.deals || []).forEach(function(d){ if (d && d.id) _m[d.id] = d; });
+    _applyTombstones(_m, _tomb);
+    remote.deals = Object.values(_m);
+    remote._deletedDeals = _tomb;
+  } catch(e){ console.warn('[EIGYO PRO] 受信時tombstone適用失敗', e); }
   D = remote;
   _localSave({preserveTs:true});
   FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
@@ -14455,6 +14477,36 @@ function _installWakeResync() {
     window.addEventListener('online', function(){ fire('online'); });
     window.addEventListener('focus', function(){ fire('focus'); });
     console.log('[EIGYO PRO] 復帰時の自動再同期フックを登録');
+  } catch(e){}
+}
+// ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
+//   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
+//   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
+var APP_VERSION = '2026-06-08-01'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。
+function _showVersionBanner(v){
+  try {
+    if (document.getElementById('version-banner')) return;
+    var el = document.createElement('div');
+    el.id = 'version-banner';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#a85a4a;color:#fff;padding:10px 16px;text-align:center;font-weight:700;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.35)';
+    el.innerHTML = '🔄 新しいバージョン(' + (v || '') + ')が公開されています。最新の安全機能で動くため再読込してください。 ' +
+      '<button onclick="location.reload(true)" style="margin-left:10px;padding:5px 14px;border:0;border-radius:6px;background:#fff;color:#a85a4a;font-weight:800;cursor:pointer">今すぐ再読込</button>';
+    document.body.appendChild(el);
+  } catch(e){}
+}
+function _versionGateStart(){
+  try {
+    if (typeof firebase === 'undefined' || typeof firebase.database !== 'function') return;
+    if (FB._verGateOn) return; FB._verGateOn = true;
+    var ref = firebase.database().ref('meta/codeVersion');
+    ref.once('value').then(function(s){
+      var v = s.val();
+      if (!v || String(APP_VERSION) > String(v)) ref.set(APP_VERSION).catch(function(){}); // 自分が新しければ広める
+    }).catch(function(){});
+    ref.on('value', function(s){
+      var v = s.val();
+      if (v && String(v) > String(APP_VERSION)) _showVersionBanner(v); // 新しい版が出たら再読込促し
+    });
   } catch(e){}
 }
 function fbStartSync() {
@@ -14586,6 +14638,8 @@ function fbStartSync() {
 
   // 👥 presence(同時利用者表示)を開始
   if (typeof _presenceStart === 'function') { try { _presenceStart(); } catch(e){} }
+  // 🔄 A3: バージョンゲート開始(古いコードのPCに再読込を促し、防御の素通りを防ぐ)
+  if (typeof _versionGateStart === 'function') { try { _versionGateStart(); } catch(e){} }
 }
 
 // ── データ書き込み（デバウンス付き） ────────────────────────────
@@ -14597,6 +14651,41 @@ function fbWrite(immediate) {
     clearTimeout(FB.writeDebounce);
     FB.writeDebounce = setTimeout(_doFbWrite, 800);
   }
+}
+// ⭐ B4: 案件をID単位で安全マージ(blob全置換による他PC案件の踏み潰しを根絶)
+//   base(=remote最新) を土台に、ローカルの「新規/編集だけ」を重ね、明示削除(tombstone)を適用。
+//   → 古い/欠けたローカルで保存しても、remoteにしか無い他PCの案件は消えない。集計数値には非干渉。
+function _tombMerge(a, b){ return Object.assign({}, a || {}, b || {}); }
+function _applyTombstones(map, tomb){
+  // map:{id:deal}, tomb:{id:削除時刻}。削除時刻が案件の最終更新より新しいものだけ実削除。
+  Object.keys(tomb || {}).forEach(function(id){
+    var m = map[id]; if (!m) return;
+    var delTs = parseFloat(tomb[id]) || 0;
+    var mt = Math.max(parseFloat(m._mod) || 0, parseFloat(m._cre) || 0);
+    if (delTs >= mt) { delete map[id]; }   // 削除が最新 → 実削除
+    else { delete tomb[id]; }              // 案件が削除後に再編集/再作成 → 削除を取り消し
+  });
+}
+function _mergeDealsById(remoteDeals, localDeals, since){
+  var map = {};
+  (remoteDeals || []).forEach(function(d){ if (d && d.id) map[d.id] = d; }); // 土台=remote(全件保持)
+  var WIN = 30 * 60 * 1000, now = Date.now();
+  (localDeals || []).forEach(function(d){
+    if (!d || !d.id) return;
+    var r = map[d.id];
+    if (!r){
+      // ローカルのみ存在 → remoteに無い理由は「自分の新規(未同期)」or「他PCが削除」。
+      // 前回同期以降に作成/編集 or 直近30分の新規 のみ採用(古いローカルは他PCの削除を尊重して捨てる)。
+      var lm = parseFloat(d._mod) || parseFloat(d._cre) || 0;
+      if ((since > 0 && lm > since) || (d._cre && (now - d._cre) < WIN)) map[d.id] = d;
+      return;
+    }
+    // 同id両方にあり → 新しい _mod(無ければ_cre)が勝つ
+    var lmod = parseFloat(d._mod) || parseFloat(d._cre) || 0;
+    var rmod = parseFloat(r._mod) || parseFloat(r._cre) || 0;
+    if (lmod >= rmod) map[d.id] = d;
+  });
+  return map;
 }
 function _doFbWrite() {
   if (!FB.dbRef) return;
@@ -14659,6 +14748,27 @@ function _doFbWrite() {
         }
       } catch(e){}
     }
+
+    // ── ⭐ B4: 書込み直前に案件をID単位マージ(他PCの案件を踏み潰さない) ──
+    //   remote(最新)を土台に、自分の新規/編集だけ重ね、明示削除(tombstone)を適用。
+    //   これにより「古い/欠けたローカルのblob全置換」で他PCの案件が静かに消える事故を根絶。
+    //   集計数値(branchActuals等)には一切触れない。失敗時は従来動作で継続(フェイルセーフ)。
+    try {
+      var _remoteDeals = remote
+        ? (Array.isArray(remote.deals) ? remote.deals : (remote.deals ? Object.values(remote.deals) : []))
+        : [];
+      // remoteに案件がある時だけマージ(remote空=Firebase初期化時はローカルをそのまま書く=旧案件を落とさない)
+      if (Array.isArray(D.deals) && _remoteDeals.length > 0) {
+        var _before = D.deals.length;
+        var _map = _mergeDealsById(_remoteDeals, D.deals, FB.lastApplyWall || 0);
+        var _tomb = _tombMerge(remote && remote._deletedDeals, D._deletedDeals);
+        _applyTombstones(_map, _tomb);
+        D.deals = Object.values(_map);
+        D._deletedDeals = _tomb;
+        var _rescued = D.deals.length - _before;
+        if (_rescued > 0) console.log('[EIGYO PRO] B4: 書込み時マージで他PC案件 ' + _rescued + ' 件を保持');
+      }
+    } catch(e){ console.warn('[EIGYO PRO] B4案件マージ失敗(従来動作で継続)', e); }
 
     // 安全確認OK → 書き込み実行
     // _localSave()でD._tsを更新してからFirebaseに書き込む
