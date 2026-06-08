@@ -2719,6 +2719,7 @@ body.has-sidepanel #home-deal-mode {
   </div>
   <div class="ptabs" id="aptabs-people" style="margin-top:4px;border-top:1px solid var(--bds);padding-top:6px"></div>
   <div id="activity-quadrant"></div>
+  <div id="support-act-wrap"></div>
   <div id="actuals-summary" style="margin:14px 0 12px"></div>
   <div id="actuals-2col" class="ac-2col">
   <div id="actuals-table-wrap">
@@ -7122,6 +7123,7 @@ function sanitizeD() {
   if (!D.actuals)      D.actuals = {};
   if (!D.budgets)      D.budgets = {};
   if (!D.tasks)        D.tasks = [];
+  if (!D.supportActivities || !Array.isArray(D.supportActivities)) D.supportActivities = [];
   if (!D.templates)    D.templates = {};
   if (!D.reseconMaster)  D.reseconMaster = null;
   // productMaster: カスタム設定がある場合は上書きしない
@@ -7201,6 +7203,7 @@ function initD(){return{
   templates:{},
   productMaster:null,
   tasks:[],
+  supportActivities:[],
   _ts:0
 }}
 function load(){try{const r=localStorage.getItem(skey());if(r){D=JSON.parse(r);return}}catch(e){}D=initD()}
@@ -14482,7 +14485,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-03'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-03=版ゲート安全自動リロード)
+var APP_VERSION = '2026-06-08-04'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-04=案件なし活動記録 supportActivities)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -19273,6 +19276,14 @@ function _activityAutoMap(){
       map[sp][key][mi]++;
     });
   });
+  // ＋ 案件なしの活動記録(supportActivities)も手段別に合算
+  (D.supportActivities||[]).forEach(function(a){
+    if(!a) return; var sp=a.spId; if(!sp||sp==='office') return;
+    var key=_normVisitType(a.actType); if(!key) return;
+    var mi=_visitDateToFyMi(a.date); if(mi==null) return;
+    if(!map[sp]) map[sp]={'訪問':Array(12).fill(0),'電話':Array(12).fill(0),'メール':Array(12).fill(0)};
+    map[sp][key][mi]++;
+  });
   return map;
 }
 
@@ -19322,7 +19333,117 @@ function _activityPurposeMap(){
       map[sp][purpose][mi]++;
     });
   });
+  // ＋ 案件なしの活動記録(supportActivities)も目的別に合算(purposeは入力済み)
+  (D.supportActivities||[]).forEach(function(a){
+    if(!a) return; var sp=a.spId; if(!sp||sp==='office') return;
+    if(!_normVisitType(a.actType)) return;
+    var mi=_visitDateToFyMi(a.date); if(mi==null) return;
+    var purpose=a.purpose; if(T.indexOf(purpose)<0) purpose=(T[0]||'飛込み訪問');
+    if(!map[sp]) map[sp]={};
+    if(!map[sp][purpose]) map[sp][purpose]=Array(12).fill(0);
+    map[sp][purpose][mi]++;
+  });
   return map;
+}
+
+// ── 📝 案件なしで活動だけ記録(既存=稼働顧客向け。障害対応/操作指導/定期フォロー等) ──────────
+// D.supportActivities=[{id,date,spId,customer,purpose,actType,memo}]。案件を作らず8指標/手段に自動合算。
+function _supportCustList(){
+  var set={};
+  (D.deals||[]).forEach(function(d){ if(d&&d.name) set[d.name]=1; });
+  (D.supportActivities||[]).forEach(function(a){ if(a&&a.customer) set[a.customer]=1; });
+  return Object.keys(set).sort();
+}
+function _todayStr(){ var t=new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+function _renderSupportAct(){
+  var el=document.getElementById('support-act-wrap'); if(!el) return;
+  var ppl=(typeof ap==='function')?ap():[];
+  var types=(D.activityTypes)||['飛込み訪問','Web引き合い対応','代理店・パートナー紹介','既存顧客紹介','定期フォロー訪問','アップセル・リプレース提案','障害対応','操作指導・トレーニング'];
+  var myId=(typeof _getCurrentSpId==='function')?_getCurrentSpId():null;
+  var pOpts=ppl.map(function(p){ return '<option value="'+p.id+'"'+(p.id===myId?' selected':'')+'>'+_esc(p.name)+'</option>'; }).join('');
+  var tOpts=types.map(function(t){ return '<option value="'+_esc(t)+'"'+(t==='定期フォロー訪問'?' selected':'')+'>'+_esc(t)+'</option>'; }).join('');
+  var wOpts=['訪問','電話','メール'].map(function(w){ return '<option>'+w+'</option>'; }).join('');
+  // 当年度の記録(新しい順)
+  var recs=(D.supportActivities||[]).filter(function(a){ return a&&_visitDateToFyMi(a.date)!=null; })
+    .slice().sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); });
+  var nameOf=function(id){ var p=ppl.find(function(x){return x.id===id;}); return p?p.name:'—'; };
+  var wl={'訪問':'🚶','電話':'📞','メール':'✉️'}; var wc={'訪問':'#475569','電話':'#0369a1','メール':'#7e22ce'};
+  var sup=['定期フォロー訪問','障害対応','操作指導・トレーニング'];
+  var rowsHtml = recs.length ? recs.map(function(a){
+    var isSup=sup.indexOf(a.purpose)>=0;
+    return '<tr style="border-bottom:1px solid var(--bds)">'+
+      '<td style="padding:5px 8px;font-size:11px;color:var(--tx3);white-space:nowrap">'+_esc((a.date||'').slice(5).replace('-','/'))+'</td>'+
+      '<td style="padding:5px 8px;font-size:11px">'+_esc(nameOf(a.spId))+'</td>'+
+      '<td style="padding:5px 8px;font-size:12px;font-weight:700">'+_esc(a.customer||'—')+'</td>'+
+      '<td style="padding:5px 8px;font-size:11px;color:'+(wc[a.actType]||'#475569')+';font-weight:700">'+(wl[a.actType]||'🚶')+' '+_esc(a.actType||'')+'</td>'+
+      '<td style="padding:5px 8px"><span style="font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:9px;background:'+(isSup?'rgba(168,90,74,.14);color:#8a3a2a':'rgba(122,142,90,.14);color:#4a5a32')+'">🎯 '+_esc(a.purpose||'')+'</span></td>'+
+      '<td style="padding:5px 8px;font-size:11px;color:var(--tx2)">'+_esc(a.memo||'')+'</td>'+
+      '<td style="padding:5px 8px;text-align:right"><button onclick="_delSupportAct(\''+a.id+'\')" title="削除" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px">🗑</button></td>'+
+      '</tr>';
+  }).join('') : '<tr><td colspan="7" style="padding:14px;text-align:center;color:var(--tx3);font-size:12px">案件なしの活動記録はまだありません</td></tr>';
+
+  el.innerHTML =
+    '<div style="margin:14px 0;border:1px solid rgba(200,152,86,.4);border-radius:12px;overflow:hidden">'+
+      '<div style="background:rgba(200,152,86,.10);padding:9px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+        '<span style="font-size:13px;font-weight:900;color:#8a6a2e">📝 案件なしで活動を記録</span>'+
+        '<span style="font-size:11px;color:var(--tx2)">既存顧客への障害対応・操作指導・定期フォローなど（案件は作りません）</span>'+
+        '<button onclick="_toggleSupportForm()" style="margin-left:auto;background:var(--cop);color:#fff;border:none;border-radius:18px;padding:7px 16px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit">＋ 活動を記録</button>'+
+      '</div>'+
+      '<div id="support-form" style="display:none;padding:14px;background:#fff;border-bottom:1px solid var(--bds)">'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'+
+          '<div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">活動日</label><input type="date" id="sa-date" value="'+_todayStr()+'" style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:8px"></div>'+
+          '<div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">担当者</label><select id="sa-person" style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:8px">'+pOpts+'</select></div>'+
+          '<div style="display:flex;flex-direction:column;gap:3px;position:relative;flex:1;min-width:220px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">顧客名（薬局）／手入力OK・候補から選択も可</label>'+
+            '<input type="text" id="sa-cust" placeholder="例）〇〇調剤薬局" autocomplete="off" oninput="_supportSuggest(this.value)" onfocus="_supportSuggest(this.value)" style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:8px;width:100%">'+
+            '<div id="sa-sugg" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--bd);border-top:none;border-radius:0 0 8px 8px;max-height:170px;overflow-y:auto;z-index:20;box-shadow:0 6px 14px rgba(0,0,0,.08)"></div></div>'+
+        '</div>'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'+
+          '<div style="display:flex;flex-direction:column;gap:3px;min-width:200px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">🎯 目的（評価指標・8択）</label><select id="sa-purpose" style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:8px">'+tOpts+'</select></div>'+
+          '<div style="display:flex;flex-direction:column;gap:3px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">手段</label><select id="sa-way" style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:8px">'+wOpts+'</select></div>'+
+          '<div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">メモ（任意）</label><input type="text" id="sa-memo" placeholder="例）レセコン操作説明・次回バージョンアップ案内予定" style="font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:8px"></div>'+
+        '</div>'+
+        '<div style="display:flex;justify-content:flex-end;gap:10px">'+
+          '<button onclick="_toggleSupportForm()" style="background:none;border:1px solid var(--bd);border-radius:18px;padding:8px 16px;font-size:12.5px;color:var(--tx2);cursor:pointer;font-family:inherit">キャンセル</button>'+
+          '<button onclick="_saveSupportAct()" style="background:var(--olv);color:#fff;border:none;border-radius:18px;padding:8px 20px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit">✓ 記録する</button>'+
+        '</div>'+
+      '</div>'+
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'+
+        '<thead><tr style="background:var(--s3)"><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--tx2)">日付</th><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--tx2)">担当</th><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--tx2)">顧客名</th><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--tx2)">手段</th><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--tx2)">🎯目的</th><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--tx2)">メモ</th><th></th></tr></thead>'+
+        '<tbody>'+rowsHtml+'</tbody>'+
+      '</table></div>'+
+    '</div>';
+}
+function _toggleSupportForm(){ var f=document.getElementById('support-form'); if(f) f.style.display=(f.style.display==='none'||!f.style.display)?'block':'none'; }
+function _supportSuggest(q){
+  var box=document.getElementById('sa-sugg'); if(!box) return;
+  q=(q||'').trim();
+  var list=_supportCustList().filter(function(n){ return !q||n.indexOf(q)>=0; }).slice(0,12);
+  if(!list.length){ box.style.display='none'; return; }
+  box.innerHTML=list.map(function(n){ return '<div onmousedown="_pickSupportCust(\''+_esc(n).replace(/'/g,"\\'")+'\')" style="padding:7px 11px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--bds)">'+_esc(n)+'</div>'; }).join('');
+  box.style.display='block';
+}
+function _pickSupportCust(n){ var i=document.getElementById('sa-cust'); if(i) i.value=n; var b=document.getElementById('sa-sugg'); if(b) b.style.display='none'; }
+function _saveSupportAct(){
+  var cust=(document.getElementById('sa-cust')||{}).value; cust=(cust||'').trim();
+  if(!cust){ alert('顧客名を入力してください（手入力でOK）'); return; }
+  var spId=(document.getElementById('sa-person')||{}).value;
+  var purpose=(document.getElementById('sa-purpose')||{}).value;
+  var actType=(document.getElementById('sa-way')||{}).value||'訪問';
+  var date=(document.getElementById('sa-date')||{}).value||_todayStr();
+  var memo=((document.getElementById('sa-memo')||{}).value||'').trim();
+  if(!spId){ alert('担当者を選択してください'); return; }
+  if(!D.supportActivities||!Array.isArray(D.supportActivities)) D.supportActivities=[];
+  var rec={ id:'sa'+Date.now()+Math.floor(Math.random()*9999), date:date, spId:spId, customer:cust, purpose:purpose, actType:actType, memo:memo, _cre:Date.now(), _mod:Date.now() };
+  D.supportActivities.push(rec);
+  save();
+  try{ if(typeof _showToast==='function') _showToast('✅ 活動を記録しました（'+cust+'／'+purpose+'）','ok',2400); }catch(e){}
+  if(typeof renderActuals==='function') renderActuals();
+}
+function _delSupportAct(id){
+  if(!confirm('この活動記録を削除しますか？')) return;
+  D.supportActivities=(D.supportActivities||[]).filter(function(a){ return a&&a.id!==id; });
+  save();
+  if(typeof renderActuals==='function') renderActuals();
 }
 
 // 📥 案件の活動記録から自動集計した 訪問/電話/メール の月別テーブル(閲覧用)。
@@ -19430,6 +19551,9 @@ function renderActivityActuals(tb) {
       } else { _aq.innerHTML = ''; }
     }
   } catch(e){ console.warn('行動×成果 相関の描画失敗', e); }
+
+  // 📝 案件なしで活動だけ記録(既存顧客向け)のパネルを描画
+  try { if(typeof _renderSupportAct==='function') _renderSupportAct(); } catch(e){ console.warn('案件なし活動記録の描画失敗', e); }
 
   // caSp の値判定(売上タブと共通のパターン)
   const isAll = (caSp === -1);
