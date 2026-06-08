@@ -14420,10 +14420,28 @@ function _fbApplyRemote(remote, remoteTs) {
     remote.deals = Object.values(_m);
     remote._deletedDeals = _tomb;
   } catch(e){ console.warn('[EIGYO PRO] 受信時tombstone適用失敗', e); }
+  // ⭐Phase2: 受信前に「未保存のbranchActuals拠点編集」を保護(remoteに自分のdirty拠点を上書きで残す)
+  var _baDirtyRecv = [], _baLocalRecv = (D && D.branchActuals) ? D.branchActuals : {};
+  try { _baDirtyRecv = _dirtyBABranches(); } catch(e){}
+  try {
+    if (_baDirtyRecv.length) {
+      remote.branchActuals = remote.branchActuals || {};
+      _baDirtyRecv.forEach(function(b){ if (b in _baLocalRecv) remote.branchActuals[b] = _baLocalRecv[b]; });
+    }
+  } catch(e){}
   D = remote;
   _localSave({preserveTs:true});
   FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
   sanitizeD();
+  // ⭐Phase2: baseline更新。非dirty拠点=受信値(同期済)、dirty拠点=旧baseline維持(まだ未同期=次回書く)
+  try {
+    var _nb = JSON.parse(_baStr(D.branchActuals));
+    _baDirtyRecv.forEach(function(b){
+      if (FB.baselineBranchActuals && (b in FB.baselineBranchActuals)) _nb[b] = FB.baselineBranchActuals[b];
+      else delete _nb[b];
+    });
+    FB.baselineBranchActuals = _nb;
+  } catch(e){ _snapshotBABaseline(); }
   if (typeof _hideSyncBlockBanner === 'function') _hideSyncBlockBanner();
   rebuildAll();
   setTimeout(showPersonSelectDialog, 500);
@@ -14492,7 +14510,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-05'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-05=営業活動量タブの選択バーsticky化)
+var APP_VERSION = '2026-06-08-06'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-06=Phase2 branchActuals拠点別パス部分更新)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -14634,6 +14652,7 @@ function fbStartSync() {
         _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
         FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
         sanitizeD();
+        try{ _snapshotBABaseline(); }catch(e){} // ⭐Phase2: 初回受信=全拠点が同期済
         rebuildAll();
         setTimeout(showPersonSelectDialog, 500);
         showSyncBadge('受信');
@@ -14723,6 +14742,20 @@ function _mergeDealsById(remoteDeals, localDeals, since){
   });
   return map;
 }
+// ⭐Phase2(branchActualsパイロット): 拠点別パスで部分更新 → 福岡の編集が神戸に触れない。
+//   baseline = 最後に同期した branchActuals のスナップショット。local≠baseline の拠点だけ「自分の編集」とみなし、
+//   その拠点パス(branchActuals/<拠点>)だけを書く。これにより他拠点の最新値を物理的に踏み潰さない。
+//   ※通常書込み(stale非該当)では非dirty拠点は remote==local==baseline なので「丸ごと書き」と結果同一(数字不変)。
+function _baStr(o){ try{ return JSON.stringify(o||{}); }catch(e){ return '{}'; } }
+function _snapshotBABaseline(){ try{ FB.baselineBranchActuals = JSON.parse(_baStr(D.branchActuals)); }catch(e){ FB.baselineBranchActuals = {}; } }
+function _dirtyBABranches(){
+  var base = (FB.baselineBranchActuals)||{}; var loc = (D.branchActuals)||{}; var dirty={};
+  Object.keys(loc).forEach(function(b){ if(_baStr(loc[b])!==_baStr(base[b])) dirty[b]=1; });   // 値が変わった/新規
+  Object.keys(base).forEach(function(b){ if(!(b in loc)) dirty[b]=1; });                        // ローカルで削除
+  return Object.keys(dirty);
+}
+function _baKeySafe(b){ return !/[.#$\[\]\/]/.test(String(b)); } // Firebaseキー禁止文字を含む拠点名は分割せず丸ごとへ退避
+
 // ⭐Phase1: 案件をFirebaseトランザクションでアトミックにマージ書込み(同時追加の取りこぼし根絶)。
 //   dealsは配列のまま=Phase0(set/array)と互換・移行不要。失敗時は set() 全置換へフォールバック(フェイルセーフ)。
 function _phase1Fallback(){
@@ -14759,14 +14792,24 @@ function _phase1Write(remote, writeRest){
       }
       // 2) meta＋(通常時のみ)非案件キーを update(パス単位マージ・dealsノードは触らない)
       var _upd = { _ts: firebase.database.ServerValue.TIMESTAMP, _wid: D._wid, _wseq: D._wseq, _lastBy: D._lastBy, _deletedDeals: D._deletedDeals || {} };
+      var _baSplit = false;
       if (writeRest) {
+        // ⭐Phase2: branchActuals は「自分が編集した拠点」だけを拠点別パスで書く(他拠点を踏まない)。
+        var _baDirty = [], _baPathOK = true;
+        try { _baDirty = _dirtyBABranches(); _baDirty.forEach(function(b){ if(!_baKeySafe(b)) _baPathOK=false; }); } catch(e){ _baPathOK=false; }
         Object.keys(D).forEach(function(k){
           if (k === 'deals' || k === '_ts' || k === '_wid' || k === '_wseq' || k === '_lastBy' || k === '_deletedDeals') return;
+          if (k === 'branchActuals' && _baPathOK) return; // 下で拠点別に書く
           _upd[k] = D[k];
         });
+        if (_baPathOK) {
+          _baSplit = true;
+          var _baLoc = D.branchActuals || {};
+          _baDirty.forEach(function(b){ _upd['branchActuals/' + b] = (b in _baLoc) ? _baLoc[b] : null; });
+        }
       }
       FB.dbRef.update(_upd)
-        .then(function(){ showSyncBadge(writeRest ? '保存' : '案件のみ保存'); if (typeof _hideSyncBlockBanner==='function' && writeRest) _hideSyncBlockBanner(); })
+        .then(function(){ if (writeRest && _baSplit) { try{ _snapshotBABaseline(); }catch(e){} } showSyncBadge(writeRest ? '保存' : '案件のみ保存'); if (typeof _hideSyncBlockBanner==='function' && writeRest) _hideSyncBlockBanner(); })
         .catch(function(e){ fbSetStatus('error','書き込みエラー: '+e.message); });
     });
   } catch(e){
