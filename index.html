@@ -5886,6 +5886,16 @@ function _mtScopeManualExtra(scope, field, mi){
   });
   return t;
 }
+// 案件の商品区分(V8/その他ソフト/HW等)を判定。rank=標準並び順(V8が先頭)、label=表示名。
+function _mtProductCat(d){
+  var pt = String((d && d.productType) || '');
+  if (/V8\s*Core|V8Core|Core版/i.test(pt)) return { rank:1, label:'V8 Core' };
+  if (/V8/.test(pt))                       return { rank:0, label:'V8' };
+  if (/その他ソフト|ソフト/.test(pt))       return { rank:2, label:'その他ソフト' };
+  if (/ハード|ハードウェア|HW/i.test(pt))   return { rank:3, label:'HW' };
+  if (pt) return { rank:8, label:(pt.length>8?pt.slice(0,8):pt) };
+  return { rank:9, label:'—' };
+}
 // スコープ×月の対象案件: branch/region/all=配下拠点の直販+グループ薬局、person=本人案件(グループ除外)
 function _mtBreakdownDeals(scope, mi){
   var arr = [];
@@ -5941,18 +5951,25 @@ function _mtMonthBreakdownHtml(scope, mi){
   var notWon = deals.length - won.length;
   if (won.length){
     var sumS = 0, sumP = 0;
+    // 標準並び順: 商品区分(V8→V8 Core→その他ソフト→HW→…)、同区分内は売上降順
+    won.sort(function(a, b){
+      var ra = _mtProductCat(a).rank, rb = _mtProductCat(b).rank;
+      if (ra !== rb) return ra - rb;
+      return (parseFloat(b.sales) || 0) - (parseFloat(a.sales) || 0);
+    });
     h += '<div class="mt-brk-sec"><span class="mt-brk-h">反映されている受注案件（確度5・計上）' + won.length + '件</span>';
-    h += '<table class="mt-brk-tbl"><tr><th style="text-align:left">ユーザー名</th><th>担当</th><th>区分</th><th>売上</th><th>粗利</th></tr>';
+    h += '<table class="mt-brk-tbl"><tr><th style="text-align:left">ユーザー名</th><th>担当</th><th>区分</th><th>商品区分</th><th>売上</th><th>粗利</th></tr>';
     won.forEach(function(d){
       var sv = parseFloat(d.sales) || 0, cv = parseFloat(d.cost) || 0;
       var pv = sv - cv; // 集計と同じ扱い: 原価空欄=0 → 粗利=売上(applyDealToActualsと一致)
       sumS += sv; sumP += pv;
       var overlay = (d._wonAt && parseFloat(d._wonAt) > 1e12);
       var cat = (d.category || '直販'); var catS = (cat.length > 3) ? cat.slice(0, 3) : cat;
+      var pc = _mtProductCat(d);
       var nm = '<a href="#" class="mt-deal-link" onclick="event.preventDefault();_mtOpenDeal(\'' + _esc(String(d.id)) + '\')">' + _esc(d.name || '(無名)') + '</a>';
-      h += '<tr><td>' + nm + (overlay ? ' <span class="mt-brk-tag">取込後上乗せ</span>' : '') + '</td><td class="ctr">' + _esc(_mtPersonName(d.spId)) + '</td><td class="ctr">' + _esc(catS) + '</td><td class="num">' + _mtFmtNum(sv) + '</td><td class="num">' + _mtFmtNum(pv) + '</td></tr>';
+      h += '<tr><td>' + nm + (overlay ? ' <span class="mt-brk-tag">取込後上乗せ</span>' : '') + '</td><td class="ctr">' + _esc(_mtPersonName(d.spId)) + '</td><td class="ctr">' + _esc(catS) + '</td><td class="ctr">' + _esc(pc.label) + '</td><td class="num">' + _mtFmtNum(sv) + '</td><td class="num">' + _mtFmtNum(pv) + '</td></tr>';
     });
-    h += '<tr class="sum"><td colspan="3">受注案件 計</td><td class="num">' + _mtFmtNum(sumS) + '</td><td class="num">' + _mtFmtNum(sumP) + '</td></tr></table>';
+    h += '<tr class="sum"><td colspan="4">受注案件 計</td><td class="num">' + _mtFmtNum(sumS) + '</td><td class="num">' + _mtFmtNum(sumP) + '</td></tr></table>';
     // 受注案件計(アプリ) と ソフト確定値(Excel+上乗せ) の差注記。差がある＝アプリ案件の過不足/原価差。
     if (_softS != null && (Math.round(sumS) !== Math.round(_softS) || Math.round(sumP) !== Math.round(_softP))){
       var dS = Math.round(sumS - _softS), dP = Math.round(sumP - _softP);
@@ -14510,7 +14527,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-06'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-06=Phase2 branchActuals拠点別パス部分更新)
+var APP_VERSION = '2026-06-08-07'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-07=予実内訳に商品区分列・V8先頭ソート)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
