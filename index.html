@@ -5958,16 +5958,16 @@ function _mtMonthBreakdownHtml(scope, mi){
       return (parseFloat(b.sales) || 0) - (parseFloat(a.sales) || 0);
     });
     h += '<div class="mt-brk-sec"><span class="mt-brk-h">反映されている受注案件（確度5・計上）' + won.length + '件</span>';
-    h += '<table class="mt-brk-tbl"><tr><th style="text-align:left">ユーザー名</th><th>担当</th><th>区分</th><th>商品区分</th><th>売上</th><th>粗利</th></tr>';
+    h += '<table class="mt-brk-tbl"><tr><th style="text-align:left">ユーザー名</th><th>担当</th><th>商品区分</th><th>区分</th><th>売上</th><th>粗利</th></tr>';
     won.forEach(function(d){
       var sv = parseFloat(d.sales) || 0, cv = parseFloat(d.cost) || 0;
       var pv = sv - cv; // 集計と同じ扱い: 原価空欄=0 → 粗利=売上(applyDealToActualsと一致)
       sumS += sv; sumP += pv;
       var overlay = (d._wonAt && parseFloat(d._wonAt) > 1e12);
-      var cat = (d.category || '直販'); var catS = (cat.length > 3) ? cat.slice(0, 3) : cat;
+      var cat = (d.category || '直販'); var catS = (cat === 'グループ薬局') ? 'グループ' : cat;
       var pc = _mtProductCat(d);
       var nm = '<a href="#" class="mt-deal-link" onclick="event.preventDefault();_mtOpenDeal(\'' + _esc(String(d.id)) + '\')">' + _esc(d.name || '(無名)') + '</a>';
-      h += '<tr><td>' + nm + (overlay ? ' <span class="mt-brk-tag">取込後上乗せ</span>' : '') + '</td><td class="ctr">' + _esc(_mtPersonName(d.spId)) + '</td><td class="ctr">' + _esc(catS) + '</td><td class="ctr">' + _esc(pc.label) + '</td><td class="num">' + _mtFmtNum(sv) + '</td><td class="num">' + _mtFmtNum(pv) + '</td></tr>';
+      h += '<tr><td>' + nm + (overlay ? ' <span class="mt-brk-tag">取込後上乗せ</span>' : '') + '</td><td class="ctr">' + _esc(_mtPersonName(d.spId)) + '</td><td class="ctr">' + _esc(pc.label) + '</td><td class="ctr">' + _esc(catS) + '</td><td class="num">' + _mtFmtNum(sv) + '</td><td class="num">' + _mtFmtNum(pv) + '</td></tr>';
     });
     h += '<tr class="sum"><td colspan="4">受注案件 計</td><td class="num">' + _mtFmtNum(sumS) + '</td><td class="num">' + _mtFmtNum(sumP) + '</td></tr></table>';
     // 受注案件計(アプリ) と ソフト確定値(Excel+上乗せ) の差注記。差がある＝アプリ案件の過不足/原価差。
@@ -14527,7 +14527,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-07'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-07=予実内訳に商品区分列・V8先頭ソート)
+var APP_VERSION = '2026-06-08-08'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-08=予実内訳 商品区分↔区分入替・グループ表示修正)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
