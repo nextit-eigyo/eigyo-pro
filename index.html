@@ -9476,6 +9476,10 @@ function _auditUser(){
     var p = id && (D.people||[]).find(function(x){ return x.id === id; });
     if (p && p.name) return p.name;
     if (typeof currentUserRole === 'object' && currentUserRole && currentUserRole.name) return currentUserRole.name;
+    // ⭐ 担当者マスタにもロール名にも無いユーザー(例: 担当者未登録の岩下さん)は、ログインID(メール@前)で記録する。
+    //    これが無いと _auditUser が「不明」を返し、_auditLogin(9546)が早期returnして【ログインが一切記録されない】不具合になる。
+    if (typeof currentLoginId === 'string' && currentLoginId) return currentLoginId;
+    if (typeof currentUser === 'object' && currentUser && currentUser.email) return String(currentUser.email).split('@')[0];
   } catch(e){}
   return '不明';
 }
@@ -14565,7 +14569,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-13'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-13=販売店グループ内をV8優先で並び替え)
+var APP_VERSION = '2026-06-09-01'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-09-01=操作ログ:担当者未登録ユーザーのログインも記録=岩下さんが記録されない不具合の修正)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
