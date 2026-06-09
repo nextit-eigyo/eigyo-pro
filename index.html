@@ -5796,7 +5796,7 @@ function _mtBranchMonthCardsHtml(scope, halfMis){
         var _thisDealer=(d.category==='販売店'&&d.dealer)?String(d.dealer):null;
         if(_hasDealer && _thisDealer!==_curDealer){
           _curDealer=_thisDealer;
-          if(_thisDealer) html += '<tr><td colspan="9" style="text-align:left;font-weight:800;color:var(--acc);background:#eef3f8;padding:5px 9px;border-top:2px solid var(--acc)">🏪 '+_esc(_thisDealer)+'</td></tr>';
+          html += '<tr><td colspan="9" style="text-align:left;font-weight:800;color:'+(_thisDealer?'var(--acc)':'var(--tx3)')+';background:'+(_thisDealer?'#eef3f8':'#f4f1ec')+';padding:5px 9px;border-top:2px solid '+(_thisDealer?'var(--acc)':'var(--bd)')+'">'+(_thisDealer?('🏪 '+_esc(_thisDealer)):'📋 直販・その他(販売店以外)')+'</td></tr>';
         }
         var conf = _mtConfInfo(d);
         var cat  = (d.category || '直販'); var catS=(cat.length>2)?cat.slice(0,2):cat;
@@ -6466,7 +6466,7 @@ function renderMeeting() {
         var _thisDealer=(d.category==='販売店'&&d.dealer)?String(d.dealer):null;
         if(_hasDealer && _thisDealer!==_curDealer){
           _curDealer=_thisDealer;
-          if(_thisDealer) html += '<tr><td colspan="8" style="text-align:left;font-weight:800;color:var(--acc);background:#eef3f8;padding:5px 9px;border-top:2px solid var(--acc)">🏪 '+_esc(_thisDealer)+'</td></tr>';
+          html += '<tr><td colspan="8" style="text-align:left;font-weight:800;color:'+(_thisDealer?'var(--acc)':'var(--tx3)')+';background:'+(_thisDealer?'#eef3f8':'#f4f1ec')+';padding:5px 9px;border-top:2px solid '+(_thisDealer?'var(--acc)':'var(--bd)')+'">'+(_thisDealer?('🏪 '+_esc(_thisDealer)):'📋 直販・その他(販売店以外)')+'</td></tr>';
         }
         var conf = _mtConfInfo(d);
         var cat  = (d.category || '直販');
@@ -14561,7 +14561,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-11'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-11=販売店グループ表示を個人ビューにも追加=渋谷の表示修正)
+var APP_VERSION = '2026-06-08-12'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-12=直販案件にも見出し「📋直販・その他」を付け販売店グループと区切る)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
