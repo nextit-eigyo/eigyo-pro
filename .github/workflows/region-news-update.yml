@@ -1,0 +1,49 @@
+name: 地域ニュース自動更新
+
+# 週2回・月曜と木曜の朝7:00 JST に実行（GitHubのcronはUTC基準: 22:00 UTC 日=月朝JST / 水=木朝JST）
+# 「今すぐ更新」用に手動実行(workflow_dispatch)も可。頻度を変えたい時はこのcronだけ直す。
+on:
+  schedule:
+    - cron: "0 22 * * 0,3"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# 多重起動を防ぐ
+concurrency:
+  group: region-news
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 依存インストール
+        run: npm install @anthropic-ai/sdk
+
+      - name: ニュース収集
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node tools/gen-region-news.mjs
+
+      - name: 変更があればコミット＆プッシュ
+        run: |
+          git config user.name "eigyo-news-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if [ -n "$(git status --porcelain data/region-news.json)" ]; then
+            git add data/region-news.json
+            git commit -m "chore(news): 地域ニュース自動更新 $(TZ=Asia/Tokyo date +%Y-%m-%d)"
+            git push
+            echo "更新しました"
+          else
+            echo "変更なし"
+          fi

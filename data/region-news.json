@@ -1,0 +1,66 @@
+{
+  "_comment": "拠点別 地域ニュースアンテナ（PoC・リージョン版）。拠点所在地でなく担当エリア(複数県)で収集。各itemにpref(県)タグ。本番は月次Claude Code定期実行がエリア×テーマ(M&A/承継/再編/改定/開局)をweb_search→このファイル生成→馬場さんが確認(useful)を情報提供書/開局アンテナへ。全件draft+出典付き。会社名/店舗数/時期はneedsVerifyで裏取り。",
+  "generatedAt": "2026-06-09",
+  "branches": [
+    {
+      "name": "神戸本社",
+      "region": "関西エリア",
+      "prefectures": ["兵庫", "大阪", "京都", "滋賀", "奈良", "和歌山"],
+      "coverage": "good",
+      "coverageNote": "大手再編・承継ともネタ豊富。関西は大手の調剤ネットワーク拡大が活発。",
+      "items": [
+        { "pref": "兵庫", "date": "2026-06-09", "type": "M&A・大手再編", "needsVerify": true, "title": "スギHDが I&H(芦屋)を子会社化", "summary": "阪神調剤などを抱える兵庫大手をスギHDが取得。関西の調剤ネットワーク拡大の中核。", "source": { "label": "日本M&Aセンター", "url": "https://www.nihon-ma.co.jp/news/gyokai.php/?gcode%5B%5D=g0602" } },
+        { "pref": "大阪", "type": "M&A", "needsVerify": true, "title": "クオールHDが北摂調剤(関西8店舗)を取得 ※2022年・参考事例", "summary": "関西での買い手の動き。やや古い事例だが、競合の拡大エリア把握に有用。時期要確認。", "source": { "label": "日本M&Aセンター M&Aニュース", "url": "https://www.nihon-ma.co.jp/news/20221107_3034-13/" } },
+        { "pref": "関西全域", "type": "業界動向", "needsVerify": false, "title": "ウエルシア・ツルハ・スギが関西の調剤を取り込み拡大", "summary": "大手DSが関西の地域薬局を取り込み調剤ネットワークを拡大。中小は入替・承継の対象に。", "source": { "label": "M&A Online 調剤・DSニュース", "url": "https://maonline.jp/tags/%E8%AA%BF%E5%89%A4%E8%96%AC%E5%B1%80%E3%83%BB%E3%83%89%E3%83%A9%E3%83%83%E3%82%B0%E3%82%B9%E3%83%88%E3%82%A2" } }
+      ]
+    },
+    {
+      "name": "福岡営業所",
+      "region": "九州エリア",
+      "prefectures": ["福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島"],
+      "coverage": "medium",
+      "coverageNote": "県単位の承継・売却案件は拾える。ただし新規開局のピンポイントは薄く、卸MS・保健所が本命。",
+      "items": [
+        { "pref": "熊本", "date": "2026-06-09", "type": "承継", "needsVerify": true, "title": "熊本県内に調剤薬局の売却(事業承継)案件が複数掲載", "summary": "後継者不在の売り案件が県内に複数。入替・承継アプローチの母集団（匿名案件多く要特定）。", "source": { "label": "バトンズ 熊本の調剤薬局M&A", "url": "https://batonz.jp/sell_cases/bk_1200/pref_51" } },
+        { "pref": "宮崎・鹿児島", "type": "承継", "needsVerify": true, "title": "宮崎・鹿児島にも調剤の売却案件（宮崎6件/鹿児島4件 ※参考）", "summary": "南九州にも承継案件。件数は参考値。エリアを回る馬場さんの強みが活きる範囲。", "source": { "label": "バトンズ 調剤薬局M&A案件", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
+        { "pref": "九州全域", "type": "改定・業界動向", "needsVerify": false, "title": "改定でモール薬局収益低下→中小の身売り・再編加速", "summary": "立地依存モデルへの抑制。九州の中小薬局も入替・承継の機会が拡大。", "source": { "label": "日本経済新聞", "url": "https://www.nikkei.com/article/DGXZQOFC051Z00V00C26A3000000/" } }
+      ]
+    },
+    {
+      "name": "高知営業所",
+      "region": "四国エリア",
+      "prefectures": ["高知", "徳島", "愛媛", "香川"],
+      "coverage": "medium",
+      "coverageNote": "高知単独は薄いが、四国全域に広げると承継案件が拾える。一次情報は県薬剤師会・卸MS。",
+      "items": [
+        { "pref": "愛媛", "type": "承継", "needsVerify": true, "title": "愛媛・南予で調剤2店舗の譲渡案件（売上1〜2億 ※参考）", "summary": "具体的な売り案件。エリアを回る営業なら直接アプローチ可。数字は要確認。", "source": { "label": "バトンズ 愛媛のM&A案件", "url": "https://batonz.jp/sell_cases/pref_45/" } },
+        { "pref": "四国全域", "type": "承継", "needsVerify": true, "title": "四国地方に調剤M&A案件が複数登録（約17件 ※参考）", "summary": "四国全体では承継の母集団がそれなりにある。県を跨いで回れる強みを活かす。", "source": { "label": "バトンズ 調剤薬局M&A案件", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
+        { "pref": "四国全域", "type": "一次情報源", "needsVerify": false, "title": "四国経済産業局 事業承継支援（地域の承継動向の確認先）", "summary": "公的な承継支援。地域の承継機運や相談窓口の把握に。", "source": { "label": "四国経済産業局 事業承継支援", "url": "https://www.shikoku.meti.go.jp/03_sesakudocs/0404_chusho/jigyoshokei_shien_new/jigyoshokei_shien_new.html" } }
+      ]
+    },
+    {
+      "name": "東京事業所",
+      "region": "関東エリア",
+      "prefectures": ["東京", "神奈川", "埼玉", "千葉", "茨城", "栃木", "群馬"],
+      "coverage": "good",
+      "coverageNote": "M&A案件が最も多い。会社名・店舗数は要裏取り。",
+      "items": [
+        { "pref": "東京・神奈川", "type": "M&A", "needsVerify": true, "title": "クオールHD子会社(港区)がヒカリ(横浜)の8店舗を事業譲受", "summary": "首都圏の店舗譲渡＝競合の拡大エリアを示す。店舗数・時期は要確認。", "source": { "label": "MACアドバイザリー M&Aニュース", "url": "https://www.mac-advisory.jp/news/ma/" } },
+        { "pref": "埼玉", "type": "大手再編", "needsVerify": true, "title": "スギHDがセキ薬品(埼玉)を子会社化の予定", "summary": "関東でのDS×調剤の再編。トライアルとの提携で大型店内出店計画も。社名・時期要確認。", "source": { "label": "M&A Online スギHD記事", "url": "https://topics.smt.docomo.ne.jp/article/maonline/business/maonline-archives_sugihd_20260416?page=4" } },
+        { "pref": "全国・関東", "type": "PE・大型再編", "needsVerify": true, "title": "PEファンドによる調剤大手の買収の動き（社名要確認）", "summary": "投資ファンドが調剤大手を買収する動き。会社名は必ず公式IRで確認（誤情報注意）。", "source": { "label": "MACアドバイザリー IRニュース", "url": "https://www.mac-advisory.jp/news/ir/" } }
+      ]
+    },
+    {
+      "name": "新潟営業所",
+      "region": "甲信越・北陸エリア",
+      "prefectures": ["新潟", "長野", "富山", "石川", "福井", "山梨"],
+      "coverage": "good",
+      "coverageNote": "北陸まで広げると大手参入・承継の具体ネタが増える。",
+      "items": [
+        { "pref": "新潟", "type": "M&A・大手参入", "needsVerify": true, "title": "アインHDが新潟のエーアンドエム(約30店舗)を子会社化(2025/3)", "summary": "全国大手が新潟30店舗規模を取得＝地場の勢力図が変化。店舗数要確認。", "source": { "label": "日本M&Aセンター", "url": "https://www.nihon-ma.co.jp/news/gyokai.php/?gcode%5B%5D=g0602" } },
+        { "pref": "富山・石川", "type": "M&A", "needsVerify": true, "title": "ひかりファーマ(富山・石川 13店舗)がスギ薬局へM&A", "summary": "北陸の地場13店舗が大手傘下に。競合・取引環境の変化として要把握。店舗数要確認。", "source": { "label": "M&Aキャピタルパートナーズ プレスリリース", "url": "https://prtimes.jp/main/html/rd/p/000000236.000051639.html" } },
+        { "pref": "石川", "type": "承継", "needsVerify": true, "title": "石川で営業権0円の門前薬局 譲渡案件（売上1000〜3000万）", "summary": "小規模だが具体的な承継案件。低家賃・門前。条件は要確認。", "source": { "label": "バトンズ 石川のM&A案件", "url": "https://batonz.jp/sell_cases/pref_20/" } }
+      ]
+    }
+  ]
+}
