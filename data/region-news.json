@@ -1,6 +1,6 @@
 {
   "_comment": "拠点別 地域ニュースアンテナ（PoC・リージョン版）。拠点所在地でなく担当エリア(複数県)で収集。各itemにpref(県)タグ。本番は月次Claude Code定期実行がエリア×テーマ(M&A/承継/再編/改定/開局)をweb_search→このファイル生成→馬場さんが確認(useful)を情報提供書/開局アンテナへ。全件draft+出典付き。会社名/店舗数/時期はneedsVerifyで裏取り。",
-  "generatedAt": "2026-06-09",
+  "generatedAt": "2026-06-10",
   "branches": [
     {
       "name": "神戸本社",
@@ -9,8 +9,10 @@
       "coverage": "good",
       "coverageNote": "大手再編・承継ともネタ豊富。関西は大手の調剤ネットワーク拡大が活発。",
       "items": [
-        { "pref": "兵庫", "date": "2026-06-09", "type": "M&A・大手再編", "needsVerify": true, "title": "スギHDが I&H(芦屋)を子会社化", "summary": "阪神調剤などを抱える兵庫大手をスギHDが取得。関西の調剤ネットワーク拡大の中核。", "source": { "label": "日本M&Aセンター", "url": "https://www.nihon-ma.co.jp/news/gyokai.php/?gcode%5B%5D=g0602" } },
-        { "pref": "大阪", "type": "M&A", "needsVerify": true, "title": "クオールHDが北摂調剤(関西8店舗)を取得 ※2022年・参考事例", "summary": "関西での買い手の動き。やや古い事例だが、競合の拡大エリア把握に有用。時期要確認。", "source": { "label": "日本M&Aセンター M&Aニュース", "url": "https://www.nihon-ma.co.jp/news/20221107_3034-13/" } },
+        { "pref": "関西全域", "date": "2026-06-10", "type": "改定・業界動向", "needsVerify": false, "title": "2026調剤報酬改定『小規模乱立の適正化＋対人業務強化』で中小薬局に逆風", "summary": "調剤基本料1のハードルが上がり門前・モール依存が減算対象に。立地依存型の中小は再編・身売りの母集団になり、入替・承継アプローチの追い風。", "source": { "label": "P-MA 2026調剤報酬改定コラム", "url": "https://p-ma.com/2025/12/05/%E3%80%90%E3%82%B3%E3%83%A9%E3%83%A0%E3%80%912026%E5%B9%B4%E8%AA%BF%E5%89%A4%E5%A0%B1%E9%85%AC%E6%94%B9%E5%AE%9A%E3%81%A7%E3%80%8C%E5%B0%8F%E8%A6%8F%E6%A8%A1%E4%B9%B1%E7%AB%8B%E3%80%8D%E3%81%AF/" } },
+        { "pref": "関西全域", "date": "2026-06-10", "type": "一次情報源", "needsVerify": false, "title": "日本M&Aセンター 関西の売却・事業承継案件一覧（随時更新）", "summary": "大阪・京都・兵庫・奈良・滋賀・和歌山の譲渡ニーズが集まる一次情報源。入替・承継の母集団把握に。", "source": { "label": "日本M&Aセンター 関西案件", "url": "https://www.nihon-ma.co.jp/anken/needs_convey.php?a=J006" } },
+        { "pref": "兵庫", "date": "2026-06-09", "type": "M&A・大手再編", "needsVerify": true, "title": "スギHDが I&H(芦屋)を子会社化 ※要確認", "summary": "阪神調剤などを抱える兵庫大手をスギHDが取得。関西の調剤ネットワーク拡大の中核。社名・時期は要確認。", "source": { "label": "M&A Online スギHD記事", "url": "https://topics.smt.docomo.ne.jp/article/maonline/business/maonline-archives_sugihd_20260416?page=4" } },
+        { "pref": "大阪", "type": "M&A", "needsVerify": true, "title": "クオールHDが北摂調剤(兵庫・大阪・奈良 8店舗)を取得 ※2022年・参考事例", "summary": "関西での買い手の動き。やや古い事例だが、競合の拡大エリア把握に有用。店舗数・時期要確認。", "source": { "label": "日本M&Aセンター M&Aニュース", "url": "https://www.nihon-ma.co.jp/news/20221107_3034-13/" } },
         { "pref": "関西全域", "type": "業界動向", "needsVerify": false, "title": "ウエルシア・ツルハ・スギが関西の調剤を取り込み拡大", "summary": "大手DSが関西の地域薬局を取り込み調剤ネットワークを拡大。中小は入替・承継の対象に。", "source": { "label": "M&A Online 調剤・DSニュース", "url": "https://maonline.jp/tags/%E8%AA%BF%E5%89%A4%E8%96%AC%E5%B1%80%E3%83%BB%E3%83%89%E3%83%A9%E3%83%83%E3%82%B0%E3%82%B9%E3%83%88%E3%82%A2" } }
       ]
     },
@@ -21,8 +23,9 @@
       "coverage": "medium",
       "coverageNote": "県単位の承継・売却案件は拾える。ただし新規開局のピンポイントは薄く、卸MS・保健所が本命。",
       "items": [
-        { "pref": "熊本", "date": "2026-06-09", "type": "承継", "needsVerify": true, "title": "熊本県内に調剤薬局の売却(事業承継)案件が複数掲載", "summary": "後継者不在の売り案件が県内に複数。入替・承継アプローチの母集団（匿名案件多く要特定）。", "source": { "label": "バトンズ 熊本の調剤薬局M&A", "url": "https://batonz.jp/sell_cases/bk_1200/pref_51" } },
-        { "pref": "宮崎・鹿児島", "type": "承継", "needsVerify": true, "title": "宮崎・鹿児島にも調剤の売却案件（宮崎6件/鹿児島4件 ※参考）", "summary": "南九州にも承継案件。件数は参考値。エリアを回る馬場さんの強みが活きる範囲。", "source": { "label": "バトンズ 調剤薬局M&A案件", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
+        { "pref": "福岡", "date": "2026-06-10", "type": "一次情報源", "needsVerify": false, "title": "バトンズ 福岡県の売却・事業承継案件一覧（随時更新）", "summary": "福岡県内の譲渡案件が集まる一次情報源。調剤に絞って入替・承継の見込み先を洗い出す起点に。", "source": { "label": "バトンズ 福岡県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_48/" } },
+        { "pref": "熊本", "date": "2026-06-09", "type": "承継", "needsVerify": true, "title": "熊本県内に調剤薬局の売却(事業承継)案件が複数掲載 ※要確認", "summary": "後継者不在の売り案件が県内に複数。入替・承継アプローチの母集団（匿名案件多く要特定）。", "source": { "label": "バトンズ 熊本の調剤薬局M&A", "url": "https://batonz.jp/sell_cases/bk_1200/pref_51" } },
+        { "pref": "宮崎・鹿児島", "type": "承継", "needsVerify": true, "title": "宮崎・鹿児島にも調剤の売却案件（件数は参考）※要確認", "summary": "南九州にも承継案件。件数は参考値で要確認。エリアを回る馬場さんの強みが活きる範囲。", "source": { "label": "バトンズ 調剤薬局M&A案件", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
         { "pref": "九州全域", "type": "改定・業界動向", "needsVerify": false, "title": "改定でモール薬局収益低下→中小の身売り・再編加速", "summary": "立地依存モデルへの抑制。九州の中小薬局も入替・承継の機会が拡大。", "source": { "label": "日本経済新聞", "url": "https://www.nikkei.com/article/DGXZQOFC051Z00V00C26A3000000/" } }
       ]
     },
@@ -33,8 +36,9 @@
       "coverage": "medium",
       "coverageNote": "高知単独は薄いが、四国全域に広げると承継案件が拾える。一次情報は県薬剤師会・卸MS。",
       "items": [
-        { "pref": "愛媛", "type": "承継", "needsVerify": true, "title": "愛媛・南予で調剤2店舗の譲渡案件（売上1〜2億 ※参考）", "summary": "具体的な売り案件。エリアを回る営業なら直接アプローチ可。数字は要確認。", "source": { "label": "バトンズ 愛媛のM&A案件", "url": "https://batonz.jp/sell_cases/pref_45/" } },
-        { "pref": "四国全域", "type": "承継", "needsVerify": true, "title": "四国地方に調剤M&A案件が複数登録（約17件 ※参考）", "summary": "四国全体では承継の母集団がそれなりにある。県を跨いで回れる強みを活かす。", "source": { "label": "バトンズ 調剤薬局M&A案件", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
+        { "pref": "四国全域", "date": "2026-06-10", "type": "一次情報源", "needsVerify": false, "title": "日本M&Aセンター 四国(高知・愛媛・香川・徳島)の売却・承継案件一覧", "summary": "中四国支社が扱う四国の譲渡ニーズ一覧。県を跨いで回れる強みを活かし母集団を把握する起点に。", "source": { "label": "日本M&Aセンター 四国案件", "url": "https://www.nihon-ma.co.jp/anken/needs_convey.php?a=J008" } },
+        { "pref": "愛媛", "type": "承継", "needsVerify": true, "title": "愛媛・南予で調剤2店舗の譲渡案件（売上1〜2億 ※参考）※要確認", "summary": "具体的な売り案件。エリアを回る営業なら直接アプローチ可。店舗数・売上は要確認。", "source": { "label": "バトンズ 愛媛のM&A案件", "url": "https://batonz.jp/sell_cases/pref_45/" } },
+        { "pref": "四国全域", "type": "承継", "needsVerify": true, "title": "四国地方に調剤M&A案件が複数登録（件数は参考）※要確認", "summary": "四国全体では承継の母集団がそれなりにある。件数は参考値で要確認。", "source": { "label": "バトンズ 調剤薬局M&A案件", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
         { "pref": "四国全域", "type": "一次情報源", "needsVerify": false, "title": "四国経済産業局 事業承継支援（地域の承継動向の確認先）", "summary": "公的な承継支援。地域の承継機運や相談窓口の把握に。", "source": { "label": "四国経済産業局 事業承継支援", "url": "https://www.shikoku.meti.go.jp/03_sesakudocs/0404_chusho/jigyoshokei_shien_new/jigyoshokei_shien_new.html" } }
       ]
     },
@@ -45,9 +49,10 @@
       "coverage": "good",
       "coverageNote": "M&A案件が最も多い。会社名・店舗数は要裏取り。",
       "items": [
-        { "pref": "東京・神奈川", "type": "M&A", "needsVerify": true, "title": "クオールHD子会社(港区)がヒカリ(横浜)の8店舗を事業譲受", "summary": "首都圏の店舗譲渡＝競合の拡大エリアを示す。店舗数・時期は要確認。", "source": { "label": "MACアドバイザリー M&Aニュース", "url": "https://www.mac-advisory.jp/news/ma/" } },
-        { "pref": "埼玉", "type": "大手再編", "needsVerify": true, "title": "スギHDがセキ薬品(埼玉)を子会社化の予定", "summary": "関東でのDS×調剤の再編。トライアルとの提携で大型店内出店計画も。社名・時期要確認。", "source": { "label": "M&A Online スギHD記事", "url": "https://topics.smt.docomo.ne.jp/article/maonline/business/maonline-archives_sugihd_20260416?page=4" } },
-        { "pref": "全国・関東", "type": "PE・大型再編", "needsVerify": true, "title": "PEファンドによる調剤大手の買収の動き（社名要確認）", "summary": "投資ファンドが調剤大手を買収する動き。会社名は必ず公式IRで確認（誤情報注意）。", "source": { "label": "MACアドバイザリー IRニュース", "url": "https://www.mac-advisory.jp/news/ir/" } }
+        { "pref": "埼玉", "date": "2026-06-10", "type": "大手再編", "needsVerify": true, "title": "スギHDがセキ薬品(埼玉)を子会社化、議決権51%へ ※要確認", "summary": "埼玉中心にDS＋調剤を展開するセキ薬品をスギが追加取得し子会社化。関東のDS×調剤再編の最新例。比率・時期は要確認。", "source": { "label": "M&A Online スギHD記事", "url": "https://topics.smt.docomo.ne.jp/article/maonline/business/maonline-archives_sugihd_20260416?page=4" } },
+        { "pref": "神奈川", "date": "2026-06-10", "type": "M&A", "needsVerify": true, "title": "クオールHDが横浜の『ひかり』8店舗を事業譲受 ※要確認", "summary": "首都圏の店舗譲渡＝競合の拡大エリアを示す。社名・店舗数・時期は要確認。", "source": { "label": "日本M&Aセンター 調剤薬局M&Aニュース", "url": "https://www.nihon-ma.co.jp/news/gyokai.php/?gcode%5B%5D=g0602&gname=%E8%AA%BF%E5%89%A4%E8%96%AC%E5%B1%80" } },
+        { "pref": "関東全域", "date": "2026-06-10", "type": "業界動向", "needsVerify": false, "title": "関東は調剤M&A案件が全国最多クラス（母集団が厚い）", "summary": "大手チェーンが地域ドミナント強化で数十〜数百店舗規模の買収を継続。関東の中小は入替・承継の見込み先が厚い。", "source": { "label": "日本M&Aセンター 調剤薬局業界動向", "url": "https://www.nihon-ma.co.jp/sector/dispensary.php" } },
+        { "pref": "全国・関東", "type": "改定・業界動向", "needsVerify": false, "title": "厚労省 令和8年度(2026)調剤報酬改定の概要", "summary": "改定の一次資料。基本料・対人業務の方向性を押さえると、入替提案や設備更新の商談トークに使える。", "source": { "label": "厚生労働省 令和8年度改定概要(PDF)", "url": "https://www.mhlw.go.jp/content/12400000/001684593.pdf" } }
       ]
     },
     {
@@ -57,9 +62,10 @@
       "coverage": "good",
       "coverageNote": "北陸まで広げると大手参入・承継の具体ネタが増える。",
       "items": [
-        { "pref": "新潟", "type": "M&A・大手参入", "needsVerify": true, "title": "アインHDが新潟のエーアンドエム(約30店舗)を子会社化(2025/3)", "summary": "全国大手が新潟30店舗規模を取得＝地場の勢力図が変化。店舗数要確認。", "source": { "label": "日本M&Aセンター", "url": "https://www.nihon-ma.co.jp/news/gyokai.php/?gcode%5B%5D=g0602" } },
-        { "pref": "富山・石川", "type": "M&A", "needsVerify": true, "title": "ひかりファーマ(富山・石川 13店舗)がスギ薬局へM&A", "summary": "北陸の地場13店舗が大手傘下に。競合・取引環境の変化として要把握。店舗数要確認。", "source": { "label": "M&Aキャピタルパートナーズ プレスリリース", "url": "https://prtimes.jp/main/html/rd/p/000000236.000051639.html" } },
-        { "pref": "石川", "type": "承継", "needsVerify": true, "title": "石川で営業権0円の門前薬局 譲渡案件（売上1000〜3000万）", "summary": "小規模だが具体的な承継案件。低家賃・門前。条件は要確認。", "source": { "label": "バトンズ 石川のM&A案件", "url": "https://batonz.jp/sell_cases/pref_20/" } }
+        { "pref": "新潟", "date": "2026-06-10", "type": "M&A・大手参入", "needsVerify": true, "title": "アインHDが新潟『エーアンドエム』(約30店舗)を買収 ※要確認", "summary": "全国大手アインが新潟30店舗規模を取得し全店1,270超に。地場の勢力図が変化＝競合・取引環境の把握必須。店舗数・時期は要確認。", "source": { "label": "日本経済新聞", "url": "https://www.nikkei.com/article/DGXZQOFC147JF0U5A310C2000000/" } },
+        { "pref": "北陸・甲信越全域", "date": "2026-06-10", "type": "改定・業界動向", "needsVerify": false, "title": "新規開局は鈍化、既存薬局の集約・再編フェーズへ", "summary": "改定と薬剤師不足で地方ほど承継・再編が進む。北陸・甲信越の中小は入替・承継の母集団として注視。", "source": { "label": "バトンズ 調剤薬局M&A解説(2026)", "url": "https://batonz.jp/learn/expert_articles/7137" } },
+        { "pref": "富山・石川", "type": "M&A", "needsVerify": true, "title": "北陸の地場調剤チェーン(富山・石川)が大手傘下に ※要確認", "summary": "北陸の地場店舗が大手傘下に入る動き。競合・取引環境の変化として要把握。社名・店舗数は要確認。", "source": { "label": "M&Aキャピタルパートナーズ プレスリリース", "url": "https://prtimes.jp/main/html/rd/p/000000236.000051639.html" } },
+        { "pref": "石川", "type": "承継", "needsVerify": true, "title": "石川で営業権0円の門前薬局 譲渡案件 ※要確認", "summary": "小規模だが具体的な承継案件。低家賃・門前。売上・条件は要確認。", "source": { "label": "バトンズ 石川のM&A案件", "url": "https://batonz.jp/sell_cases/pref_20/" } }
       ]
     }
   ]
