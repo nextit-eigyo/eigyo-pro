@@ -2444,6 +2444,7 @@ body.has-sidepanel #home-deal-mode {
     <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)"><span class="st-ic">📈</span><span class="st-lab">予実管理</span></button>
     <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()"><span class="st-ic">🎯</span><span class="st-lab">案件</span></button>
     <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)"><span class="st-ic">🔄</span><span class="st-lab">前年比較</span></button>
+    <button id="subtab-news" class="sub-tab" onclick="showTab('news',this)"><span class="st-ic">🗞</span><span class="st-lab">ニュース</span></button>
     <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')"><span class="st-ic">📞</span><span class="st-lab">営業活動量</span></button>
     <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)"><span class="st-ic">✅</span><span class="st-lab">タスク</span><span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
     <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)"><span class="st-ic">🤝</span><span class="st-lab">紹介拠点</span></button>
@@ -2774,6 +2775,11 @@ body.has-sidepanel #home-deal-mode {
 <!-- ════════════════ 前年比較 (YoY) ════════════════ -->
 <div id="tab-yoy" class="sec">
   <div id="yoy-body"></div>
+</div>
+
+<!-- ════════════════ 地域ニュース (NEWS) ════════════════ -->
+<div id="tab-news" class="sec">
+  <div id="news-body"></div>
 </div>
 
 <!-- ════════════════ REPORT ════════════════ -->
@@ -8401,6 +8407,79 @@ function renderYoy() {
 }
 
 // ════════════════════════════════════════════════════════
+// 🗞 地域ニュースアンテナ（拠点=担当リージョン別・data/region-news.json を表示）
+//   読み取り専用。data/region-news.json は別途ルーティンが平日朝に自動更新。集計には非干渉。
+// ════════════════════════════════════════════════════════
+var _newsCur = 0, _newsPref = '__all__';
+function renderNews(){
+  var body = document.getElementById('news-body'); if(!body) return;
+  body.innerHTML = '<div style="padding:24px;color:var(--tx3);font-size:13px">最新の地域ニュースを読み込み中…</div>';
+  fetch('data/region-news.json?_=' + Date.now())
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(d){ window._newsLast = d; _newsPaint(); })
+    .catch(function(e){
+      body.innerHTML = '<div style="padding:24px;color:var(--tx3);font-size:13px;line-height:1.9">地域ニュースを読み込めませんでした（data/region-news.json）。<br>'
+        + _esc(String((e&&e.message)||e)) + '<br><span style="color:var(--tx3)">※ファイルを直接開いた(file://)場合は読めません。公開URL(GitHub Pages)では表示されます。</span></div>';
+    });
+}
+function _newsSel(i){ _newsCur = i; _newsPref = '__all__'; _newsPaint(); }
+function _newsSelPref(p){ _newsPref = p; _newsPaint(); }
+function _newsPaint(){
+  var d = window._newsLast, body = document.getElementById('news-body');
+  if(!d || !body || !d.branches) return;
+  if(_newsCur >= d.branches.length) _newsCur = 0;
+  var b = d.branches[_newsCur];
+  function pill(txt,bg,fg){ return '<span style="display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;background:'+bg+';color:'+fg+'">'+_esc(txt)+'</span>'; }
+  function typeColor(t){
+    if(/M&A|再編|参入|PE/.test(t)) return ['#f6e6e2','#8f4a3c'];
+    if(/承継/.test(t)) return ['#f6ecd9','#9a7430'];
+    if(/一次情報源|ターゲット/.test(t)) return ['#eef2e4','#5f7341'];
+    return ['#e7eef6','#46627f'];
+  }
+  var h = '';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:10px 15px;margin-bottom:12px;font-size:12.5px;color:var(--tx2)">'
+     + '<span>🗞 <b>取得日：'+_esc(d.generatedAt||'-')+'</b>（平日朝に自動更新／全件 出典付き・下書き）。会社名・数字は '+pill('⚠要確認','#f6ecd9','#9a7430')+' を公式資料で裏取りのうえご利用ください。</span></div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">';
+  d.branches.forEach(function(br,i){
+    var on = i===_newsCur;
+    h += '<button onclick="_newsSel('+i+')" style="font-family:inherit;font-size:13px;font-weight:700;border:1.5px solid '+(on?'var(--acc)':'var(--bd)')+';background:'+(on?'var(--acc)':'#fff')+';color:'+(on?'#fff':'var(--tx2)')+';border-radius:10px;padding:7px 13px;cursor:pointer;text-align:left;line-height:1.25">'+_esc(br.name)+'<br><span style="font-size:10.5px;font-weight:500;opacity:.85">'+_esc(br.region||'')+'</span></button>';
+  });
+  h += '</div>';
+  var covMap = {good:['🟢','#eef2e4','#cdd9b5','#5f7341'],medium:['🟡','#f6ecd9','#e7d3a8','#9a7430'],thin:['🔴','#f6e6e2','#e3b5a8','#8f4a3c']};
+  var cm = covMap[b.coverage] || covMap.medium;
+  h += '<div style="font-size:12px;border-radius:9px;padding:8px 13px;margin-bottom:10px;background:'+cm[1]+';border:1px solid '+cm[2]+';color:'+cm[3]+'">'+cm[0]+' <b>'+_esc(b.region||'')+'</b>：'+_esc(b.coverageNote||'')+'</div>';
+  var hasPref = {}; (b.items||[]).forEach(function(it){ String(it.pref||'').split('・').forEach(function(p){ if(p) hasPref[p]=1; }); });
+  h += '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px"><span style="font-size:11.5px;color:var(--tx3);font-weight:700">📍担当エリア：</span>';
+  h += '<button onclick="_newsSelPref(\'__all__\')" style="font-family:inherit;font-size:11.5px;font-weight:700;border:1.5px solid '+(_newsPref==='__all__'?'var(--acc)':'var(--bd)')+';background:'+(_newsPref==='__all__'?'var(--acc)':'#fff')+';color:'+(_newsPref==='__all__'?'#fff':'var(--tx2)')+';border-radius:999px;padding:4px 11px;cursor:pointer">全県</button>';
+  (b.prefectures||[]).forEach(function(p){
+    var on = _newsPref===p, dim = hasPref[p] ? '' : ';opacity:.45';
+    h += '<button onclick="_newsSelPref(\''+p+'\')" style="font-family:inherit;font-size:11.5px;font-weight:700;border:1.5px solid '+(on?'var(--acc)':'var(--bd)')+';background:'+(on?'var(--acc)':'#fff')+';color:'+(on?'#fff':'var(--tx2)')+';border-radius:999px;padding:4px 11px;cursor:pointer'+dim+'">'+_esc(p)+'</button>';
+  });
+  h += '</div>';
+  var items = (b.items||[]).filter(function(it){ return _newsPref==='__all__' || String(it.pref||'').indexOf(_newsPref)>=0; });
+  if(!items.length){ h += '<div style="color:var(--tx3);font-size:13px;padding:10px 2px">'+_esc(_newsPref)+'の収集済みニュースはまだありません。</div>'; }
+  items.forEach(function(it){
+    var tc = typeColor(it.type||'');
+    var isNew = it.date && d.generatedAt && it.date===d.generatedAt;
+    h += '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:13px 16px;margin-bottom:11px">';
+    h += '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:5px">';
+    if(isNew) h += pill('🆕新着','#a85a4a','#fff');
+    if(it.pref) h += pill('📍'+it.pref,'#eae3f0','#6b5a85');
+    h += pill(it.type||'情報',tc[0],tc[1]);
+    h += pill('下書き','#ece8df','#928d82');
+    if(it.needsVerify) h += pill('⚠要確認','#f6ecd9','#9a7430');
+    if(it.date) h += '<span style="font-size:11px;color:var(--tx3)">'+_esc(it.date)+'</span>';
+    h += '</div>';
+    h += '<div style="font-size:15px;font-weight:900;color:var(--tx);line-height:1.45">'+_esc(it.title||'')+'</div>';
+    h += '<div style="font-size:13px;color:var(--tx2);margin:4px 0 7px;line-height:1.7">'+_esc(it.summary||'')+'</div>';
+    if(it.source && it.source.url) h += '<div style="font-size:11.5px;color:var(--tx3)">出典：<a href="'+_esc(it.source.url)+'" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">'+_esc(it.source.label||it.source.url)+'</a></div>';
+    h += '</div>';
+  });
+  h += '<div style="font-size:11.5px;color:var(--tx3);margin-top:14px;line-height:1.8;border-top:1px solid var(--bd);padding-top:12px">💡 平日朝に自動更新（情報収集ルーティン）。<b>新規開局のピンポイント情報はネットに出にくい</b>ため、卸MS・保健所・厚生局の一次情報が本命です（ここは"補完"）。社外に渡す前に数字・社名の裏取りを。</div>';
+  body.innerHTML = h;
+}
+
+// ════════════════════════════════════════════════════════
 // 🗂 ④ 担当者カルテ(管理職向け・1on1/評価支援)
 //   予実/前年比/活動量/新規軒数/月次推移/強み・課題を1枚に。役割で閲覧範囲を制御。
 // ════════════════════════════════════════════════════════
@@ -12018,6 +12097,7 @@ function showTab(name,btn){
   if(name==='import')initImportCtrl();
   if(name==='furikaeri'){initFurikaeriCtrl();renderFurikaeri();}
   if(name==='yoy'){renderYoy();}
+  if(name==='news'){renderNews();}
   if(name==='karte'){renderKarte();}
 }
 
@@ -12985,6 +13065,7 @@ function _syncTopGroupUI(name) {
     actuals: 'subtab-activity',
     meeting: 'subtab-meeting',
     yoy: 'subtab-yoy',
+    news: 'subtab-news',
     tasks: 'subtab-tasks',
     referral: 'subtab-referral',
     kpt: 'subtab-kpt'
@@ -14589,7 +14670,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-09-02'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-01'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
