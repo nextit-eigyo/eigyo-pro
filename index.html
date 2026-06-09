@@ -9498,6 +9498,24 @@ function _auditTrim(){
   D.auditLog = D.auditLog.filter(function(e){ return (e._tms||0) >= cutoff; });
   if (D.auditLog.length > AUDIT_MAX) D.auditLog = D.auditLog.slice(D.auditLog.length - AUDIT_MAX);
 }
+// ⭐ 操作ログを2配列で union マージ(多PC同時書込でログイン記録等が消えないように)。
+//    _tms+操作者+操作+対象+項目 で重複排除し、時刻順に並べ、AUDIT_MAX で上限。
+//    Firebaseが配列をオブジェクト化して返すことがあるので norm() で吸収。
+function _mergeAuditLog(a, b){
+  function norm(x){ return Array.isArray(x) ? x : (x && typeof x === 'object' ? Object.keys(x).map(function(k){return x[k];}) : []); }
+  var out = [], seen = {};
+  [norm(a), norm(b)].forEach(function(arr){
+    for (var i = 0; i < arr.length; i++){
+      var e = arr[i]; if (!e || typeof e !== 'object') continue;
+      var k = (e._tms||0)+'|'+(e.user||'')+'|'+(e.action||'')+'|'+(e.entityId||'')+'|'+(e.field||'');
+      if (seen[k]) continue;
+      seen[k] = 1; out.push(e);
+    }
+  });
+  out.sort(function(x,y){ return (x._tms||0) - (y._tms||0); });
+  if (out.length > AUDIT_MAX) out = out.slice(out.length - AUDIT_MAX);
+  return out;
+}
 // ログ追加(保存は呼び出し元の save() に任せる=二重書き込み回避)
 function _auditPush(entry){
   if (!D.auditLog) D.auditLog = [];
@@ -14488,6 +14506,8 @@ function _fbApplyRemote(remote, remoteTs) {
       _baDirtyRecv.forEach(function(b){ if (b in _baLocalRecv) remote.branchActuals[b] = _baLocalRecv[b]; });
     }
   } catch(e){}
+  // ⭐ 操作ログは union マージ(受信時に D=remote で自分のローカル項目=他PCが未受信のログイン記録を消さないように)
+  try { remote.auditLog = _mergeAuditLog(D && D.auditLog, remote.auditLog); } catch(e){}
   D = remote;
   _localSave({preserveTs:true});
   FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
@@ -14569,7 +14589,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-09-01'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-09-01=操作ログ:担当者未登録ユーザーのログインも記録=岩下さんが記録されない不具合の修正)
+var APP_VERSION = '2026-06-09-02'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -14858,6 +14878,7 @@ function _phase1Write(remote, writeRest){
         try { _baDirty = _dirtyBABranches(); _baDirty.forEach(function(b){ if(!_baKeySafe(b)) _baPathOK=false; }); } catch(e){ _baPathOK=false; }
         Object.keys(D).forEach(function(k){
           if (k === 'deals' || k === '_ts' || k === '_wid' || k === '_wseq' || k === '_lastBy' || k === '_deletedDeals') return;
+          if (k === 'auditLog') return; // ⭐ 操作ログは下の専用transactionでunionマージ(update上書きで他PCのログイン記録を消さない)
           if (k === 'branchActuals' && _baPathOK) return; // 下で拠点別に書く
           _upd[k] = D[k];
         });
@@ -14871,6 +14892,15 @@ function _phase1Write(remote, writeRest){
         .then(function(){ if (writeRest && _baSplit) { try{ _snapshotBABaseline(); }catch(e){} } showSyncBadge(writeRest ? '保存' : '案件のみ保存'); if (typeof _hideSyncBlockBanner==='function' && writeRest) _hideSyncBlockBanner(); })
         .catch(function(e){ fbSetStatus('error','書き込みエラー: '+e.message); });
     });
+    // ⭐ 操作ログは専用 transaction で union マージ(update上書きで他PCのログイン記録を消さない=岩下さん記録消失の修正)。
+    //   stale時(writeRest=false)も記録するため writeRest の外で常に実行。数字キーには一切触れない。
+    try {
+      FB.dbRef.child('auditLog').transaction(function(curr){
+        return _mergeAuditLog(D.auditLog, curr);
+      }, function(err, committed, snap){
+        if (!err && committed && snap) { try { D.auditLog = _mergeAuditLog(D.auditLog, snap.val()); } catch(e){} }
+      });
+    } catch(e){ console.warn('[EIGYO PRO] 操作ログ同期失敗', e); }
   } catch(e){
     console.warn('[EIGYO PRO] Phase1書込み失敗', e);
     if (writeRest) _phase1Fallback();
