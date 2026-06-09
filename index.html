@@ -6453,7 +6453,21 @@ function renderMeeting() {
       html += '<th style="width:60px">売上</th>';
       html += '<th style="width:60px">粗利</th>';
       html += '</tr>';
-      deals.forEach(function(d) {
+      // ⭐B案: 販売店区分の案件を「販売店名」で見出しグループ化(販売店案件がある時のみ・直販中心は順序不変)
+      var _hasDealer = deals.some(function(x){ return x.category==='販売店' && x.dealer; });
+      var _grpDeals = _hasDealer ? deals.slice().sort(function(a,b){
+        var ad=(a.category==='販売店'&&a.dealer)?String(a.dealer):'￿';
+        var bd=(b.category==='販売店'&&b.dealer)?String(b.dealer):'￿';
+        if(ad!==bd) return ad<bd?-1:1;
+        return String(a.name||'').localeCompare(String(b.name||''));
+      }) : deals;
+      var _curDealer = null;
+      _grpDeals.forEach(function(d) {
+        var _thisDealer=(d.category==='販売店'&&d.dealer)?String(d.dealer):null;
+        if(_hasDealer && _thisDealer!==_curDealer){
+          _curDealer=_thisDealer;
+          if(_thisDealer) html += '<tr><td colspan="8" style="text-align:left;font-weight:800;color:var(--acc);background:#eef3f8;padding:5px 9px;border-top:2px solid var(--acc)">🏪 '+_esc(_thisDealer)+'</td></tr>';
+        }
         var conf = _mtConfInfo(d);
         var cat  = (d.category || '直販');
         var catS = (cat.length > 2) ? cat.slice(0,2) : cat;
@@ -14547,7 +14561,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-10'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10=販売店名 dealer取込＋月別内訳の販売店グループ表示B案)
+var APP_VERSION = '2026-06-08-11'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-11=販売店グループ表示を個人ビューにも追加=渋谷の表示修正)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
