@@ -1,10 +1,11 @@
 name: 地域ニュース自動更新
 
-# 週2回・月曜と木曜の朝7:00 JST に実行（GitHubのcronはUTC基準: 22:00 UTC 日=月朝JST / 水=木朝JST）
-# 「今すぐ更新」用に手動実行(workflow_dispatch)も可。頻度を変えたい時はこのcronだけ直す。
+# ⏸ 一時停止中（API従量課金が発生するため。会社経費の承認後に有効化する）
+# 有効化方法: 下の schedule の行のコメントを外す＋ ANTHROPIC_API_KEY を GitHub Secret に登録。
+#   cron "0 22 * * 0,3" = 月・木 朝7:00 JST（GitHubのcronはUTC基準: 22:00 UTC 日/水）
 on:
-  schedule:
-    - cron: "0 22 * * 0,3"
+  # schedule:
+  #   - cron: "0 22 * * 0,3"
   workflow_dispatch: {}
 
 permissions:
