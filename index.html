@@ -14527,7 +14527,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-08'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-08=予実内訳 商品区分↔区分入替・グループ表示修正)
+var APP_VERSION = '2026-06-08-09'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-09=案件追加(サイドパネル)に_cre/_mod付与=追加直後の消失バグ修正)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -17358,6 +17358,7 @@ function openAddDealAsSidepanel() {
     visits: []
   };
   if (!D.deals) D.deals = [];
+  newDeal._cre = newDeal._mod = Date.now(); // ⭐作成/編集時刻(多PC受信時の保護用)。無いと追加直後に別PCの受信が来て案件が消える
   D.deals.unshift(newDeal);
   if(typeof _auditDealAdd==='function')_auditDealAdd(newDeal);
   if (typeof save === 'function') save();
