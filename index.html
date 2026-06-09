@@ -8499,15 +8499,23 @@ function _johoHeadColor(c){ return c==='olive'?'#7a8e5a':c==='copper'?'#c89856':
 function _johoToggle(id,v){ _johoSel[id]=v; _johoUpdatePreview(); }
 function _johoApprove(id){ var a=_johoApprovedSet(); if(a.indexOf(id)<0){ a.push(id); _johoSaveApproved(a); } _johoPaint(); }
 function _johoApproveAll(){ var a=_johoApprovedSet(); ((window._johoData&&window._johoData.blocks)||[]).forEach(function(b){ if(a.indexOf(b.id)<0) a.push(b.id); }); _johoSaveApproved(a); _johoPaint(); }
+var _johoNewsRegion = 0, _johoNewsPicked = {};
+function _johoNewsSetRegion(i){ _johoNewsRegion=parseInt(i,10)||0; _johoPaint(); }
+function _johoNewsToggle(ri,ii,on){ var d=window._johoNews; if(!d||!d.branches) return; var br=d.branches[ri]; if(!br) return; var it=(br.items||[])[ii]; if(!it) return; var key=ri+'|'+(it.title||ii); if(on) _johoNewsPicked[key]={title:it.title,summary:it.summary,source:it.source,pref:it.pref}; else delete _johoNewsPicked[key]; _johoUpdatePreview(); }
+function _johoNewsCount(){ return Object.keys(_johoNewsPicked).length; }
 function renderJoho(){
   var body=document.getElementById('joho-body'); if(!body) return;
   body.innerHTML='<div style="padding:24px;color:var(--tx3);font-size:13px">情報提供書のデータを読み込み中…</div>';
-  fetch('data/joho-blocks.json?_='+Date.now())
-    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(function(d){ window._johoData=d; (d.blocks||[]).forEach(function(b){ if(_johoSel[b.id]===undefined) _johoSel[b.id]=true; }); _johoPaint(); })
-    .catch(function(e){
-      body.innerHTML='<div style="padding:24px;color:var(--tx3);font-size:13px;line-height:1.9">情報提供書データ(data/joho-blocks.json)を読み込めませんでした。<br>'+_esc(String((e&&e.message)||e))+'<br><span>※ファイルを直接開いた(file://)場合は読めません。公開URL(GitHub Pages)で開いてください。</span></div>';
-    });
+  Promise.all([
+    fetch('data/joho-blocks.json?_='+Date.now()).then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; }),
+    fetch('data/region-news.json?_='+Date.now()).then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
+  ]).then(function(res){
+    var jd=res[0], nd=res[1];
+    if(!jd){ body.innerHTML='<div style="padding:24px;color:var(--tx3);font-size:13px;line-height:1.9">情報提供書データ(data/joho-blocks.json)を読み込めませんでした。<br><span>※ファイルを直接開いた(file://)場合は読めません。公開URL(GitHub Pages)で開いてください。</span></div>'; return; }
+    window._johoData=jd; window._johoNews=nd;
+    (jd.blocks||[]).forEach(function(b){ if(_johoSel[b.id]===undefined) _johoSel[b.id]=true; });
+    _johoPaint();
+  });
 }
 function _johoPaint(){
   var d=window._johoData, body=document.getElementById('joho-body'); if(!d||!body) return;
@@ -8520,7 +8528,6 @@ function _johoPaint(){
   h+='<div style="background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:13px 15px;margin-bottom:11px">';
   h+=inp('joho_to','宛先（卸・支店）','','例: アルフレッサ株式会社 神戸支店 御中');
   h+=inp('joho_ms','担当MS名（任意）','','例: 田中 様');
-  h+=inp('joho_by','作成者',_johoMe(),'例: 福岡営業所 馬場 大');
   h+='<label style="display:block;font-size:11.5px;font-weight:700;color:var(--tx2);margin:9px 0 3px">テーマ（タイトル）</label>';
   h+='<select id="joho_title" onchange="_johoUpdatePreview()" style="width:100%;font-family:inherit;font-size:13px;border:1.5px solid var(--bd);border-radius:8px;padding:7px 9px;background:#fff;color:var(--tx)">';
   ['調剤報酬・薬価改定 ポイント解説','薬局経営 お役立ち情報','新規開局 導入サポートのご案内','電子処方箋・マイナ保険証 最新対応状況'].forEach(function(t){ h+='<option>'+_esc(t)+'</option>'; });
@@ -8536,12 +8543,27 @@ function _johoPaint(){
     if(!ok) h+='<div style="margin-top:7px;padding-left:24px"><button onclick="_johoApprove(\''+b.id+'\')" style="font-family:inherit;font-size:11px;font-weight:700;border:1.5px solid var(--acc);background:var(--acc);color:#fff;border-radius:8px;padding:5px 10px;cursor:pointer">この内容で承認</button></div>';
     h+='</div>';
   });
-  h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">';
-  h+='<button onclick="_johoPrintGo()" style="font-family:inherit;font-size:12.5px;font-weight:700;border:1.5px solid #c89856;background:#c89856;color:#fff;border-radius:9px;padding:8px 14px;cursor:pointer">🖨 印刷する</button>';
-  h+='<button onclick="_johoApproveAll()" style="font-family:inherit;font-size:12.5px;font-weight:700;border:1.5px solid var(--bd);background:#fff;color:var(--tx2);border-radius:9px;padding:8px 14px;cursor:pointer">全部を承認</button>';
   h+='</div>';
-  h+='<div style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.7">🆕=AI下書き(未承認)/✅=承認済/⚠要確認=数字は公式資料で裏取り。承認したものだけ"正式版"。下書きが混ざると印刷時に警告。承認はこのPCに保存されます。</div>';
-  h+='</div></div>';
+  // 🗞 地域ニュースを追加（任意）
+  if(window._johoNews && window._johoNews.branches && window._johoNews.branches.length){
+    var nd=window._johoNews; var ri=_johoNewsRegion; if(ri>=nd.branches.length) ri=0; var nbr=nd.branches[ri]||{};
+    h+='<div style="background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:13px 15px;margin-top:11px">';
+    h+='<div style="font-size:12px;font-weight:900;color:var(--tx2);margin-bottom:6px">🗞 地域ニュースを追加<span style="font-weight:400;color:var(--tx3);font-size:11px">（任意・選んだ分が文書末尾に載ります）</span></div>';
+    h+='<select onchange="_johoNewsSetRegion(this.value)" style="width:100%;font-family:inherit;font-size:12.5px;border:1.5px solid var(--bd);border-radius:8px;padding:6px 9px;background:#fff;color:var(--tx);margin-bottom:6px">'+nd.branches.map(function(bb,i){ return '<option value="'+i+'"'+(i===ri?' selected':'')+'>'+_esc(bb.name)+'（'+_esc(bb.region||'')+'）</option>'; }).join('')+'</select>';
+    (nbr.items||[]).forEach(function(it,ii){
+      var key=ri+'|'+(it.title||ii); var on=!!_johoNewsPicked[key];
+      h+='<label style="display:flex;gap:7px;align-items:flex-start;margin-top:5px;cursor:pointer;font-size:12px;color:var(--tx2);line-height:1.5"><input type="checkbox" '+(on?'checked':'')+' onchange="_johoNewsToggle('+ri+','+ii+',this.checked)" style="margin-top:3px"><span>'+(it.pref?'📍'+_esc(it.pref)+' ':'')+_esc(it.title||'')+'</span></label>';
+    });
+    h+='<div style="font-size:11px;color:var(--tx3);margin-top:7px">選択中：'+_johoNewsCount()+'件　＊ニュースは下書き・社名/数字は要確認</div>';
+    h+='</div>';
+  }
+  // アクション
+  h+='<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">';
+  h+='<button onclick="_johoPrintGo()" style="font-family:inherit;font-size:12.5px;font-weight:700;border:1.5px solid #c89856;background:#c89856;color:#fff;border-radius:9px;padding:8px 14px;cursor:pointer">🖨 印刷する</button>';
+  h+='<button onclick="_johoApproveAll()" style="font-family:inherit;font-size:12.5px;font-weight:700;border:1.5px solid var(--bd);background:#fff;color:var(--tx2);border-radius:9px;padding:8px 14px;cursor:pointer">ブロックを全部承認</button>';
+  h+='</div>';
+  h+='<div style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.7">🆕=AI下書き(未承認)/✅=承認済/⚠要確認=公式資料で裏取り。承認したものだけ"正式版"。下書き・ニュースが混ざると印刷時に警告。承認はこのPCに保存。</div>';
+  h+='</div>';
   // ── 右: A4プレビュー ──
   h+='<div><div id="joho-warn" style="display:none;background:#f9ece8;border:1px solid #e3b5a8;color:#8f4a3c;border-radius:9px;padding:9px 12px;font-size:12px;margin-bottom:10px">⚠ 未承認の下書きが含まれています。社外に渡す前に内容（特に数字）を確認し、承認してください。</div><div id="joho-preview"></div></div>';
   h+='</div>';
@@ -8550,12 +8572,12 @@ function _johoPaint(){
 }
 function _johoDocHtml(){
   var d=window._johoData; if(!d) return {html:'',anyDraft:false};
-  var to=_johoVal('joho_to'), ms=(_johoVal('joho_ms')||'').trim(), by=_johoVal('joho_by'), title=_johoVal('joho_title')||'情報提供書';
+  var to=_johoVal('joho_to'), ms=(_johoVal('joho_ms')||'').trim(), title=_johoVal('joho_title')||'情報提供書';
   var h='';
   h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--acc);padding-bottom:12px;margin-bottom:6px">';
   h+='<div style="font-size:20px;font-weight:900;color:var(--acc)">'+_esc(title)+'</div>';
-  h+='<div style="text-align:right;font-size:11px;color:var(--tx3);line-height:1.55"><b style="font-size:13px;color:var(--tx2)">株式会社ネクストＩＴ</b><br>調剤くんV8 営業部</div></div>';
-  h+='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin:10px 0 16px"><span>'+_esc(d.generatedAt||'')+' 時点の情報</span><span>作成：'+_esc(by||'')+'</span></div>';
+  h+='<div style="text-align:right;font-size:11px;color:var(--tx3);line-height:1.55"><b style="font-size:13px;color:var(--tx2)">株式会社ネグジット総研</b><br>調剤くんV8 営業部</div></div>';
+  h+='<div style="font-size:11.5px;color:var(--tx3);margin:10px 0 16px">'+_esc(d.generatedAt||'')+' 時点の情報</div>';
   h+='<div style="font-size:15px;font-weight:900;color:var(--tx);border-bottom:1px dotted var(--bd);padding-bottom:5px">'+_esc(to||'（宛先を入力してください）')+(ms?' <span style="font-size:13px;color:var(--tx2);font-weight:700">／ '+_esc(ms)+'</span>':'')+'</div>';
   h+='<p style="margin:12px 0 4px;font-size:12px;color:var(--tx2)">いつもお世話になっております。薬局様への情報提供にお役立ていただける内容をまとめました。ご自由にご活用ください。</p>';
   var anyDraft=false;
@@ -8567,7 +8589,13 @@ function _johoDocHtml(){
     if(b.say) h+='<div style="background:#fdf6e8;border:1px solid #ecd9b0;border-radius:7px;padding:9px 12px;margin:8px 0;font-size:12px;color:#2c2c28">💡 '+_esc(b.say)+'</div>';
     if(b.sources && b.sources.length) h+='<div style="font-size:10px;color:var(--tx3);margin-top:4px">出典：'+b.sources.map(function(s){ return _esc(s.label||s.url); }).join(' / ')+'</div>';
   });
-  h+='<div style="margin-top:24px;border-top:1px solid var(--bd);padding-top:10px;font-size:11px;color:var(--tx3);display:flex;justify-content:space-between"><span>調剤くんV8 ｜ 薬局向け販売管理システム</span><span>EIGYO PRO 作成</span></div>';
+  var _np = Object.keys(_johoNewsPicked).map(function(k){ return _johoNewsPicked[k]; });
+  if(_np.length){
+    anyDraft=true;
+    h+='<h3 style="font-size:14px;font-weight:900;color:#fff;background:var(--acc);border-radius:6px;padding:5px 11px;margin:18px 0 9px">🗞 最新トピック <span style="font-size:10px;font-weight:700;background:#f6ecd9;color:#9a7430;border-radius:5px;padding:1px 6px">要確認</span></h3>';
+    h+='<ul style="margin:0 0 4px 18px">'+_np.map(function(it){ var src=(it.source&&it.source.label)?'（出典: '+_esc(it.source.label)+'）':''; return '<li style="margin-bottom:5px;line-height:1.7;font-size:12.5px;color:#2c2c28">'+(it.pref?'<b>['+_esc(it.pref)+']</b> ':'')+_esc(it.title||'')+(it.summary?' — '+_esc(it.summary):'')+src+'</li>'; }).join('')+'</ul>';
+  }
+  h+='<div style="margin-top:24px;border-top:1px solid var(--bd);padding-top:10px;font-size:11px;color:var(--tx3)">調剤くんV8 ｜ 薬局向け販売管理システム</div>';
   return {html:h, anyDraft:anyDraft};
 }
 function _johoUpdatePreview(){
@@ -14787,7 +14815,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-02'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-04'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){

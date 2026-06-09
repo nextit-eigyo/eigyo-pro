@@ -67,6 +67,20 @@
         { "pref": "富山・石川", "type": "M&A", "needsVerify": true, "title": "北陸の地場調剤チェーン(富山・石川)が大手傘下に ※要確認", "summary": "北陸の地場店舗が大手傘下に入る動き。競合・取引環境の変化として要把握。社名・店舗数は要確認。", "source": { "label": "M&Aキャピタルパートナーズ プレスリリース", "url": "https://prtimes.jp/main/html/rd/p/000000236.000051639.html" } },
         { "pref": "石川", "type": "承継", "needsVerify": true, "title": "石川で営業権0円の門前薬局 譲渡案件 ※要確認", "summary": "小規模だが具体的な承継案件。低家賃・門前。売上・条件は要確認。", "source": { "label": "バトンズ 石川のM&A案件", "url": "https://batonz.jp/sell_cases/pref_20/" } }
       ]
+    },
+    {
+      "name": "全国",
+      "region": "調剤薬局業界ニュース（全国版）",
+      "prefectures": ["全国"],
+      "coverage": "good",
+      "coverageNote": "目新しい全国の業界トピック(AI/DX/新サービス/制度の新展開/大型再編)。改定の基本要点など周知事項は載せない方針。",
+      "items": [
+        { "pref": "全国", "date": "2026-06-10", "type": "業界動向", "needsVerify": true, "title": "薬局に生成AIが本格展開 ― 遠隔接客AI・AI薬歴が大手で導入進む", "summary": "MG-DX(サイバーエージェント系)が服薬指導支援ソリューションでLLM活用を開始。遠隔接客AIや調剤ロボの接客導入も進み、人手不足・カスハラ対策に。卸MSとの『現場の困りごと』話のネタに。", "source": { "label": "MG-DX プレスリリース(AI薬師 LLM活用)", "url": "https://prtimes.jp/main/html/rd/p/000000014.000093498.html" } },
+        { "pref": "全国", "date": "2026-06-10", "type": "改定・業界動向", "needsVerify": false, "title": "2026改定で『薬局DXの必須化』が具体的な期限として明記", "summary": "電子処方箋・オンライン資格確認などDX対応が事実上の必須インフラに。立地依存型モデルへの減算強化とセットで、未対応薬局に設備更新・乗換の動機。", "source": { "label": "PHARMACY DX NEWS", "url": "https://pharmacydx.com/news/1711" } },
+        { "pref": "全国", "date": "2026-06-10", "type": "業界動向", "needsVerify": true, "title": "電子薬歴がAI化 ― 服薬指導文を自動提示／ICT基金の補助が2026年9月まで延長", "summary": "患者背景から服薬指導文やフォロー文をAIが自動生成する電子薬歴が登場。導入費を補助する医療情報化支援基金(ICT基金)が2026年9月まで延長＝今が更新・導入の好機。", "source": { "label": "電子薬歴/電子処方箋 解説(e-medicationhistory)", "url": "https://www.e-medicationhistory.net/knowledge/electronic-prescription.html" } },
+        { "pref": "全国", "date": "2026-06-10", "type": "改定・業界動向", "needsVerify": false, "title": "国がリフィル処方箋の利用促進を後押し（現状は低調）", "summary": "通院負担軽減・医療費適正化のためリフィル・長期処方を推進。利用は依然低調だが、かかりつけ薬局の継続管理の重要性が増す＝薬局の役割変化のネタ。", "source": { "label": "日本経済新聞(リフィル処方箋、利用促す)", "url": "https://www.nikkei.com/article/DGKKZO94412590T10C26A2EA4000/" } },
+        { "pref": "全国", "date": "2026-06-10", "type": "業界動向", "needsVerify": false, "title": "調剤ロボット導入が人手不足対策で拡大（導入コストが課題）", "summary": "ロボット調剤で少人数運用・薬剤師の対人業務シフトが進む。中小は費用対効果が課題で、設備投資の相談ニーズあり。", "source": { "label": "ロボット調剤の解説(マイナビ薬剤師)", "url": "https://pharma.mynavi.jp/knowhow/workplace/robot-dispensing/" } }
+      ]
     }
   ]
 }

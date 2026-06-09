@@ -17,6 +17,7 @@ const BRANCHES = [
   { name: "高知営業所", region: "四国エリア", prefectures: ["高知","徳島","愛媛","香川"] },
   { name: "東京事業所", region: "関東エリア", prefectures: ["東京","神奈川","埼玉","千葉","茨城","栃木","群馬"] },
   { name: "新潟営業所", region: "甲信越・北陸エリア", prefectures: ["新潟","長野","富山","石川","福井","山梨"] },
+  { name: "全国", region: "調剤薬局業界ニュース（全国版）", prefectures: ["全国"], national: true },
 ];
 
 const SCHEMA_HINT = `次のJSON配列のみを出力（説明文やコードフェンスは一切付けない）。各要素:
@@ -52,7 +53,12 @@ function parseItems(text) {
 const out = { generatedAt: TODAY, branches: [] };
 
 for (const b of BRANCHES) {
-  const prompt = `あなたは調剤レセコンメーカーの営業サポートです。${TODAY}時点で、${b.region}（対象県: ${b.prefectures.join("・")}）の調剤薬局に関する直近ニュースを web_search で集めてください。
+  const prompt = b.national
+    ? `あなたは調剤レセコンメーカーの営業サポートです。${TODAY}時点で、調剤薬局業界全体の"目新しい"全国ニュースを web_search で集めてください（pref は全件「全国」）。
+テーマ: 薬局AI/生成AI・DX・新サービス/新製品・大手の提携や新規事業・調剤ロボット・電子薬歴の進化・オンライン服薬指導・リフィル/長期処方の新展開・補助金/ICT基金・大型M&A/再編の最新。
+❌周知の基礎事項は載せない: 2026改定の「地域支援・医薬品供給対応体制加算への再編」「後発品85%」「調剤室16㎡」等、業界なら誰でも知っている要点は除外。「で、何が新しい？」が言える記事だけ。
+${SCHEMA_HINT}`
+    : `あなたは調剤レセコンメーカーの営業サポートです。${TODAY}時点で、${b.region}（対象県: ${b.prefectures.join("・")}）の調剤薬局に関する直近ニュースを web_search で集めてください。
 テーマ: M&A / 事業承継 / 大手の再編・出店 / 2026年度調剤報酬改定の影響 / 新規開局・クリニック開業。
 ${SCHEMA_HINT}`;
   let items = [];
