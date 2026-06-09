@@ -5783,7 +5783,21 @@ function _mtBranchMonthCardsHtml(scope, halfMis){
     if (deals.length){
       html += '<table class="mt-deal-tbl">';
       html += '<tr><th style="text-align:left;">ユーザー名</th><th style="width:62px">担当者</th><th style="width:38px">訪問</th><th style="width:34px">販</th><th style="width:92px">種別</th><th style="width:42px">確度</th><th style="width:34px">台数</th><th style="width:60px">売上</th><th style="width:60px">粗利</th></tr>';
-      deals.forEach(function(d){
+      // ⭐B案: 販売店区分の案件を「販売店名」で見出しグループ化(販売店案件がある時のみ・直販中心は順序不変)
+      var _hasDealer = deals.some(function(x){ return x.category==='販売店' && x.dealer; });
+      var _grpDeals = _hasDealer ? deals.slice().sort(function(a,b){
+        var ad=(a.category==='販売店'&&a.dealer)?String(a.dealer):'￿';
+        var bd=(b.category==='販売店'&&b.dealer)?String(b.dealer):'￿';
+        if(ad!==bd) return ad<bd?-1:1;
+        return String(a.name||'').localeCompare(String(b.name||''));
+      }) : deals;
+      var _curDealer = null;
+      _grpDeals.forEach(function(d){
+        var _thisDealer=(d.category==='販売店'&&d.dealer)?String(d.dealer):null;
+        if(_hasDealer && _thisDealer!==_curDealer){
+          _curDealer=_thisDealer;
+          if(_thisDealer) html += '<tr><td colspan="9" style="text-align:left;font-weight:800;color:var(--acc);background:#eef3f8;padding:5px 9px;border-top:2px solid var(--acc)">🏪 '+_esc(_thisDealer)+'</td></tr>';
+        }
         var conf = _mtConfInfo(d);
         var cat  = (d.category || '直販'); var catS=(cat.length>2)?cat.slice(0,2):cat;
         var nm   = _esc(d.name || '(無名)');
@@ -10780,7 +10794,7 @@ function parseSheet(rows,sheetName,result){
       var _dt = (productType==='調剤くんV8')
         ? ((/Vup|→|⇒/.test(bigCat) || /→|⇒/.test(midCat)) ? '既存（バージョンアップ）' : '新規（他社入替）')
         : '';
-      if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,bill,sheet:sheetName,noRep:!rep,dealType:_dt});
+      if(cust&&salesV>0)result.software.deals.push({name:cust,sales:salesV,cost:costV,profit:profitV,rep,midCat,productType,notes,bill,sheet:sheetName,noRep:!rep,dealType:_dt,dealer:hanbai});
     }else if(num===4){
       // ⭐ HW(4_周辺機器)も担当者あり行は個人実績化(馬場さん要望)
       if (cust && salesV > 0 && rep) {
@@ -10789,7 +10803,7 @@ function parseSheet(rows,sheetName,result){
           rep: rep, midCat: midCat,
           productType: 'ハードウェア',
           notes: notes, bill: bill, sheet: sheetName, noRep: false,
-          dealType: '既存（バージョンアップ）'
+          dealType: '既存（バージョンアップ）', dealer: hanbai
         });
         result.software.s += salesV; result.software.p += profitV;
       } else {
@@ -10996,6 +11010,7 @@ function _showFuzzyMatchDialog(pendingList, onComplete) {
         deliveryMonth: item.moStr, activationMonth: '',
         sales: String(item.impSales), cost: String(item.impCost),
         category: item.impDeal.sheet === '販売店' ? '販売店' : '直販',
+        dealer: item.impDeal.dealer || '', // 販売店名(販売店シートD列)
         dealType: item.impDeal.dealType || '新規（他社入替）',
         productType: item.impDeal.productType || '調剤くんV8',
         bill: item.impDeal.bill || '', // 請求先(同名薬局の別法人判定用)
@@ -11398,6 +11413,10 @@ function _doConfirmImport(addedMasters){
           if (impDeal.bill && (!existingDeal.bill || String(existingDeal.bill) === '')) {
             existingDeal.bill = impDeal.bill; changed = true;
           }
+          // ⭐dealer補完: 販売店名(販売店シートD列)を既存案件に補完(再インポートで埋まる)
+          if (impDeal.dealer && (!existingDeal.dealer || String(existingDeal.dealer) === '')) {
+            existingDeal.dealer = impDeal.dealer; changed = true;
+          }
           if (changed) updatedDeals++; else skippedDeals++;
 
         } else {
@@ -11429,6 +11448,7 @@ function _doConfirmImport(addedMasters){
               deliveryMonth: moStr, activationMonth: '',
               sales: String(impSales), cost: String(impCost),
               category: _isChain ? 'グループ薬局' : (impDeal.sheet === '販売店' ? '販売店' : '直販'),
+              dealer: impDeal.dealer || '', // 販売店名(販売店シートD列)
               groupBranch: _isChain ? _impBranch : '', // ②b: チェーンは拠点計上のため所属拠点を明示
               dealType: impDeal.dealType || '新規（他社入替）', // 8_その他など既存扱いの場合に対応
               productType: impDeal.productType || '調剤くんV8',
@@ -14527,7 +14547,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-08-09'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-09=案件追加(サイドパネル)に_cre/_mod付与=追加直後の消失バグ修正)
+var APP_VERSION = '2026-06-08-10'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10=販売店名 dealer取込＋月別内訳の販売店グループ表示B案)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
