@@ -2444,12 +2444,12 @@ body.has-sidepanel #home-deal-mode {
     <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)"><span class="st-ic">📈</span><span class="st-lab">予実管理</span></button>
     <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()"><span class="st-ic">🎯</span><span class="st-lab">案件</span></button>
     <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)"><span class="st-ic">🔄</span><span class="st-lab">前年比較</span></button>
-    <button id="subtab-news" class="sub-tab" onclick="showTab('news',this)"><span class="st-ic">🗞</span><span class="st-lab">ニュース</span></button>
     <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')"><span class="st-ic">📞</span><span class="st-lab">営業活動量</span></button>
     <button id="subtab-tasks" class="sub-tab" onclick="showTab('tasks',this)"><span class="st-ic">✅</span><span class="st-lab">タスク</span><span class="nb" id="subtab-task-badge" style="display:none">!</span></button>
     <button id="subtab-referral" class="sub-tab" onclick="showTab('referral',this)"><span class="st-ic">🤝</span><span class="st-lab">紹介拠点</span></button>
+    <button id="subtab-joho" class="sub-tab" onclick="showTab('joho',this)"><span class="st-ic">📑</span><span class="st-lab">情報提供書</span></button>
+    <button id="subtab-news" class="sub-tab" onclick="showTab('news',this)"><span class="st-ic">🗞</span><span class="st-lab">ニュース</span></button>
     <button id="tab-reportmenu-btn" class="sub-tab" onclick="toggleReportMenu(this)"><span class="st-ic">📄</span><span class="st-lab">レポート ▾</span></button>
-    <button id="subtab-kpt" class="sub-tab" onclick="showTab('kpt',this);renderKPT()"><span class="st-ic">💭</span><span class="st-lab">KPT</span></button>
   </div>
   <div id="hdr-r">
     <div id="save-group">
@@ -2780,6 +2780,11 @@ body.has-sidepanel #home-deal-mode {
 <!-- ════════════════ 地域ニュース (NEWS) ════════════════ -->
 <div id="tab-news" class="sec">
   <div id="news-body"></div>
+</div>
+
+<!-- ════════════════ 情報提供書 (JOHO) ════════════════ -->
+<div id="tab-joho" class="sec">
+  <div id="joho-body"></div>
 </div>
 
 <!-- ════════════════ REPORT ════════════════ -->
@@ -3741,7 +3746,7 @@ function _updateKptTabVisibility() {
   var btn = document.getElementById('tab-kpt-btn');
   if (!btn) return;
   // ㉓ 上段「営業ホーム」「KPT」グループタブを削除済み
-  // KPTはサブタブ(#subtab-kpt)からのみアクセス。上段の tab-kpt-btn は常に非表示
+  // KPTは「レポート▾」メニュー内(#tab-kpt-menu-btn)からアクセス。上段の tab-kpt-btn は常に非表示
   btn.style.display = 'none';
 }
 
@@ -8480,6 +8485,117 @@ function _newsPaint(){
 }
 
 // ════════════════════════════════════════════════════════
+// 📑 情報提供書ビルダー（卸MS訪問のお土産・A4印刷可。data/joho-blocks.json）
+//   AI下書き→馬場さん承認→印刷。承認はlocalStorageに保持。読取専用・集計非干渉。
+// ════════════════════════════════════════════════════════
+var _johoSel = {};
+function _johoApprovedSet(){ try{ return JSON.parse(localStorage.getItem('eigyo_joho_approved')||'[]'); }catch(e){ return []; } }
+function _johoSaveApproved(a){ try{ localStorage.setItem('eigyo_joho_approved', JSON.stringify(a)); }catch(e){} }
+function _johoIsApproved(b){ return b.status==='approved' || _johoApprovedSet().indexOf(b.id)>=0; }
+function _johoMe(){ try{ if(typeof _auditUser==='function'){ var u=_auditUser(); if(u && u!=='不明') return u; } }catch(e){} return ''; }
+function _johoAttr(s){ return _esc(s||'').replace(/"/g,'&quot;'); }
+function _johoVal(id){ var e=document.getElementById(id); return e?e.value:''; }
+function _johoHeadColor(c){ return c==='olive'?'#7a8e5a':c==='copper'?'#c89856':c==='brick'?'#a85a4a':'var(--acc)'; }
+function _johoToggle(id,v){ _johoSel[id]=v; _johoUpdatePreview(); }
+function _johoApprove(id){ var a=_johoApprovedSet(); if(a.indexOf(id)<0){ a.push(id); _johoSaveApproved(a); } _johoPaint(); }
+function _johoApproveAll(){ var a=_johoApprovedSet(); ((window._johoData&&window._johoData.blocks)||[]).forEach(function(b){ if(a.indexOf(b.id)<0) a.push(b.id); }); _johoSaveApproved(a); _johoPaint(); }
+function renderJoho(){
+  var body=document.getElementById('joho-body'); if(!body) return;
+  body.innerHTML='<div style="padding:24px;color:var(--tx3);font-size:13px">情報提供書のデータを読み込み中…</div>';
+  fetch('data/joho-blocks.json?_='+Date.now())
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(d){ window._johoData=d; (d.blocks||[]).forEach(function(b){ if(_johoSel[b.id]===undefined) _johoSel[b.id]=true; }); _johoPaint(); })
+    .catch(function(e){
+      body.innerHTML='<div style="padding:24px;color:var(--tx3);font-size:13px;line-height:1.9">情報提供書データ(data/joho-blocks.json)を読み込めませんでした。<br>'+_esc(String((e&&e.message)||e))+'<br><span>※ファイルを直接開いた(file://)場合は読めません。公開URL(GitHub Pages)で開いてください。</span></div>';
+    });
+}
+function _johoPaint(){
+  var d=window._johoData, body=document.getElementById('joho-body'); if(!d||!body) return;
+  var blocks=d.blocks||[];
+  function inp(id,lbl,val,ph){ return '<label style="display:block;font-size:11.5px;font-weight:700;color:var(--tx2);margin:9px 0 3px">'+lbl+'</label><input id="'+id+'" value="'+_johoAttr(val)+'" placeholder="'+_johoAttr(ph)+'" oninput="_johoUpdatePreview()" style="width:100%;font-family:inherit;font-size:13px;border:1.5px solid var(--bd);border-radius:8px;padding:7px 9px;background:#fff;color:var(--tx)">'; }
+  var h='<div style="display:grid;grid-template-columns:340px 1fr;gap:18px">';
+  // ── 左: コントロール ──
+  h+='<div>';
+  h+='<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:11px 14px;margin-bottom:11px;font-size:12.5px;color:var(--tx2)">📑 卸MS訪問の「お土産」。宛先を入れ、載せるブロックを選んで <b>🖨印刷</b>。'+(d.generatedAt?'　<span style="color:var(--tx3)">下書き取得日:'+_esc(d.generatedAt)+'</span>':'')+'</div>';
+  h+='<div style="background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:13px 15px;margin-bottom:11px">';
+  h+=inp('joho_to','宛先（卸・支店）','','例: アルフレッサ株式会社 神戸支店 御中');
+  h+=inp('joho_ms','担当MS名（任意）','','例: 田中 様');
+  h+=inp('joho_by','作成者',_johoMe(),'例: 福岡営業所 馬場 大');
+  h+='<label style="display:block;font-size:11.5px;font-weight:700;color:var(--tx2);margin:9px 0 3px">テーマ（タイトル）</label>';
+  h+='<select id="joho_title" onchange="_johoUpdatePreview()" style="width:100%;font-family:inherit;font-size:13px;border:1.5px solid var(--bd);border-radius:8px;padding:7px 9px;background:#fff;color:var(--tx)">';
+  ['調剤報酬・薬価改定 ポイント解説','薬局経営 お役立ち情報','新規開局 導入サポートのご案内','電子処方箋・マイナ保険証 最新対応状況'].forEach(function(t){ h+='<option>'+_esc(t)+'</option>'; });
+  h+='</select></div>';
+  h+='<div style="background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:13px 15px">';
+  h+='<div style="font-size:12px;font-weight:900;color:var(--tx2);margin-bottom:8px">掲載ブロック（チェックで切替）</div>';
+  blocks.forEach(function(b){
+    var ok=_johoIsApproved(b);
+    var badge=ok?'<span style="font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px;background:#eef2e4;color:#5f7341;margin-left:4px">✅承認済</span>':'<span style="font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px;background:#f6e6e2;color:#8f4a3c;margin-left:4px">🆕下書き</span>';
+    var verify=b.needsVerify?'<span style="font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px;background:#f6ecd9;color:#9a7430;margin-left:4px">⚠要確認</span>':'';
+    h+='<div style="background:var(--s2);border:1px solid var(--bds);border-radius:9px;padding:9px 11px;margin-bottom:7px">';
+    h+='<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer"><input type="checkbox" '+(_johoSel[b.id]?'checked':'')+' onchange="_johoToggle(\''+b.id+'\',this.checked)" style="margin-top:3px"><span style="font-size:12.5px;font-weight:700;color:var(--tx)">'+_esc((b.icon||'')+' '+(b.title||''))+badge+verify+'</span></label>';
+    if(!ok) h+='<div style="margin-top:7px;padding-left:24px"><button onclick="_johoApprove(\''+b.id+'\')" style="font-family:inherit;font-size:11px;font-weight:700;border:1.5px solid var(--acc);background:var(--acc);color:#fff;border-radius:8px;padding:5px 10px;cursor:pointer">この内容で承認</button></div>';
+    h+='</div>';
+  });
+  h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">';
+  h+='<button onclick="_johoPrintGo()" style="font-family:inherit;font-size:12.5px;font-weight:700;border:1.5px solid #c89856;background:#c89856;color:#fff;border-radius:9px;padding:8px 14px;cursor:pointer">🖨 印刷する</button>';
+  h+='<button onclick="_johoApproveAll()" style="font-family:inherit;font-size:12.5px;font-weight:700;border:1.5px solid var(--bd);background:#fff;color:var(--tx2);border-radius:9px;padding:8px 14px;cursor:pointer">全部を承認</button>';
+  h+='</div>';
+  h+='<div style="font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.7">🆕=AI下書き(未承認)/✅=承認済/⚠要確認=数字は公式資料で裏取り。承認したものだけ"正式版"。下書きが混ざると印刷時に警告。承認はこのPCに保存されます。</div>';
+  h+='</div></div>';
+  // ── 右: A4プレビュー ──
+  h+='<div><div id="joho-warn" style="display:none;background:#f9ece8;border:1px solid #e3b5a8;color:#8f4a3c;border-radius:9px;padding:9px 12px;font-size:12px;margin-bottom:10px">⚠ 未承認の下書きが含まれています。社外に渡す前に内容（特に数字）を確認し、承認してください。</div><div id="joho-preview"></div></div>';
+  h+='</div>';
+  body.innerHTML=h;
+  _johoUpdatePreview();
+}
+function _johoDocHtml(){
+  var d=window._johoData; if(!d) return {html:'',anyDraft:false};
+  var to=_johoVal('joho_to'), ms=(_johoVal('joho_ms')||'').trim(), by=_johoVal('joho_by'), title=_johoVal('joho_title')||'情報提供書';
+  var h='';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--acc);padding-bottom:12px;margin-bottom:6px">';
+  h+='<div style="font-size:20px;font-weight:900;color:var(--acc)">'+_esc(title)+'</div>';
+  h+='<div style="text-align:right;font-size:11px;color:var(--tx3);line-height:1.55"><b style="font-size:13px;color:var(--tx2)">株式会社ネクストＩＴ</b><br>調剤くんV8 営業部</div></div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin:10px 0 16px"><span>'+_esc(d.generatedAt||'')+' 時点の情報</span><span>作成：'+_esc(by||'')+'</span></div>';
+  h+='<div style="font-size:15px;font-weight:900;color:var(--tx);border-bottom:1px dotted var(--bd);padding-bottom:5px">'+_esc(to||'（宛先を入力してください）')+(ms?' <span style="font-size:13px;color:var(--tx2);font-weight:700">／ '+_esc(ms)+'</span>':'')+'</div>';
+  h+='<p style="margin:12px 0 4px;font-size:12px;color:var(--tx2)">いつもお世話になっております。薬局様への情報提供にお役立ていただける内容をまとめました。ご自由にご活用ください。</p>';
+  var anyDraft=false;
+  (d.blocks||[]).forEach(function(b){
+    if(!_johoSel[b.id]) return;
+    var draft=!_johoIsApproved(b); if(draft) anyDraft=true;
+    h+='<h3 style="font-size:14px;font-weight:900;color:#fff;background:'+_johoHeadColor(b.headColor)+';border-radius:6px;padding:5px 11px;margin:18px 0 9px">'+_esc((b.icon||'')+' '+(b.title||''))+(draft?' <span style="font-size:10px;font-weight:700;background:#f6e6e2;color:#8f4a3c;border-radius:5px;padding:1px 6px">未承認の下書き</span>':'')+'</h3>';
+    h+='<ul style="margin:0 0 4px 18px">'+(b.bullets||[]).map(function(x){ return '<li style="margin-bottom:5px;line-height:1.7;font-size:12.5px;color:#2c2c28">'+_esc(x)+'</li>'; }).join('')+'</ul>';
+    if(b.say) h+='<div style="background:#fdf6e8;border:1px solid #ecd9b0;border-radius:7px;padding:9px 12px;margin:8px 0;font-size:12px;color:#2c2c28">💡 '+_esc(b.say)+'</div>';
+    if(b.sources && b.sources.length) h+='<div style="font-size:10px;color:var(--tx3);margin-top:4px">出典：'+b.sources.map(function(s){ return _esc(s.label||s.url); }).join(' / ')+'</div>';
+  });
+  h+='<div style="margin-top:24px;border-top:1px solid var(--bd);padding-top:10px;font-size:11px;color:var(--tx3);display:flex;justify-content:space-between"><span>調剤くんV8 ｜ 薬局向け販売管理システム</span><span>EIGYO PRO 作成</span></div>';
+  return {html:h, anyDraft:anyDraft};
+}
+function _johoUpdatePreview(){
+  var pv=document.getElementById('joho-preview'); if(!pv) return;
+  var r=_johoDocHtml();
+  pv.innerHTML='<div style="background:#fff;border:1px solid var(--bd);border-radius:6px;box-shadow:0 3px 18px rgba(90,90,80,.10);padding:30px 34px;max-width:780px">'+r.html+'</div>';
+  var w=document.getElementById('joho-warn'); if(w) w.style.display=r.anyDraft?'block':'none';
+}
+function _johoPrintGo(){
+  var d=window._johoData; if(!d) return;
+  var r=_johoDocHtml();
+  if(r.anyDraft && !confirm('未承認の下書きが含まれています。このまま印刷しますか？\n（社外に渡すなら、先に内容を確認して承認するのがおすすめです）')) return;
+  var docHtml=r.html
+    .replace(/var\(--acc\)/g,'#5a7b9e')
+    .replace(/var\(--tx2\)/g,'#5e5b53')
+    .replace(/var\(--tx3\)/g,'#928d82')
+    .replace(/var\(--tx\)/g,'#2c2c28')
+    .replace(/var\(--bd\)/g,'#ddd6c8');
+  var css='@page{size:A4;margin:16mm} body{font-family:\'Zen Kaku Gothic Antique\',sans-serif;color:#2c2c28;font-size:12.5px;line-height:1.6;margin:0} a{color:#46627f}';
+  var win=window.open('','_blank','width=820,height=1000');
+  if(!win){ alert('ポップアップがブロックされました。印刷するにはこのサイトのポップアップを許可してください。'); return; }
+  win.document.write('<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>情報提供書</title><link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+Antique:wght@400;700;900&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ try{ win.print(); }catch(e){} }, 400);
+}
+
+// ════════════════════════════════════════════════════════
 // 🗂 ④ 担当者カルテ(管理職向け・1on1/評価支援)
 //   予実/前年比/活動量/新規軒数/月次推移/強み・課題を1枚に。役割で閲覧範囲を制御。
 // ════════════════════════════════════════════════════════
@@ -12098,6 +12214,7 @@ function showTab(name,btn){
   if(name==='furikaeri'){initFurikaeriCtrl();renderFurikaeri();}
   if(name==='yoy'){renderYoy();}
   if(name==='news'){renderNews();}
+  if(name==='joho'){renderJoho();}
   if(name==='karte'){renderKarte();}
 }
 
@@ -13066,9 +13183,9 @@ function _syncTopGroupUI(name) {
     meeting: 'subtab-meeting',
     yoy: 'subtab-yoy',
     news: 'subtab-news',
+    joho: 'subtab-joho',
     tasks: 'subtab-tasks',
-    referral: 'subtab-referral',
-    kpt: 'subtab-kpt'
+    referral: 'subtab-referral'
   };
   var subBtnId = subBtnMap[name];
   if (name === 'deals' || name === 'dashboard') {
@@ -14670,7 +14787,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-01'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-02'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -25174,6 +25291,7 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
   <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
   <button class="htab" id="tab-karte-btn" onclick="showTab('karte',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🗂 担当者カルテ</button>
+  <button class="htab" id="tab-kpt-menu-btn" onclick="showTab('kpt',this);renderKPT();closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">💭 KPT</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
 <div id="memo-full-modal">
