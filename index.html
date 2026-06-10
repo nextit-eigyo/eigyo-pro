@@ -5576,6 +5576,23 @@ function _mtPersonName(spId){
   var p=(D.people||[]).find(function(x){ return x.id===spId; });
   return p ? (p.name||'(無名)') : spId;
 }
+// ⭐ 拠点短縮名(福岡営業所→福岡 / 神戸本社→神戸 / 東京事業所→東京)
+function _branchShort(b){ return String(b||'').replace(/(営業所|本社|事業所)$/,''); }
+// ⭐ グループ薬局案件の帰属拠点(計上先と一致: 担当者の所属拠点を優先→office等は_getBranchForGroupDeal)
+function _groupDealBranch(d){
+  if(!d) return '';
+  var p=(D.people||[]).find(function(x){ return x.id===d.spId; });
+  if(p && p.branch) return p.branch;
+  return (typeof _getBranchForGroupDeal==='function') ? _getBranchForGroupDeal(d) : (d.groupBranch||'');
+}
+// ⭐ 担当(ユーザー)欄の表示ラベル。グループ薬局は拠点短縮名(例「福岡」)、それ以外は担当者名(fallback)。
+function _dealRepLabel(d, fallback){
+  if(d && d.category==='グループ薬局'){
+    var b=_groupDealBranch(d);
+    return (b && b!=='office') ? _branchShort(b) : 'グループ共通';
+  }
+  return fallback;
+}
 function _mtSelectScope(scope){ _meetingState.scope = scope; renderMeeting(); }
 // 経過月(4月〜今月)に絞る。該当無し(下期など未到来)は元のレンジを返す
 function _mtElapsedMis(halfMis){
@@ -8194,7 +8211,7 @@ function _yoyMonthDealList(ds, dsFy, key, mi) {
 // 案件の所属拠点・担当者名を、指定データセット(ds=今年D/前年prev)から解決
 function _yoyDealBranchSp(d, ds){
   var sp = ((ds && ds.people) || []).find(function(p){ return p && p.id === d.spId; });
-  var spName = sp ? (sp.name || '(無名)') : (d.spId === 'office' ? '(拠点共通)' : '(担当未設定)');
+  var spName = (d.category === 'グループ薬局') ? _dealRepLabel(d) : (sp ? (sp.name || '(無名)') : (d.spId === 'office' ? '(拠点共通)' : '(担当未設定)'));
   var br = (d.category === 'グループ薬局') ? (d.groupBranch || (sp && sp.branch) || '') : (sp && sp.branch || '');
   return { br: br || '(拠点未設定)', sp: spName };
 }
@@ -14815,7 +14832,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-04'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-05'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -15960,7 +15977,7 @@ function buildDealBody(d) {
       </div>
       <div class="dc-kpi">
         <div class="dc-kpi-lbl"><span class="ic">👤</span>担当</div>
-        <div class="dc-kpi-main" style="font-size:15px">${pp?_esc(pp.name):(d.spId==='office'?'グループ共通':'<span style="color:var(--tx3)">未割当</span>')}</div>
+        <div class="dc-kpi-main" style="font-size:15px">${d.category==='グループ薬局'?_esc(_dealRepLabel(d)):(pp?_esc(pp.name):(d.spId==='office'?'グループ共通':'<span style="color:var(--tx3)">未割当</span>'))}</div>
         <div class="dc-kpi-sub">${pp&&pp.branch?_esc(pp.branch):''}</div>
       </div>
       <div class="dc-kpi">
@@ -15991,7 +16008,8 @@ function buildDealBody(d) {
           <div class="ff"><label>担当者</label>
             <select class="fs" onchange="updDeal('${d.id}','spId',this.value)">
               ${people.map(function(p,i){return '<option value="'+i+'"'+(d.spId===p.id?' selected':'')+'>'+_esc(p.name||'担当者'+(i+1))+'('+_esc(p.branch||'—')+')</option>';}).join('')}
-              <option value="office"${d.spId==='office'?' selected':''}>グループ薬局(共通)</option>
+              <option value="office"${(d.spId==='office'&&!(d.category==='グループ薬局'&&d.groupBranch))?' selected':''}>グループ薬局(共通)</option>
+              ${getBranchMaster().map(function(b){return '<option value="grp::'+_esc(b.name)+'"'+((d.category==='グループ薬局'&&d.groupBranch===b.name)?' selected':'')+'>グループ薬局('+_esc(_branchShort(b.name))+')</option>';}).join('')}
             </select>
           </div>
           <div class="ff"><label>都道府県</label>
@@ -16350,6 +16368,23 @@ function updDeal(id, field, val) {
   if (field === 'spId') {
     const people = ap();
     const oldSpId = d.spId;
+    // ⭐ 「グループ薬局(拠点)」選択(value="grp::拠点名"): 区分=グループ薬局・groupBranch=拠点・spId=office を一括セット。
+    //    計上済み(actualsReflected)なら旧帰属から取消→新拠点(groupActuals)へ移行(二重計上防止)。他の既存案件には一切触れない。
+    if (typeof val === 'string' && val.indexOf('grp::') === 0) {
+      var _gb = val.slice(5);
+      var _wasRef = !!d.actualsReflected;
+      if (_wasRef) { try { applyDealToActuals(Object.assign({}, d), true); } catch(e){ console.error('グループ化-旧取消', e); } }
+      d.spId = 'office';
+      d.category = 'グループ薬局';
+      d.groupBranch = _gb;
+      if (_wasRef) { try { applyDealToActuals(d, false); } catch(e){ console.error('グループ化-新加算', e); } }
+      refreshDH(d);
+      _refreshDealAfterEdit(id);
+      save();
+      _refreshViewsAfterDealUpdate();
+      if (_wasRef) _showToast('✅ グループ薬局(' + _branchShort(_gb) + ')に変更し実績を拠点へ移行しました', 'ok', 4000);
+      return;
+    }
     const idx = parseInt(val);
     if (val === 'office') {
       d.spId = 'office';
