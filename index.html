@@ -14832,7 +14832,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-05'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-06'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -15873,11 +15873,7 @@ function buildDI(d) {
         ${ls?`<span class="st ${stCls}" style="font-size:12px">${ls}</span>`:''}
         ${stale?`<span style="font-size:11px;color:var(--red);font-weight:700;background:rgba(168,90,74,.1);padding:2px 7px;border-radius:8px">⚠ ${daysSinceAct}日放置</span>`:''}
         ${d.nextAction?`<span style="font-size:12px;color:var(--amb);font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📌 ${d.nextAction}</span>`:''}
-        <select onclick="event.stopPropagation()"
-          onchange="event.stopPropagation();setDealPhase('${d.id}',this.value)"
-          style="font-size:11px;padding:3px 8px;border:1px solid var(--bd);border-radius:7px;background:var(--s3);cursor:pointer;color:var(--tx);max-width:120px">
-          ${getST().map(s=>`<option value="${s}"${s===ls?' selected':''}>${s}</option>`).join('')}
-        </select>
+        <!-- ステータス設定はサイドパネルの「🔖 ステータス」ピルに統一。カードは上のバッジで表示のみ。 -->
       </div>
       <!-- 金額 -->
       <div style="text-align:right;flex-shrink:0;min-width:80px">
@@ -16041,6 +16037,13 @@ function buildDealBody(d) {
           <div class="ff"><label>計上月(納品月)</label><input type="month" class="fi" value="${dm_d}" oninput="updDeal('${d.id}','deliveryMonth',this.value)"></div>
           <div class="ff"><label>稼働月</label><input type="month" class="fi" value="${dm_a}" oninput="updDeal('${d.id}','activationMonth',this.value)"></div>
         </div>
+
+        <!-- 🔖 ステータス(唯一の設定箇所) -->
+        <div style="margin:13px 0 7px;padding-top:11px;border-top:1px dashed var(--bds);font-size:11px;font-weight:700;color:var(--tx2)">🔖 ステータス <span style="font-size:11px;font-weight:500;color:var(--tx3)">※失注・延期もここで設定</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          ${getST().map(function(s){var _on=(lstat(d)===s);return '<button type="button" onclick="setDealPhase(\''+d.id+'\',\''+s+'\')" style="font-size:12px;padding:5px 11px;border-radius:14px;cursor:pointer;border:1.5px solid '+(_on?'var(--acc)':'var(--bd)')+';background:'+(_on?'var(--acc)':'var(--s3)')+';color:'+(_on?'#fff':'var(--tx)')+';font-weight:'+(_on?'800':'500')+'">'+_esc(s)+'</button>';}).join('')}
+        </div>
+        ${lstat(d)==='失注'?('<div class="ff" style="margin-top:7px"><label>失注理由</label><input type="text" class="fi" value="'+_esc(String(d.lostReason||'')).replace(/"/g,'&quot;')+'" oninput="updDeal(\''+d.id+'\',\'lostReason\',this.value)" placeholder="失注理由を記入" style="font-size:12px;padding:6px 9px"></div>'):''}
 
         <!-- 受注確度(統合) -->
         <div style="margin:13px 0 7px;padding-top:11px;border-top:1px dashed var(--bds);font-size:11px;font-weight:700;color:var(--tx2)">📊 受注確度・ステージ</div>
