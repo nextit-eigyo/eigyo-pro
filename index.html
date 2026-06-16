@@ -2306,6 +2306,8 @@ body.has-sidepanel #home-deal-mode {
 #tab-meeting .mt-conf.a { background:#fde6c5; color:#7a5a2a; }
 #tab-meeting .mt-conf.b { background:#e0e9d3; color:#4a5a32; }
 #tab-meeting .mt-conf.c { background:var(--s3); color:var(--tx2); }
+#tab-meeting .mt-conf.lost { background:#e2ddd6; color:#7a3a2a; }
+#tab-meeting .mt-conf.pend { background:#f0e6cf; color:#6b4a1e; }
 #tab-meeting .mt-ru-wrap {
   background:#fff; border:1px solid var(--bd); border-radius:8px; padding:12px 16px;
 }
@@ -5441,6 +5443,8 @@ function _mtOpenDeal(dealId) {
 
 function _mtConfInfo(d) {
   var ph = d.phase || (d.visits && d.visits.length ? d.visits[d.visits.length-1].status : '');
+  if (ph === '失注')      return { cls:'lost', lbl:'失注' };
+  if (ph === '延期')      return { cls:'pend', lbl:'延期' };
   if (ph === '受注')      return { cls:'kakutei', lbl:'確定' };
   if (ph === '口頭受注')   return { cls:'kakutei', lbl:'口頭' };
   var pr = parseInt(d.probability) || 0;
@@ -12420,7 +12424,7 @@ function _switchDealTab(dealId, tabKey) {
   });
 }
 function _getDealTab(dealId) {
-  return (window._dealTabState && window._dealTabState[dealId]) || 'next';
+  return (window._dealTabState && window._dealTabState[dealId]) || 'basic';
 }
 
 // ストーリーパネル非表示(数字モード以外で呼ぶ)
@@ -14839,7 +14843,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-07'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-08'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -15952,7 +15956,7 @@ function buildDealBody(d) {
   var optsArr = (typeof getOptionArray === 'function') ? getOptionArray(d.productOption||'') : [];
 
   // ── 現在開いてるタブ(デフォルト: 🎯 次の動き) ──
-  var curTab = (window._dealTabState && window._dealTabState[d.id]) || 'next';
+  var curTab = (window._dealTabState && window._dealTabState[d.id]) || 'basic';
   if (curTab === 'price') curTab = 'basic'; // 金額・日程タブは基本情報へ統合(旧状態の救済)
   function pCls(key) { return 'dt-pane' + (curTab === key ? ' active' : ''); }
   function tCls(key) { return 'dt-tab' + (curTab === key ? ' active' : ''); }
