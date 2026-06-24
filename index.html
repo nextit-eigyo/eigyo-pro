@@ -7928,6 +7928,25 @@ function _isFutureMi(mi) {
     return mi > curMi;
   } catch (e) { return false; }
 }
+// ⭐ 先行受注管理用: Excel無し月の「ソフト実績」を、確度5受注案件から直接合算(壊れやすいgroupActualsキャッシュに頼らない)。
+//   案件の拠点判定は applyDealToActuals と同じ(担当者の所属拠点優先→グループはgroupBranch/_getBranchForGroupDeal)。
+function _wonSoftForBranch(bn, field, mi) {
+  var total = 0;
+  var people = (typeof ap === 'function') ? ap() : (D.people || []);
+  (D.deals || []).forEach(function(d) {
+    if (!d) return;
+    if (typeof _countsAsWon === 'function') { if (!_countsAsWon(d)) return; }
+    else { if (getProb(d) !== 5) return; }
+    if (typeof implToFyIdx === 'function' && implToFyIdx(d.deliveryMonth) !== mi) return;
+    var person = people.find(function(p){ return p.id === d.spId; });
+    var br = person ? person.branch
+           : ((d.category === 'グループ薬局' && typeof _getBranchForGroupDeal === 'function') ? _getBranchForGroupDeal(d) : (d.groupBranch || ''));
+    if (br !== bn) return;
+    var sv = parseFloat(d.sales) || 0, cv = parseFloat(d.cost) || 0;
+    total += (field === 's') ? sv : (sv - cv);
+  });
+  return total;
+}
 function getActualValue(target, field, mi) {
   // ── 入力検証 ──
   if (field !== 's' && field !== 'p') return 0;
@@ -7974,20 +7993,10 @@ function getActualValue(target, field, mi) {
       return;
     }
 
-    // ② 担当者由来実績
-    if (D.people) {
-      D.people.filter(function(p){ return p.branch === bn; }).forEach(function(p) {
-        total += (D.actuals && D.actuals[p.id]) ? safeGetArr(D.actuals[p.id], field, mi) : 0;
-      });
-    }
-    // ③ グループ薬局実績
-    if (typeof getGroupActualsVal === 'function') {
-      total += getGroupActualsVal(bn, field, mi);
-    }
-    // ④ office案件（actualsGroup未設定のフォールバック）
-    if (typeof _getOfficeDealsTotalForBranch === 'function') {
-      total += _getOfficeDealsTotalForBranch(bn, field, mi);
-    }
+    // ②〜④ ソフト実績: Excel無し月は確度5受注案件から直接合算(先行受注管理)。
+    //   ⭐旧: D.actuals＋groupActuals＋office のキャッシュ合算だったが、追加直後の取りこぼし(groupActuals不完全)で
+    //   入れた受注と実績がズレるため、案件直接合算に変更。Excel有り月は上の早期returnでExcel基準(ここは通らない)。
+    total += _wonSoftForBranch(bn, field, mi);
     // ⑤ 保守料: 未来月でも計上する(既入力の確定的な繰越売上。馬場さん要望=未来月も保守を表示)。
     if (typeof getMaintVal === 'function') {
       total += getMaintVal(bn, field, mi);
@@ -14841,7 +14850,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-11'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-12'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -20171,13 +20180,8 @@ function _getBreakdownForMi(branch, field, mi) {
       //   (古い時期にインポートされた月で branchSoftActuals が未保存だった月の救済)
       breakdown.system += ba - (hwVal + otVal + mtVal + csVal);
     } else {
-      // ③ Excelデータなし → 案件管理から積み上げ
-      var _fp = window.filterPeople || filterPeople || function(){ return []; };
-      _fp(bn).forEach(function(p) {
-        breakdown.system += _sg(D.actuals && D.actuals[p.id], field, mi);
-      });
-      if (typeof getGroupActualsVal === 'function') breakdown.system += getGroupActualsVal(bn, field, mi);
-      if (typeof _getOfficeDealsTotalForBranch === 'function') breakdown.system += _getOfficeDealsTotalForBranch(bn, field, mi);
+      // ③ Excelデータなし → 確度5受注案件から直接合算(先行受注管理・getActualValueと同じ_wonSoftForBranch)
+      breakdown.system += (typeof _wonSoftForBranch === 'function') ? _wonSoftForBranch(bn, field, mi) : 0;
     }
 
     // HW・その他・保守・消耗品 を breakdown に反映
