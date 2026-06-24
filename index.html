@@ -7988,11 +7988,6 @@ function getActualValue(target, field, mi) {
     if (typeof _getOfficeDealsTotalForBranch === 'function') {
       total += _getOfficeDealsTotalForBranch(bn, field, mi);
     }
-    // ⭐ 取込後上乗せの手動受注(Excel未掲載・二重計上防止でgroupActualsに入れず_manualExtraで別管理)を、Excel無し月(brVal=0)でも加算。
-    //   Excel有り月(brVal>0)は上の早期returnで既に加算済み。取込後上乗せはgroupActuals非計上なので二重計上しない。
-    if (typeof _manualExtraForBranch === 'function') {
-      total += _manualExtraForBranch(bn, field, mi);
-    }
     // ⑤ 保守料: 未来月でも計上する(既入力の確定的な繰越売上。馬場さん要望=未来月も保守を表示)。
     if (typeof getMaintVal === 'function') {
       total += getMaintVal(bn, field, mi);
@@ -14846,7 +14841,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-10'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-10=予実の実績に【取込後上乗せの手動受注】をExcel無し月でも計上(getActualValue+内訳_getBreakdownForMi同条件・_manualExtraForBranch追加)。福岡9月粗利5,049→6,449(ひかり/はる町1,400込)。過去のExcel有り月は早期returnで不変・二重計上なし。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-11'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -20183,8 +20178,6 @@ function _getBreakdownForMi(branch, field, mi) {
       });
       if (typeof getGroupActualsVal === 'function') breakdown.system += getGroupActualsVal(bn, field, mi);
       if (typeof _getOfficeDealsTotalForBranch === 'function') breakdown.system += _getOfficeDealsTotalForBranch(bn, field, mi);
-      // ⭐ 取込後上乗せの手動受注もソフト内訳に加算(getActualValueと整合。Excel無し月のみ=この③経路)
-      if (typeof _manualExtraForBranch === 'function') breakdown.system += _manualExtraForBranch(bn, field, mi);
     }
 
     // HW・その他・保守・消耗品 を breakdown に反映
