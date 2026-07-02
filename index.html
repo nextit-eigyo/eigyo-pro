@@ -2865,6 +2865,7 @@ body.has-sidepanel #home-deal-mode {
     <button class="cfg-tab"        id="cfg-tab-configtype"  onclick="showCfgTab('configtype',this)">🖥 構成種別</button>
     <button class="cfg-tab"        id="cfg-tab-configcount" onclick="showCfgTab('configcount',this)">🔢 構成台数</button>
     <button class="cfg-tab"        id="cfg-tab-pharmacyConfig" onclick="showCfgTab('pharmacyConfig',this)">🛠 構成図</button>
+    <button class="cfg-tab"        id="cfg-tab-equipmaster" onclick="showCfgTab('equipmaster',this)">🖥 機器マスタ</button>
     <button class="cfg-tab"        id="cfg-tab-status"      onclick="showCfgTab('status',this)">📋 ステータス</button>
     <button class="cfg-tab"        id="cfg-tab-resecon"     onclick="showCfgTab('resecon',this)">🏷 レセコン</button>
     <button class="cfg-tab"        id="cfg-tab-tpl"      onclick="showCfgTab('tpl',this)">💬 テンプレート</button>
@@ -3121,6 +3122,21 @@ body.has-sidepanel #home-deal-mode {
         </div>
       </div>
       <div id="pharmacyConfig-content"></div>
+    </div>
+  </div>
+
+  <!-- 🖥 機器マスタ(機種・型番カタログ) -->
+  <div id="cfg-equipmaster" class="cfg-section">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div class="card-title" style="margin-bottom:2px">🖥 機器マスタ</div>
+          <div style="font-size:11px;color:var(--tx3);line-height:1.5">
+            プリンタ・PC・レセコン・端末などの機種名／型番／メーカーを登録します。構成図の型番欄で候補として選べます。
+          </div>
+        </div>
+      </div>
+      <div id="equipmaster-content"></div>
     </div>
   </div>
 
@@ -4398,6 +4414,7 @@ function showCfgTab(name, btn) {
     else if (name === 'configtype')  { renderConfigTypeList(); }
     else if (name === 'configcount') { renderConfigCountList(); }
     else if (name === 'pharmacyConfig') { renderPharmacyConfigPage(); }
+    else if (name === 'equipmaster') { renderEquipMaster(); }
     else if (name === 'status')      { initStatusMaster(); renderStatusList(); }
     else if (name === 'resecon')  { initReseconMaster(); renderReseconList(); }
     else if (name === 'tpl')      { renderCfgTplList(); }
@@ -7251,6 +7268,9 @@ function sanitizeD() {
     D.pharmacyConnTypeMaster = ['有線LAN','USB','電源','無線','その他'];
   if (!D.pharmacyModelMaster) D.pharmacyModelMaster = [];      // 型番候補(全機種共通の datalist)
   if (!D.pharmacyOtherMaster) D.pharmacyOtherMaster = [];      // 周辺機器名候補
+  // 機器マスタ(機種名+型番+メーカーのカタログ・構成図の型番候補に使用。数字集計には無関係)
+  if (!D.equipMaster || typeof D.equipMaster !== 'object' || Array.isArray(D.equipMaster)) D.equipMaster = {};
+  ['printer','pc','reseco','yakureki','onshikaku','router','hub','other'].forEach(function(_ek){ if (!Array.isArray(D.equipMaster[_ek])) D.equipMaster[_ek] = []; });
   if (!D.maintenance)  D.maintenance = {s:Array(12).fill(''),p:Array(12).fill('')};
   if (!D.groupActuals) D.groupActuals = {};
   if (!D.consumables)  D.consumables = {};
@@ -14850,7 +14870,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-12'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-13'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -23662,6 +23682,103 @@ function _pcMasterRm(masterKey, idx) {
   _renderPharmacyConfigList();
 }
 
+// ═══════════════════════════════════════════════════════
+// 🖥 機器マスタ(機種・型番カタログ)
+// D.equipMaster[cat] = [{name, model, maker}]
+// cat: printer/pc/reseco/yakureki/onshikaku/router/hub/other
+// 構成図の各機器の型番欄で候補として使う。売上・予実の数字には無関係。
+// ═══════════════════════════════════════════════════════
+var EQUIP_CATS = [
+  { key:'printer',   icon:'🖨', label:'プリンタ',        ph:['例) ジェルジェットプリンタ','例) SG3300','例) RICOH'] },
+  { key:'pc',        icon:'💻', label:'PC・サーバー',     ph:['例) サーバー専用機','例) ThinkSystem ST50 V3','例) Lenovo'] },
+  { key:'reseco',    icon:'🖥', label:'レセコン',         ph:['例) V8本体','型番','メーカー'] },
+  { key:'yakureki',  icon:'📱', label:'薬歴端末',         ph:['例) 薬歴端末','型番','メーカー'] },
+  { key:'onshikaku', icon:'🪪', label:'オン資端末',       ph:['例) オン資端末','型番','メーカー'] },
+  { key:'router',    icon:'📡', label:'ルーター',         ph:['例) YAMAHA','例) RTX830','メーカー'] },
+  { key:'hub',       icon:'🔀', label:'HUB',             ph:['例) スイッチングHUB','型番','メーカー'] },
+  { key:'other',     icon:'🔌', label:'その他周辺機器',   ph:['例) バックアップNAS','型番','メーカー'] }
+];
+
+function renderEquipMaster() {
+  var el = document.getElementById('equipmaster-content');
+  if (!el) return;
+  if (!D.equipMaster) D.equipMaster = {};
+  var html = '';
+  html += '<div style="font-size:11px;color:var(--tx3);line-height:1.6;margin-bottom:14px;background:var(--s3);padding:10px 12px;border-radius:8px">';
+  html += 'プリンタ・PC・レセコン・端末などの<strong>機種名／型番／メーカー</strong>を登録しておくと、<strong>構成図</strong>の各機器の型番欄で候補として選べます(自由入力もOK)。<br>※ これは表示用のカタログです。売上・予実の数字には影響しません。';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px">';
+  EQUIP_CATS.forEach(function(cat){
+    var items = (D.equipMaster[cat.key]) || [];
+    html += '<div style="background:#fff;border:1px solid var(--bd);border-radius:8px;padding:12px 14px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--tx)">' + cat.icon + ' ' + cat.label + ' <span style="font-size:10px;color:var(--tx3);font-weight:400">(' + items.length + ')</span></div>';
+    html += '<button class="btn sm pr" onclick="_emAdd(' + _pcAttr(cat.key) + ')">＋ 追加</button>';
+    html += '</div>';
+    if (items.length) {
+      html += '<div style="display:flex;gap:6px;font-size:10px;color:var(--tx3);font-weight:700;padding:0 2px 3px">';
+      html += '<span style="flex:1.3">機種名</span><span style="flex:1">型番</span><span style="flex:.9">メーカー</span><span style="width:26px"></span>';
+      html += '</div>';
+      items.forEach(function(it, i){
+        html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">';
+        html += '<input id="em-' + cat.key + '-' + i + '-name" type="text" value="' + _esc(it.name||'') + '" placeholder="' + _esc(cat.ph[0]) + '" onchange="_emUpd(' + _pcAttr(cat.key) + ',' + i + ',\'name\',this.value)" style="flex:1.3;font-size:12px;padding:5px 7px;border:1px solid var(--bd);border-radius:5px">';
+        html += '<input type="text" value="' + _esc(it.model||'') + '" placeholder="' + _esc(cat.ph[1]) + '" onchange="_emUpd(' + _pcAttr(cat.key) + ',' + i + ',\'model\',this.value)" style="flex:1;font-size:12px;padding:5px 7px;border:1px solid var(--bd);border-radius:5px">';
+        html += '<input type="text" value="' + _esc(it.maker||'') + '" placeholder="' + _esc(cat.ph[2]) + '" onchange="_emUpd(' + _pcAttr(cat.key) + ',' + i + ',\'maker\',this.value)" style="flex:.9;font-size:12px;padding:5px 7px;border:1px solid var(--bd);border-radius:5px">';
+        html += '<button class="btn sm dr" onclick="_emRm(' + _pcAttr(cat.key) + ',' + i + ')" style="width:26px;padding:4px 0" title="削除">✕</button>';
+        html += '</div>';
+      });
+    } else {
+      html += '<div style="font-size:11px;color:var(--tx3);font-style:italic;padding:6px 2px">未登録 —「＋ 追加」から登録できます</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function _emAdd(catKey) {
+  if (!D.equipMaster) D.equipMaster = {};
+  if (!Array.isArray(D.equipMaster[catKey])) D.equipMaster[catKey] = [];
+  D.equipMaster[catKey].push({ name:'', model:'', maker:'' });
+  var ni = D.equipMaster[catKey].length - 1;
+  save();
+  renderEquipMaster();
+  setTimeout(function(){ var f = document.getElementById('em-' + catKey + '-' + ni + '-name'); if (f) f.focus(); }, 30);
+}
+
+function _emUpd(catKey, idx, field, value) {
+  if (!D.equipMaster || !Array.isArray(D.equipMaster[catKey]) || !D.equipMaster[catKey][idx]) return;
+  D.equipMaster[catKey][idx][field] = value;
+  save();
+}
+
+function _emRm(catKey, idx) {
+  if (!D.equipMaster || !Array.isArray(D.equipMaster[catKey])) return;
+  D.equipMaster[catKey].splice(idx, 1);
+  save();
+  renderEquipMaster();
+}
+
+// 構成図エディタ用: カテゴリ別の型番 datalist を生成(機器マスタ由来 + 旧共通型番をフォールバック)
+function _pcEquipDatalists() {
+  var cats = ['printer','pc','reseco','yakureki','onshikaku','router','hub'];
+  var legacy = (D.pharmacyModelMaster||[]).filter(Boolean);
+  var em = D.equipMaster || {};
+  var html = '';
+  cats.forEach(function(cat){
+    html += '<datalist id="pc-dl-' + cat + '">';
+    (em[cat] || []).forEach(function(e){
+      if (e && e.model) {
+        var hint = [e.name, e.maker].filter(Boolean).join(' / ');
+        html += '<option value="' + _esc(e.model) + '">' + _esc(hint) + '</option>';
+      }
+    });
+    legacy.forEach(function(m){ html += '<option value="' + _esc(m) + '">'; });
+    html += '</datalist>';
+  });
+  return html;
+}
+
 // 案件から構成図を作成(オプション等を自動取込)
 function _pcCreateFromDeal(dealName) {
   var deals = (D.deals||[]).filter(function(d){ return d.name === dealName; });
@@ -23734,11 +23851,8 @@ function _renderPharmacyConfigEditor(name) {
   html += '<div class="pc-row"><label></label>';
   html += '<input type="text" placeholder="マスタ外オプション(カンマ区切り・任意)" value="' + _esc(customOpts.join(', ')) + '" onchange="_pcSetCustomOptions(this.value)" style="flex:1;font-size:11px"></div>';
 
-  // datalist (型番候補)
-  var modelDL = '<datalist id="pc-models-dl">';
-  (D.pharmacyModelMaster||[]).forEach(function(m){ if(m) modelDL += '<option value="' + _esc(m) + '">'; });
-  modelDL += '</datalist>';
-  html += modelDL;
+  // datalist (機器マスタ由来・カテゴリ別型番候補)
+  html += _pcEquipDatalists();
 
   html += '<div class="pc-section-title" style="margin-top:14px">💻 端末</div>';
 
@@ -23750,21 +23864,22 @@ function _renderPharmacyConfigEditor(name) {
   html += '<input type="checkbox" ' + (serverChecked?'checked':'') + ' onchange="_pcToggleServer(this.checked)" style="width:14px;height:14px;cursor:pointer">';
   html += '<span style="font-weight:600">サーバー専用機</span>';
   html += '</label>';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.server.model||'') + '" onchange="_pcUpd(\'server.model\',this.value)" style="flex:1;margin-left:6px" ' + (serverChecked?'':'disabled') + '>';
+  html += '<input list="pc-dl-pc" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.server.model||'') + '" onchange="_pcUpd(\'server.model\',this.value)" style="flex:1;margin-left:6px" ' + (serverChecked?'':'disabled') + '>';
   if (serverChecked) html += '<span style="margin-left:6px">' + _pcConnSelect('server') + '</span>';
   html += '<span style="font-size:10px;color:var(--tx3);margin-left:6px">' + (serverChecked?'1台':'なし') + stdNote + '</span>';
   html += '</div>';
 
   html += '<div class="pc-row"><label>レセコン</label>';
   html += '<input type="number" min="0" value="' + (pc.reseco.count||0) + '" onchange="_pcUpd(\'reseco.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<input list="pc-dl-reseco" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.reseco.model||'') + '" onchange="_pcUpd(\'reseco.model\',this.value)" style="flex:1;margin-left:6px">';
   html += '<span style="margin-left:6px">' + _pcConnSelect('reseco') + '</span></div>';
   html += '<div class="pc-row"><label>薬歴端末</label>';
   html += '<input type="number" min="0" value="' + (pc.yakureki.count||0) + '" onchange="_pcUpd(\'yakureki.count\',parseInt(this.value)||0)" style="width:60px"> 台';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.yakureki.model||'') + '" onchange="_pcUpd(\'yakureki.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<input list="pc-dl-yakureki" type="text" placeholder="型番(任意・候補から選択可)" value="' + _esc(pc.yakureki.model||'') + '" onchange="_pcUpd(\'yakureki.model\',this.value)" style="flex:1;margin-left:6px">';
   html += '<span style="margin-left:6px">' + _pcConnSelect('yakureki') + '</span></div>';
   html += '<div class="pc-row"><label>オン資端末</label>';
   html += '<input type="number" min="0" value="' + (pc.onshikaku.count||0) + '" onchange="_pcUpd(\'onshikaku.count\',parseInt(this.value)||0)" style="width:60px"> 台';
+  html += '<input list="pc-dl-onshikaku" type="text" placeholder="型番(任意)" value="' + _esc(pc.onshikaku.model||'') + '" onchange="_pcUpd(\'onshikaku.model\',this.value)" style="width:150px;margin-left:6px">';
   html += '<input type="text" placeholder="設置場所(例:受付)" value="' + _esc(pc.onshikaku.location||'') + '" onchange="_pcUpd(\'onshikaku.location\',this.value)" style="flex:1;margin-left:6px">';
   html += '<span style="margin-left:6px">' + _pcConnSelect('onshikaku') + '</span></div>';
 
@@ -23801,9 +23916,10 @@ function _renderPharmacyConfigEditor(name) {
   });
   html += '<button class="btn sm" onclick="_pcAddPrinter()" style="margin-top:4px">＋ プリンタ追加</button>';
 
-  // datalist (周辺機器候補)
+  // datalist (周辺機器候補: 旧マスタ + 機器マスタ)
   var otherDL = '<datalist id="pc-other-dl">';
   (D.pharmacyOtherMaster||[]).forEach(function(m){ if(m) otherDL += '<option value="' + _esc(m) + '">'; });
+  (((D.equipMaster)||{}).other || []).forEach(function(e){ if(e&&e.name) otherDL += '<option value="' + _esc(e.name) + '">' + _esc([e.model,e.maker].filter(Boolean).join(' / ')) + '</option>'; });
   otherDL += '</datalist>';
   html += otherDL;
 
@@ -23828,7 +23944,8 @@ function _renderPharmacyConfigEditor(name) {
 
 // ── プリンタブロック(機種ヘッダ + トレイ群) ──
 function _pcBuildPrinterBlock(p, i) {
-  var names = D.pharmacyPrinterNameMaster || ['レシートプリンタ','レーザープリンタ','ラベルプリンタ','インクジェットプリンタ','その他'];
+  var names = (D.pharmacyPrinterNameMaster || ['レシートプリンタ','レーザープリンタ','ラベルプリンタ','インクジェットプリンタ','その他']).slice();
+  (((D.equipMaster)||{}).printer || []).forEach(function(e){ if(e&&e.name&&names.indexOf(e.name)<0) names.push(e.name); });
   if (p.name && names.indexOf(p.name) < 0) names = names.concat([p.name]);
 
   var html = '<div class="pc-printer-block">';
@@ -23843,7 +23960,7 @@ function _pcBuildPrinterBlock(p, i) {
   html += '<span class="pc-label">×</span>';
   html += '<input type="number" min="0" value="' + (p.count||0) + '" onchange="_pcUpd(\'printers.' + i + '.count\',parseInt(this.value)||0)" style="width:50px;text-align:center"> 台';
   html += '<span class="pc-label">型番</span>';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意)" value="' + _esc(p.model||'') + '" onchange="_pcUpd(\'printers.' + i + '.model\',this.value)" style="flex:1;min-width:100px">';
+  html += '<input list="pc-dl-printer" type="text" placeholder="型番(任意)" value="' + _esc(p.model||'') + '" onchange="_pcUpd(\'printers.' + i + '.model\',this.value)" style="flex:1;min-width:100px">';
   html += '<span style="margin-left:6px">' + _pcConnSelect('printer_' + i) + '</span>';
   html += '<button class="btn sm dr" onclick="_pcRmPrinter(' + i + ')" style="margin-left:auto">✕ 削除</button>';
   html += '</div>';
@@ -23962,7 +24079,7 @@ function _pcRouterRow(r, i) {
   });
   html += '</select>';
   html += '<input type="number" min="0" value="' + (r.count||0) + '" onchange="_pcUpd(\'routers.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(RTX830等・任意)" value="' + _esc(r.model||'') + '" onchange="_pcUpd(\'routers.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<input list="pc-dl-router" type="text" placeholder="型番(RTX830等・任意)" value="' + _esc(r.model||'') + '" onchange="_pcUpd(\'routers.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
   html += '<span style="margin-left:6px">' + _pcConnSelect('router_' + i) + '</span>';
   html += '<button class="btn sm dr" onclick="_pcRmRouter(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
@@ -24046,7 +24163,7 @@ function _pcHubRow(h, i) {
   html += '<input type="number" min="0" value="' + (h.count||0) + '" onchange="_pcUpd(\'hubs.' + i + '.count\',parseInt(this.value)||0)" style="width:55px;margin-left:6px"> 台';
   html += '<span style="font-size:11px;color:var(--tx3);margin-left:6px">ポート数</span>';
   html += '<input type="number" min="0" value="' + (h.ports||8) + '" onchange="_pcUpd(\'hubs.' + i + '.ports\',parseInt(this.value)||0)" style="width:55px;margin-left:6px">';
-  html += '<input list="pc-models-dl" type="text" placeholder="型番(任意)" value="' + _esc(h.model||'') + '" onchange="_pcUpd(\'hubs.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
+  html += '<input list="pc-dl-hub" type="text" placeholder="型番(任意)" value="' + _esc(h.model||'') + '" onchange="_pcUpd(\'hubs.' + i + '.model\',this.value)" style="flex:1;margin-left:6px">';
   html += '<button class="btn sm dr" onclick="_pcRmHub(' + i + ')" style="margin-left:4px">✕</button>';
   html += '</div>';
   return html;
