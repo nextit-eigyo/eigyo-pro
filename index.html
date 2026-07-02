@@ -1079,18 +1079,36 @@ tr:hover td{background:rgba(90,123,158,.02)}
 
 /* === 印刷スタイル(構成図) === */
 @media print {
+  /* ⭐ margin:0 でブラウザの既定ヘッダー/フッター(日付・タイトル・URL・ページ番号)を抑制。
+     余白は .pc-diagram の内側 padding で確保。※ブラウザで「ヘッダーとフッター」がONだと出るので要OFF。 */
+  @page { size: A4 portrait; margin: 0; }
   body * { visibility: hidden; }
   .pc-diagram, .pc-diagram * { visibility: visible; }
   .pc-no-print { display: none !important; }
   .pc-diagram {
     position: absolute; left: 0; top: 0;
     box-shadow: none; max-width: none; width: 100%;
-    border: 1.5px solid #5a7b9e;
+    border: none;
+    padding: 9mm 8mm 7mm;
     page-break-inside: avoid;
   }
   .pc-icon-block { background: #fff !important; transform: none !important; }
+  /* ── 1ページに収めるための圧縮 ── */
+  .pc-diagram-pharmacy { font-size: 15px !important; }
+  .pc-diagram-title { margin-bottom: 8px !important; padding-bottom: 6px !important; }
+  .pc-diagram-section { margin-bottom: 7px !important; page-break-inside: avoid; }
+  .pc-diagram-section-title { margin-bottom: 5px !important; font-size: 11px !important; }
+  .pc-diagram-row { gap: 8px !important; }
+  .pc-icon-block, .pc-printer-card { padding: 8px 8px 6px !important; }
+  .pc-icon-svg { margin-bottom: 3px !important; }
+  .pc-icon-label, .pc-printer-card .pc-printer-name { font-size: 12.5px !important; line-height: 1.2 !important; }
+  .pc-icon-sublabel, .pc-printer-card .pc-printer-model { font-size: 9px !important; }
+  .pc-printer-card .pc-printer-trays { font-size: 10.5px !important; line-height: 1.3 !important; }
+  .pc-printer-card .pc-printer-divider { margin: 5px 0 4px !important; }
+  .pc-diagram-summary { padding: 7px 12px !important; margin-top: 8px !important; }
+  .pc-summary-row { font-size: 10px !important; padding: 2px 0 !important; }
   .pc-network-diagram { padding: 8px; }
-  .pc-network-diagram svg { max-height: 90vh; }
+  .pc-network-diagram svg { max-height: 94vh; }
 }
 
 /* ════════════════ Ctrl+K コマンドパレット ════════════════ */
@@ -14918,7 +14936,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-25'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-25=アイコン一覧の文字が大きすぎたためバランス調整: 機器名18pt→16px・型番15pt→11px・トレイ22px→14px・カード幅も縮小。階層=機器名>トレイ>型番。表示のみ・集計非干渉。-10-24=アイコン一覧の文字を全体統一: 機器名(.pc-icon-label/.pc-printer-name)=18pt・型番/サブラベル(.pc-icon-sublabel/.pc-printer-model)=15pt。端末カードとプリンタカードで統一＋カード幅拡張。表示のみ・集計非干渉。-10-23=構成図: ①各機器(サーバー/レセコン/薬歴/オン資/ルーター/HUB/プリンタ/その他)の行に備考欄(.note)を追加(編集画面・保存対応・_pcMigrateは非破壊なので保持)。②アイコン一覧のプリンタのトレイ用途文字を大幅拡大(11px→22px)＋カード幅拡張(220→380)。表示/編集のみ・集計非干渉。-10-22=構成図ネットワーク図: 親機の付随機器(satellite)を縦積み→【横並び】に変更(縦だと重なり窮屈だったため)。親のcx中心に横方向へ並べ各機器から親へ線接続・確保する高さも1段分に。表示のみ・集計非干渉。-10-21=構成図: その他周辺機器に「接続先(親機器)」欄を追加(サーバー/レセコン/薬歴端末/プリンタから選択)。ネットワーク図で親指定のある周辺機器を親機にぶら下げて線で接続(server=上・レセコン等bottom系=下にsatellite描画・図の高さを自動確保)。親未指定は従来通り上部HUB直結。表示のみ・集計非干渉。-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-26'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-26=構成図アイコン一覧の印刷を1枚に圧縮(印刷時フォント/余白/セクション間を縮小)＋@page margin:0でブラウザ既定ヘッダー/フッター(日付/タイトル/URL/ページ番号)を抑制(余白は.pc-diagram内側paddingで確保)。※ブラウザの「ヘッダーとフッター」設定ONだと出るのでOFF案内。表示のみ・集計非干渉。-10-25=アイコン一覧の文字が大きすぎたためバランス調整: 機器名18pt→16px・型番15pt→11px・トレイ22px→14px・カード幅も縮小。階層=機器名>トレイ>型番。表示のみ・集計非干渉。-10-24=アイコン一覧の文字を全体統一: 機器名(.pc-icon-label/.pc-printer-name)=18pt・型番/サブラベル(.pc-icon-sublabel/.pc-printer-model)=15pt。端末カードとプリンタカードで統一＋カード幅拡張。表示のみ・集計非干渉。-10-23=構成図: ①各機器(サーバー/レセコン/薬歴/オン資/ルーター/HUB/プリンタ/その他)の行に備考欄(.note)を追加(編集画面・保存対応・_pcMigrateは非破壊なので保持)。②アイコン一覧のプリンタのトレイ用途文字を大幅拡大(11px→22px)＋カード幅拡張(220→380)。表示/編集のみ・集計非干渉。-10-22=構成図ネットワーク図: 親機の付随機器(satellite)を縦積み→【横並び】に変更(縦だと重なり窮屈だったため)。親のcx中心に横方向へ並べ各機器から親へ線接続・確保する高さも1段分に。表示のみ・集計非干渉。-10-21=構成図: その他周辺機器に「接続先(親機器)」欄を追加(サーバー/レセコン/薬歴端末/プリンタから選択)。ネットワーク図で親指定のある周辺機器を親機にぶら下げて線で接続(server=上・レセコン等bottom系=下にsatellite描画・図の高さを自動確保)。親未指定は従来通り上部HUB直結。表示のみ・集計非干渉。-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
