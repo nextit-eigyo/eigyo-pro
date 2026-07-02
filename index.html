@@ -14918,7 +14918,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-20'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-21'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-21=構成図: その他周辺機器に「接続先(親機器)」欄を追加(サーバー/レセコン/薬歴端末/プリンタから選択)。ネットワーク図で親指定のある周辺機器を親機にぶら下げて線で接続(server=上・レセコン等bottom系=下にsatellite描画・図の高さを自動確保)。親未指定は従来通り上部HUB直結。表示のみ・集計非干渉。-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -24080,6 +24080,26 @@ function _pcRmTray(printerIdx, trayIdx) {
   _renderPharmacyConfigEditor(_pcEditing);
 }
 
+// 周辺機器の「接続先(親機器)」候補 — その構成に登録済みの端末から選ぶ
+function _pcParentDeviceOptions() {
+  var pc = (_pcEditing && D.pharmacies[_pcEditing]) || {};
+  var opts = [{ key:'', label:'接続先…' }];
+  if (pc.server && pc.server.count>0) opts.push({key:'server', label:'サーバー'});
+  if (pc.reseco && pc.reseco.count>0) opts.push({key:'reseco', label:'レセコン'});
+  if (pc.yakureki && pc.yakureki.count>0) opts.push({key:'yakureki', label:'薬歴端末'});
+  (pc.printers||[]).forEach(function(p,pi){ if(p&&p.count>0) opts.push({key:'printer_'+pi, label:(p.name||'プリンタ')}); });
+  return opts;
+}
+function _pcParentSelectHtml(o, i) {
+  var opts = _pcParentDeviceOptions();
+  var cur = o.parent || '';
+  var h = '<select onchange="_pcUpd(\'other.' + i + '.parent\',this.value)" style="margin-left:6px;font-size:11px;padding:4px 6px;max-width:120px" title="この周辺機器が付随する端末(ネットワーク図でその端末に接続表示)">';
+  opts.forEach(function(op){
+    h += '<option value="' + _esc(op.key) + '"' + (cur===op.key?' selected':'') + '>' + (op.key?'→':'') + _esc(op.label) + '</option>';
+  });
+  h += '</select>';
+  return h;
+}
 function _pcOtherRow(o, i) {
   // アイコン選択肢(空 = 自動判定 + 手動指定)
   var iconOpts = [
@@ -24107,6 +24127,8 @@ function _pcOtherRow(o, i) {
     html += '<option value="' + opt.val + '"' + (currentIcon === opt.val ? ' selected' : '') + '>' + _esc(opt.label) + '</option>';
   });
   html += '</select>';
+  // 接続先(親機器): この周辺機器がどの端末に付随するか(ネットワーク図で接続表示)
+  html += _pcParentSelectHtml(o, i);
   // 接続種別オーバーライド
   html += '<span style="margin-left:6px">' + _pcConnSelect('other_' + i) + '</span>';
   html += '<button class="btn sm dr" onclick="_pcRmOther(' + i + ')" style="margin-left:4px">✕</button>';
@@ -24712,11 +24734,25 @@ function _pcBuildNetworkDiagramSvg(name) {
   if (!onshikakuPaired && pc.onshikaku && pc.onshikaku.count > 0) {
     topDevices.push({ key:'onshikaku', type:'onshikaku', label:'オン資端末', count:pc.onshikaku.count, sublabel:pc.onshikaku.location, color:'#c89856', meta:pc.onshikaku });
   }
+  // その他周辺機器: parent(接続先)指定があり親が存在するものは「付随機器(satellite)」= 親にぶら下げる。
+  //   それ以外(親未指定/親不在)は従来通り上部ゾーンでHUB直結。
+  var attachedByParent = {}; // parentKey -> [device,...]
+  function _parentPresent(pk){
+    if (pk==='server')   return pc.server   && pc.server.count>0;
+    if (pk==='reseco')   return pc.reseco   && pc.reseco.count>0;
+    if (pk==='yakureki') return pc.yakureki && pc.yakureki.count>0;
+    var m = pk && pk.match(/^printer_(\d+)$/);
+    if (m) return pc.printers && pc.printers[+m[1]] && pc.printers[+m[1]].count>0;
+    return false;
+  }
   (pc.other||[]).forEach(function(o, i){
     if (!o.name || !o.count) return;
     // ONU は左チェーンで使うので top に載せない
     if (onuPaired && onuIndices.indexOf(i) >= 0) return;
-    topDevices.push({ key:'other_'+i, type:'other', iconType:o.iconType, label:o.name, count:o.count, color:'#7a6b5a', meta:o });
+    var dev = { key:'other_'+i, type:'other', iconType:o.iconType, label:o.name, count:o.count, color:'#7a6b5a', meta:o };
+    var pk = o.parent || '';
+    if (pk && _parentPresent(pk)) { (attachedByParent[pk] = attachedByParent[pk] || []).push(dev); }
+    else { topDevices.push(dev); }
   });
 
   // 下部ゾーン: レセコン, 薬歴, プリンタ
@@ -24785,11 +24821,18 @@ function _pcBuildNetworkDiagramSvg(name) {
   var legendHeight = 50;
   var optionBoxHeight = 96;
   // 上部ゾーン: 2行ラベル + サブラベルで 220 (接続線がラベル下から伸びる余裕)
-  var topRowHeight = topDevices.length ? 220 : 0;
+  // 付随機器(satellite)用の予約スペース: server=上に伸ばす / bottom系=下に伸ばす
+  var _SAT_V = 74; // 付随機器の縦間隔
+  var _serverSats = (attachedByParent['server']||[]).length;
+  var _bottomSats = 0;
+  ['reseco','yakureki'].concat((pc.printers||[]).map(function(_p,pi){return 'printer_'+pi;})).forEach(function(k){ _bottomSats = Math.max(_bottomSats, (attachedByParent[k]||[]).length); });
+  var _topExtra = _serverSats>0 ? (_serverSats*_SAT_V + 40) : 0;
+  var _bottomExtra = _bottomSats>0 ? (_bottomSats*_SAT_V + 60) : 0;
+  var topRowHeight = (topDevices.length ? 220 : 0) + _topExtra;
   var hubRowHeight = hasHub ? 90 : 0;
   // 下部ゾーン: プリンタのトレイ詳細 + 2行ラベル
   var hasPrinterDetails = bottomDevices.some(function(d){ return d.detailLines && d.detailLines.length; });
-  var bottomRowHeight = bottomDevices.length ? (hasPrinterDetails ? 260 : 200) : 0;
+  var bottomRowHeight = (bottomDevices.length ? (hasPrinterDetails ? 260 : 200) : 0) + _bottomExtra;
   // 右側 (router + child)
   var rightHeight = 0;
   rightRouters.forEach(function(r){
@@ -24809,7 +24852,7 @@ function _pcBuildNetworkDiagramSvg(name) {
   );
   var height = headerHeight + mainBodyHeight + legendHeight + optionBoxHeight + 30;
 
-  var topY = headerHeight + 75;
+  var topY = headerHeight + 75 + _topExtra;
   var hubY = headerHeight + topRowHeight + hubRowHeight/2 + 10;
   var bottomY = headerHeight + topRowHeight + hubRowHeight + (hasPrinterDetails ? 95 : 80);
   var legendY = headerHeight + mainBodyHeight + 20;
@@ -24852,6 +24895,8 @@ function _pcBuildNetworkDiagramSvg(name) {
     return { iconSize: 50, labelMaxLen: 9, fontSize: 9 };
   }
 
+  var _devPos = {}; // 付随機器(satellite)描画用: 親機器の座標を控える
+
   // ── 上部ゾーン ──
   if (topDevices.length) {
     var topCount = topDevices.length;
@@ -24863,6 +24908,7 @@ function _pcBuildNetworkDiagramSvg(name) {
 
     topDevices.forEach(function(d, i){
       var cx = startX + i * slotW;
+      _devPos[d.key] = { cx: cx, cy: topY, zone: 'top', iconSize: sz.iconSize };
       svg += _pcSvgDevice(d, cx, topY, { iconSize: sz.iconSize, labelMaxLen: sz.labelMaxLen });
       var ct = _pcGetConnType(pc, d.key, d.meta);
       // ★ 接続線はラベル/サブラベル/詳細の下から開始(文字とかぶらないように)
@@ -24882,6 +24928,7 @@ function _pcBuildNetworkDiagramSvg(name) {
 
     bottomDevices.forEach(function(d, i){
       var cx = startX2 + i * slotW2;
+      _devPos[d.key] = { cx: cx, cy: bottomY, zone: 'bottom', blockH: _pcDeviceBlockHeight(d, sz2.iconSize, sz2.labelMaxLen) };
       svg += _pcSvgDevice(d, cx, bottomY, { iconSize: sz2.iconSize, labelMaxLen: sz2.labelMaxLen });
       var ct = _pcGetConnType(pc, d.key, d.meta);
       svg += _pcSvgConnection(cx, hubY + 25, cx, bottomY - sz2.iconSize/2 - 8, ct);
@@ -24936,6 +24983,25 @@ function _pcBuildNetworkDiagramSvg(name) {
       }
     });
   }
+
+  // ── 付随機器(satellite): 親機器にぶら下げて線で接続 ──
+  Object.keys(attachedByParent).forEach(function(pk){
+    var pos = _devPos[pk]; if (!pos) return;
+    (attachedByParent[pk]).forEach(function(sat, si){
+      var sx = pos.cx, sy, y1, y2;
+      if (pos.zone === 'top') {
+        sy = pos.cy - (pos.iconSize/2 || 30) - 30 - si*_SAT_V;
+        y1 = pos.cy - (pos.iconSize/2 || 30); // 親アイコン上端
+        y2 = sy + 24;                          // satアイコン下端
+      } else {
+        sy = pos.cy + (pos.blockH || 60) + 34 + si*_SAT_V;
+        y1 = pos.cy + (pos.blockH || 60);      // 親ブロック下端
+        y2 = sy - 24;
+      }
+      svg += _pcSvgConnection(sx, y1, sx, y2, _pcGetConnType(pc, sat.key, sat.meta));
+      svg += _pcSvgDevice(sat, sx, sy, { iconSize: 46, labelMaxLen: 12 });
+    });
+  });
 
   // ── 凡例 ──
   var usedConnTypes = {};
