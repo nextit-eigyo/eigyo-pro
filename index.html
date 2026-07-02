@@ -14764,6 +14764,30 @@ function _mergeLocalDealChanges(remote) {
   } catch(e) { console.warn('[EIGYO PRO] 案件マージ失敗', e); return 0; }
 }
 // 受信適用の共通処理(リスナーと復帰時soft再同期の両方から呼ぶ)。
+// 🖥 機器マスタの受信時マージ(操作ログと同様: D=remote で丸ごと置換されても
+//   ローカル未同期の登録が消えないよう remote と union する)。
+//   remote優先で並べ、ローカル分を後ろに追加。name|model|maker で重複排除。数字には無関係。
+function _mergeEquipMaster(local, remote) {
+  var CATS = ['printer','pc','reseco','yakureki','onshikaku','router','hub','other'];
+  function norm(v){ return (v==null?'':String(v)).trim(); }
+  function key(e){ return norm(e&&e.name)+'|'+norm(e&&e.model)+'|'+norm(e&&e.maker); }
+  function toArr(x){ return Array.isArray(x) ? x.slice()
+    : (x && typeof x==='object' ? Object.keys(x).sort(function(a,b){return (a-b)||0;}).map(function(k){return x[k];}) : []); }
+  var out = {}, L = local || {}, R = remote || {};
+  CATS.forEach(function(c){
+    var seen = {}, arr = [];
+    toArr(R[c]).concat(toArr(L[c])).forEach(function(e){
+      if (!e || typeof e!=='object') return;
+      var k = key(e);
+      if (seen[k]) return;
+      seen[k] = 1;
+      arr.push({ name:norm(e.name), model:norm(e.model), maker:norm(e.maker) });
+    });
+    out[c] = arr;
+  });
+  return out;
+}
+
 function _fbApplyRemote(remote, remoteTs) {
   if (remote.deals && !Array.isArray(remote.deals)) {
     remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
@@ -14789,6 +14813,8 @@ function _fbApplyRemote(remote, remoteTs) {
   } catch(e){}
   // ⭐ 操作ログは union マージ(受信時に D=remote で自分のローカル項目=他PCが未受信のログイン記録を消さないように)
   try { remote.auditLog = _mergeAuditLog(D && D.auditLog, remote.auditLog); } catch(e){}
+  // 🖥 機器マスタ: 受信時に union マージ(ローカル未同期の登録が D=remote で消えないように)
+  try { remote.equipMaster = _mergeEquipMaster(D && D.equipMaster, remote.equipMaster); } catch(e){}
   D = remote;
   _localSave({preserveTs:true});
   FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
@@ -14870,7 +14896,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-14'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-15'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -15008,6 +15034,7 @@ function fbStartSync() {
         if (remote.deals && !Array.isArray(remote.deals)) {
           remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
         }
+        try { remote.equipMaster = _mergeEquipMaster(D && D.equipMaster, remote.equipMaster); } catch(e){}
         D = remote;
         _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
         FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
