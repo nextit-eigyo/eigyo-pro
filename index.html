@@ -4953,7 +4953,7 @@ function clearAllData(){_autoBackup('before_reset');D=initD();save();rebuildAll(
 // 過去の事故(2026-05-29: 受注実績を再計算で全社の数字が大幅低下→JSONバック
 // アップから手動復元するハメに)を再発させないための仕組み。
 var _AUTOBACKUP_KEY_PREFIX = 'eigyo_autobackup_';
-var _AUTOBACKUP_MAX = 10;
+var _AUTOBACKUP_MAX = 6;
 
 function _autoBackup(reason) {
   try {
@@ -4975,20 +4975,24 @@ function _autoBackup(reason) {
 
 function _trimAutoBackups(keepN) {
   try {
-    var keys = [];
+    var _BUDGET = 1600 * 1024; // 自動バックアップ合計サイズの上限(約1.6MB)。localStorage全体(約5MB)を圧迫させない
+    var arr = [];
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
-      if (k && k.indexOf(_AUTOBACKUP_KEY_PREFIX) === 0) keys.push(k);
+      if (k && k.indexOf(_AUTOBACKUP_KEY_PREFIX) === 0) {
+        arr.push({ k: k, ts: parseInt((k.split('_')[2]) || '0'), sz: (localStorage.getItem(k) || '').length });
+      }
     }
-    // キー先頭の ts が大きいほど新しい → 古い順にソートして先頭から削除
-    keys.sort(function(a, b) {
-      var ta = parseInt(a.split('_')[2] || '0');
-      var tb = parseInt(b.split('_')[2] || '0');
-      return ta - tb;
-    });
-    while (keys.length > keepN) {
-      var oldest = keys.shift();
-      localStorage.removeItem(oldest);
+    arr.sort(function(a, b) { return b.ts - a.ts; }); // 新しい順
+    // 新しい方から、個数(keepN)と合計サイズ(_BUDGET)の両上限を満たす分だけ残し、残り(古い方)は削除。最低1件は残す。
+    var kept = 0, cum = 0;
+    for (var j = 0; j < arr.length; j++) {
+      var over = (kept >= keepN) || (kept >= 1 && (cum + arr[j].sz) > _BUDGET);
+      if (over) {
+        try { localStorage.removeItem(arr[j].k); } catch(e2){}
+      } else {
+        kept++; cum += arr[j].sz;
+      }
     }
   } catch(e) {
     console.warn('古いバックアップ削除失敗:', e);
@@ -7326,7 +7330,25 @@ function _localSave(opts){
   if (!opts || !opts.preserveTs) {
     D._ts = Date.now();
   }
-  try { localStorage.setItem(skey(), JSON.stringify(D)); } catch(e) {}
+  var _json;
+  try { _json = JSON.stringify(D); } catch(e){ console.warn('[EIGYO PRO] JSON化失敗', e); return; }
+  try { localStorage.setItem(skey(), _json); return; } catch(e) {
+    // ⚠ localStorage容量超過(quota)。古い自動バックアップを新しい方を残して1件ずつ削り、都度再試行。
+    //   これをしないと setItem が静かに失敗し「編集がリロードで消える」事故になる
+    //   (2026-07-02: 機器マスタ消失の真因=自動バックアップ肥大でlocalStorage満杯)。
+    //   Firebaseへは別途保存されるが、localStorageも必ず更新して初期表示のズレを防ぐ。
+    try {
+      var _backs = [];
+      for (var _i=0; _i<localStorage.length; _i++){ var _k=localStorage.key(_i); if(_k && _k.indexOf('eigyo_autobackup_')===0) _backs.push(_k); }
+      _backs.sort(function(a,b){ var ma=a.match(/autobackup_(\d+)/), mb=b.match(/autobackup_(\d+)/); return (ma?+ma[1]:0)-(mb?+mb[1]:0); }); // 古い順
+      for (var _j=0; _j<_backs.length; _j++){
+        try { localStorage.removeItem(_backs[_j]); } catch(e2){}
+        try { localStorage.setItem(skey(), _json); console.warn('[EIGYO PRO] localStorage容量超過→古い自動バックアップ'+(_j+1)+'件整理で保存成功'); return; } catch(e3){}
+      }
+      console.error('[EIGYO PRO] localStorage保存不可(容量超過・バックアップ整理後も)');
+      if (typeof _showToast==='function') _showToast('⚠️ ローカルの空き容量が不足しています(Firebaseには保存済)。設定→データ管理で不要なバックアップの整理をご検討ください', 'warn', 9000);
+    } catch(ePrune){ console.error('[EIGYO PRO] 容量整理失敗', ePrune); }
+  }
 }
 
 function save(){
@@ -14896,7 +14918,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-16'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-17'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
