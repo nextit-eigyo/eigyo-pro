@@ -23208,7 +23208,8 @@ function openOptionPanel(dealId, btn) {
 
   var panel = document.createElement('div');
   panel.id = 'opt-panel-' + dealId;
-  panel.style.cssText = 'position:absolute;z-index:4000;background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:220px;max-height:280px;overflow-y:auto;margin-top:4px';
+  // ⭐ position:fixed でビューポート基準に配置(下部で見切れてスクロールできない問題対策)
+  panel.style.cssText = 'position:fixed;z-index:4000;background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);width:240px;overflow-y:auto;-webkit-overflow-scrolling:touch';
 
   var title = document.createElement('div');
   title.style.cssText = 'font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px';
@@ -23258,18 +23259,38 @@ function openOptionPanel(dealId, btn) {
   footer.appendChild(closeBtn);
   panel.appendChild(footer);
 
-  // ボタンの下に配置
-  btn.parentNode.style.position = 'relative';
-  btn.parentNode.appendChild(panel);
+  // ⭐ ビューポート基準で配置し、画面内に収める(下が見切れてスクロール不能になる問題対策)
+  document.body.appendChild(panel);
+  var rect = btn.getBoundingClientRect();
+  var margin = 8;
+  var spaceBelow = window.innerHeight - rect.bottom - margin;
+  var spaceAbove = rect.top - margin;
+  var placeAbove = spaceBelow < 220 && spaceAbove > spaceBelow;  // 下が狭ければ上へ反転
+  var avail = placeAbove ? spaceAbove : spaceBelow;
+  panel.style.maxHeight = Math.max(140, Math.min(320, avail)) + 'px';
+  // 横位置: ボタン左端に合わせつつ右端がはみ出さないようにクランプ
+  var left = Math.min(rect.left, window.innerWidth - 240 - margin);
+  panel.style.left = Math.max(margin, left) + 'px';
+  if (placeAbove) {
+    panel.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    panel.style.top = 'auto';
+  } else {
+    panel.style.top = (rect.bottom + 4) + 'px';
+    panel.style.bottom = 'auto';
+  }
 
-  // 外クリックで閉じる
+  // 外クリック・スクロールで閉じる(fixed配置なのでスクロール追従させず閉じる)
   setTimeout(function() {
-    document.addEventListener('click', function closePanel(e) {
-      if (!panel.contains(e.target) && e.target !== btn) {
-        panel.remove();
-        document.removeEventListener('click', closePanel);
-      }
-    });
+    function closePanel(e) {
+      if (e && e.type === 'click' && (panel.contains(e.target) || e.target === btn)) return;
+      // パネル内部(overflow-y)のスクロールでは閉じない
+      if (e && e.type === 'scroll' && panel.contains(e.target)) return;
+      panel.remove();
+      document.removeEventListener('click', closePanel, true);
+      window.removeEventListener('scroll', closePanel, true);
+    }
+    document.addEventListener('click', closePanel, true);
+    window.addEventListener('scroll', closePanel, true);  // 親コンテナのスクロールも捕捉
   }, 10);
 }
 
