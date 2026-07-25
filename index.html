@@ -2463,6 +2463,7 @@ body.has-sidepanel #home-deal-mode {
     <!-- メインナビ(数字〜KPT)をヘッダーに配置。レポートは「紹介拠点」と「KPT」の間・見た目は数字タブと統一 -->
     <button id="subtab-num"  class="sub-tab" style="display:none" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('num')"><span class="st-ic">📊</span><span class="st-lab">ダッシュボード</span></button>
     <button id="subtab-meeting" class="sub-tab" onclick="showTab('meeting',this)"><span class="st-ic">📈</span><span class="st-lab">予実管理</span></button>
+    <button id="subtab-present" class="sub-tab" onclick="showTab('present',this)"><span class="st-ic">🖥</span><span class="st-lab">プレゼン</span></button>
     <button id="subtab-deal" class="sub-tab" onclick="showTab('deals',this);if(typeof setHomeMode==='function')setHomeMode('deal');if(typeof _autoSelectMyDeals==='function')_autoSelectMyDeals()"><span class="st-ic">🎯</span><span class="st-lab">案件</span></button>
     <button id="subtab-yoy" class="sub-tab" onclick="showTab('yoy',this)"><span class="st-ic">🔄</span><span class="st-lab">前年比較</span></button>
     <button id="subtab-activity" class="sub-tab" onclick="showTab('actuals',this);if(typeof setActMainTab==='function')setActMainTab('activity')"><span class="st-ic">📞</span><span class="st-lab">営業活動量</span></button>
@@ -2791,6 +2792,11 @@ body.has-sidepanel #home-deal-mode {
 <!-- ════════════════ MEETING (営業会議レポート) ════════════════ -->
 <div id="tab-meeting" class="sec">
   <div id="meeting-body"></div>
+</div>
+
+<!-- ════════════════ プレゼンモード (会議用大画面) ════════════════ -->
+<div id="tab-present" class="sec">
+  <div id="present-body"></div>
 </div>
 
 <!-- ════════════════ 前年比較 (YoY) ════════════════ -->
@@ -8720,6 +8726,142 @@ function _johoPrintGo(){
 }
 
 // ════════════════════════════════════════════════════════
+// 🖥 プレゼンモード（会議用・大画面）: 当月/翌月の売上・粗利＋内訳(受注薬局)＋未達達成策(確度加重見込み)
+//   数字は既存の集計関数(getActualValue/getBudgetValue)と確度加重(getProbDef.weight)を再利用=予実/着地見込みと一致。読取専用。
+// ════════════════════════════════════════════════════════
+var _presScope = null, _presMonth = 'now';
+var _presML = ['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+function _presInjectCss(){
+  if(document.getElementById('pv-css')) return;
+  var s=document.createElement('style'); s.id='pv-css';
+  s.textContent='#present-body{--pvok:#4f7a3a;--pvng:#a5493a;--pvokbg:#e7f0dc;--pvngbg:#f6e2dc}'
+   +'.pv-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}'
+   +'.pv-seg{font-family:inherit;font-weight:900;font-size:17px;padding:9px 16px;border:2px solid var(--bd);background:#fff;color:var(--tx2);border-radius:11px;cursor:pointer}'
+   +'.pv-seg.on{background:var(--acc);border-color:var(--acc);color:#fff}'
+   +'.pv-br{font-family:inherit;font-weight:800;font-size:15px;padding:7px 13px;border:2px solid var(--bd);background:#fff;color:var(--tx2);border-radius:10px;cursor:pointer}'
+   +'.pv-br.on{background:#b3823f;border-color:#b3823f;color:#fff}'
+   +'.pv-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}'
+   +'.pv-who{font-size:32px;font-weight:900;color:var(--tx)}'
+   +'.pv-mo{font-size:20px;font-weight:900;color:#fff;background:var(--acc);border-radius:9px;padding:4px 14px}.pv-mo.next{background:#b3823f}'
+   +'.pv-tag{font-size:16px;font-weight:900;border-radius:999px;padding:4px 14px}.pv-tag.ok{background:var(--pvokbg);color:var(--pvok)}.pv-tag.ng{background:var(--pvngbg);color:var(--pvng)}'
+   +'.pv-kpis{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}@media(max-width:820px){.pv-kpis{grid-template-columns:1fr}}'
+   +'.pv-kpi{background:var(--s1,#fffdf8);border:2px solid var(--bd);border-radius:16px;padding:18px 22px}'
+   +'.pv-kpi .l{font-size:21px;font-weight:900;color:var(--tx2)}'
+   +'.pv-kpi .big{font-size:58px;font-weight:900;line-height:1.05;color:var(--tx)}.pv-kpi .big small{font-size:24px;color:var(--tx3)}'
+   +'.pv-kpi .bud{font-size:18px;font-weight:700;color:var(--tx2)}'
+   +'.pv-g{height:20px;border-radius:999px;background:#efe9dd;border:1px solid var(--bd);overflow:hidden;margin:10px 0}.pv-g>i{display:block;height:100%;border-radius:999px}.pv-g>i.ok{background:linear-gradient(90deg,#6f9a52,#4f7a3a)}.pv-g>i.ng{background:linear-gradient(90deg,#c56a58,#a5493a)}'
+   +'.pv-rate{display:flex;align-items:baseline;gap:12px}.pv-rate .p{font-size:46px;font-weight:900}.pv-rate .d{font-size:22px;font-weight:900}.pv-rate .ok,.pv-goal.ok{color:var(--pvok)}.pv-rate .ng{color:var(--pvng)}'
+   +'.pv-sec{background:var(--s1,#fffdf8);border:2px solid var(--bd);border-radius:16px;padding:16px 20px;margin-bottom:14px}'
+   +'.pv-st{font-size:22px;font-weight:900;margin-bottom:10px;color:var(--tx)}'
+   +'.pv-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 4px;border-top:2px solid var(--bds);font-size:21px}.pv-row:first-of-type{border-top:none}'
+   +'.pv-row .nm{font-weight:900;color:var(--tx)}.pv-row .amt{font-weight:900;color:var(--pvok);white-space:nowrap}'
+   +'.pv-pill{display:inline-block;font-size:14px;font-weight:900;border-radius:999px;padding:2px 10px;margin-right:8px}'
+   +'.pv-plan{background:#fff8f3;border:2px solid #e6c3b3}.pv-plan .pv-st{color:var(--pvng)}'
+   +'.pv-prow{display:flex;align-items:center;gap:12px;padding:11px 4px;border-top:2px solid #f0ddd3;font-size:20px}.pv-prow:first-of-type{border-top:none}'
+   +'.pv-prow .c{font-size:15px;font-weight:900;border-radius:8px;padding:3px 10px;color:#fff;white-space:nowrap}.pv-prow .nm{font-weight:900;flex:1;color:var(--tx)}.pv-prow .amt{font-weight:900;color:var(--acc);white-space:nowrap}'
+   +'.pv-goal{margin-top:12px;border-radius:11px;padding:12px 15px;font-size:20px;font-weight:900;line-height:1.5}.pv-goal.ok{background:var(--pvokbg);border:2px solid #bcd0a3}.pv-goal.ng{background:var(--pvngbg);border:2px solid #e0b3a6;color:var(--pvng)}'
+   +'#tab-present:fullscreen{background:var(--bg);overflow:auto;padding:22px}';
+  document.head.appendChild(s);
+}
+function _presSelScope(s){ _presScope=s; renderPresent(); }
+function _presSetMonth(m){ _presMonth=m; renderPresent(); }
+function _presFs(){ var el=document.getElementById('tab-present'); try{ if(!document.fullscreenElement){ if(el&&el.requestFullscreen) el.requestFullscreen(); } else if(document.exitFullscreen){ document.exitFullscreen(); } }catch(e){} }
+function _presDeals(scope, mi){
+  var isPerson=(typeof _mtScopeIsPerson==='function')&&_mtScopeIsPerson(scope);
+  var branches=(typeof _mtScopeBranches==='function')?_mtScopeBranches(scope):[];
+  var pid2br={}; (D.people||[]).forEach(function(p){ pid2br[p.id]=p.branch; });
+  var won=[], pipe=[];
+  (D.deals||[]).forEach(function(d){
+    if(!d) return;
+    var dmi=(typeof implToFyIdx==='function')?implToFyIdx(d.deliveryMonth):-1;
+    if(dmi!==mi) return;
+    if(isPerson){ if(d.spId!==scope || d.category==='グループ薬局') return; }
+    else { var br=(d.category==='グループ薬局')?(d.groupBranch||pid2br[d.spId]):pid2br[d.spId]; if(branches.indexOf(br)<0) return; }
+    var sv=parseFloat(d.sales)||0, cv=parseFloat(d.cost)||0, ar=sv-cv;
+    if(_countsAsWon(d)){ won.push({nm:d.name,cat:d.category,ara:ar}); return; }
+    var prob=getProb(d);
+    if(prob>=2 && prob<5){ var def=getProbDef(prob); pipe.push({nm:d.name,label:def.label,color:def.color,weight:def.weight,prob:prob,exp:Math.round(ar*def.weight/100)}); }
+  });
+  won.sort(function(a,b){ return b.ara-a.ara; });
+  pipe.sort(function(a,b){ return (b.prob-a.prob)||(b.exp-a.exp); });
+  return {won:won, pipe:pipe};
+}
+function renderPresent(){
+  _presInjectCss();
+  var body=document.getElementById('present-body'); if(!body) return;
+  if(_presScope==null) _presScope=(typeof _mtDefaultScope==='function')?_mtDefaultScope():'all';
+  var now=new Date(), nm=now.getMonth()+1; var curMi=(nm>=4)?nm-4:nm+8; var nextMi=Math.min(11,curMi+1);
+  var mi=(_presMonth==='now')?curMi:nextMi;
+  var target=_mtScopeTarget(_presScope);
+  var f=(typeof _mtFmtNum==='function')?_mtFmtNum:function(n){ return Math.round(n).toLocaleString('ja-JP'); };
+  var scLabel=(typeof _mtScopeLabel==='function')?_mtScopeLabel(_presScope):String(_presScope);
+  var yr=(typeof fy!=='undefined')?fy:now.getFullYear(); var calYr=(mi<=8)?yr:yr+1;
+  var actS=Math.round(getActualValue(target,'s',mi)), budS=Math.round(getBudgetValue(target,'s',mi));
+  var actP=Math.round(getActualValue(target,'p',mi)), budP=Math.round(getBudgetValue(target,'p',mi));
+  var pctP=budP>0?Math.round(actP/budP*100):0; var okP=pctP>=100;
+  var dd=_presDeals(_presScope, mi);
+  var wonAraSum=dd.won.reduce(function(a,w){ return a+w.ara; },0);
+  var remainderP=actP-wonAraSum;
+  function kpi(lbl,act,bud){
+    var pct=bud>0?Math.round(act/bud*100):0; var ok=pct>=100; var diff=act-bud; var w=Math.max(3,Math.min(100,pct));
+    return '<div class="pv-kpi"><div class="l">'+lbl+'</div><div class="big">'+f(act)+'<small> 千</small></div>'
+      +'<div class="bud">予算 '+f(bud)+' 千</div>'
+      +'<div class="pv-g"><i class="'+(ok?'ok':'ng')+'" style="width:'+w+'%"></i></div>'
+      +'<div class="pv-rate"><span class="p '+(ok?'ok':'ng')+'">'+pct+'%</span><span class="d '+(ok?'ok':'ng')+'">'+(diff>=0?'▲ 達成 +'+f(diff):'▼ 未達 '+f(-diff))+' 千</span></div></div>';
+  }
+  var h='';
+  // コントロール
+  h+='<div class="pv-ctrl">';
+  var brs=[{k:'all',lbl:'🌐 全社'}];
+  ((typeof getBranchMaster==='function')?getBranchMaster():(D.branchMaster||[])).forEach(function(b){ if(b&&b.name) brs.push({k:'branch_'+b.name,lbl:b.name}); });
+  brs.forEach(function(b){ h+='<button class="pv-br'+(_presScope===b.k?' on':'')+'" onclick="_presSelScope(\''+b.k+'\')">'+_esc(b.lbl)+'</button>'; });
+  h+='<span style="flex:1"></span>';
+  h+='<button class="pv-seg'+(_presMonth==='now'?' on':'')+'" onclick="_presSetMonth(\'now\')">📅 当月（'+_presML[curMi]+'）</button>';
+  h+='<button class="pv-seg'+(_presMonth==='next'?' on':'')+'" onclick="_presSetMonth(\'next\')">➡️ 翌月（'+_presML[nextMi]+'）</button>';
+  h+='<button class="pv-seg" onclick="_presFs()">🖥 全画面</button>';
+  h+='</div>';
+  // 見出し
+  h+='<div class="pv-head"><span class="pv-who">'+_esc(scLabel)+'</span>'
+    +'<span class="pv-mo'+(_presMonth==='next'?' next':'')+'">'+calYr+'年 '+_presML[mi]+(_presMonth==='next'?'（翌月）':'（当月）')+'</span>'
+    +'<span class="pv-tag '+(okP?'ok':'ng')+'">'+(okP?'✅ 予算達成':'⚠️ 未達（対策必要）')+'</span></div>';
+  // 大数字
+  h+='<div class="pv-kpis">'+kpi('💰 売上',actS,budS)+kpi('📊 粗利',actP,budP)+'</div>';
+  // 内訳(受注薬局)
+  h+='<div class="pv-sec"><div class="pv-st">🏪 内訳（受注した薬局）</div>';
+  if(dd.won.length){
+    dd.won.forEach(function(w){
+      var pc=(w.cat==='グループ薬局')?'#eae3f0;color:#6b5a85':'#e7eef6;color:#46627f';
+      h+='<div class="pv-row"><div class="nm"><span class="pv-pill" style="background:'+pc+'">'+_esc((w.cat||'案件').slice(0,4))+'</span>'+_esc(w.nm||'')+'</div><div class="amt">粗利 +'+f(w.ara)+'</div></div>';
+    });
+  } else {
+    h+='<div style="font-size:19px;color:var(--tx3);padding:6px 4px">受注済み(確度5)の案件はまだありません</div>';
+  }
+  if(remainderP>=1){
+    h+='<div class="pv-row"><div class="nm"><span class="pv-pill" style="background:#f1ece0;color:#8c7a52">保守/取込</span>保守料・その他ほか</div><div class="amt">粗利 +'+f(remainderP)+'</div></div>';
+  }
+  h+='</div>';
+  // 未達なら達成策
+  if(!okP){
+    var gapP=budP-actP;
+    h+='<div class="pv-sec pv-plan"><div class="pv-st">🎯 未達 ▼'+f(gapP)+'千 をどう埋めるか（進行中の見込み・確度加重）</div>';
+    if(dd.pipe.length){
+      dd.pipe.forEach(function(p){
+        h+='<div class="pv-prow"><span class="c" style="background:'+p.color+'">'+_esc(p.label)+' '+p.weight+'%</span><span class="nm">'+_esc(p.nm||'')+'</span><span class="amt">見込 +'+f(p.exp)+'</span></div>';
+      });
+      var sumExp=dd.pipe.reduce(function(a,p){ return a+p.exp; },0);
+      var enough=sumExp>=gapP;
+      h+='<div class="pv-goal '+(enough?'ok':'ng')+'">'+(enough
+        ? '➡ 見込み合計 +'+f(sumExp)+'千（確度加重）。未達 ▼'+f(gapP)+'千 に対し <b>これらが決まれば達成</b>。'
+        : '➡ 見込み合計 +'+f(sumExp)+'千では、未達 ▼'+f(gapP)+'千 に <b>あと '+f(gapP-sumExp)+'千 不足</b>。追加の商談発掘が必要。')+'</div>';
+    } else {
+      h+='<div class="pv-goal ng">➡ 進行中の見込み案件がありません。未達 ▼'+f(gapP)+'千 は新規の商談発掘で埋める必要があります。</div>';
+    }
+    h+='</div>';
+  }
+  body.innerHTML=h;
+}
+
+// ════════════════════════════════════════════════════════
 // 🗂 ④ 担当者カルテ(管理職向け・1on1/評価支援)
 //   予実/前年比/活動量/新規軒数/月次推移/強み・課題を1枚に。役割で閲覧範囲を制御。
 // ════════════════════════════════════════════════════════
@@ -12334,6 +12476,7 @@ function showTab(name,btn){
   if(name==='report'){initRptCtrl();renderReport();}
   if(name==='referral'){ensureReferrals();renderRefPtabs();renderReferrals();}
   if(name==='meeting'){renderMeeting();}
+  if(name==='present'){renderPresent();}
   if(name==='import')initImportCtrl();
   if(name==='furikaeri'){initFurikaeriCtrl();renderFurikaeri();}
   if(name==='yoy'){renderYoy();}
@@ -13308,6 +13451,7 @@ function _syncTopGroupUI(name) {
     yoy: 'subtab-yoy',
     news: 'subtab-news',
     joho: 'subtab-joho',
+    present: 'subtab-present',
     tasks: 'subtab-tasks',
     referral: 'subtab-referral'
   };
@@ -14942,7 +15086,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-36'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-36=「未同期だった案件を保護しました」トーストを30秒に1回まで連発防止(多PC同時接続＋一斉リロードで通知が画面に積み上がる問題)。保護処理自体は毎回実行・表示のみ・集計非干渉。-10-35=【Phase3・同期コア】stale保存ブロック時でも「自分が編集した拠点のbranchActuals(実績)」を拠点別パスで書く(他拠点を踏まない)=別PCが新しいだけでExcelインポートがサーバに届かず消える問題(福岡8月2026-07)を根治。通常時(writeRest=true)は完全に同挙動・stale時のみ実績を書き足す＋書いた拠点だけbaseline更新。-10-16のequipMaster同手法をbranchActualsに適用。-10-34=Pages再デプロイ(前回-10-33のdeploy工程がGitHub側のtry-again-laterで失敗したため再トリガー・機能は同じ=予実表mt-sumの数字拡大)。-10-33=予実管理(営業会議タブ)の表mt-sumの数字を拡大=WEB会議の画面共有で見やすく: 数字18→23px・計行20→28px・計ラベル18→22px・td.lbl18→21px・th15→17px・差異バッジ11→13px。表示のみ・集計非干渉。-10-32=構成図ネットワーク図【自由配置Phase3:文字編集】: 「✏文字を編集」モードで機器クリック→名称/型番をprompt編集(pc._labels[key]={name,model}で上書き・空欄で自動に戻す)。_pcDevLabel/_pcDevSubで描画・高さ計算に反映。「🔄文字」でリセット。移動/線編集/文字編集の3モード排他。表示のみ・集計非干渉。-10-31=構成図ネットワーク図【自由配置Phase2:線の手動接続】: 「🔗線を編集」モードで機器を2つクリックで接続(pc._links)・線クリックで削除(手動は_links/自動は_hideLinks)。全機器の最終座標を_devPosに記録し手動線を機器中心間で描画・透明ヒット線でクリック容易化・「線リセット」で初期化。表示のみ・集計非干渉。-10-30=構成図ネットワーク図に【自由配置Phase1】: 機器をドラッグで移動(pc._layout[key]={x,y}保存=自動配置を上書き・線も追従・全ゾーン対応)。「🔄自動配置に戻す」ボタン＋案内。座標変換はviewBox+getBoundingClientRect(CSS zoom対応)。Phase2で線の手動接続予定。表示のみ・集計非干渉。-10-29=構成図ネットワーク図: オン資端末↔YAMAHAルーターのペアリング判定を完全一致(r.type==='YAMAHA')→部分一致(/YAMAHA/i)に修正。種別が「YAMAHA_NVR510」等の派生名でもオン資端末が原則YAMAHAルーターに接続表示(従来は中央HUB直下に浮いていた)。無線も部分一致化。表示のみ・集計非干渉。-10-28=構成図に「既存(流用)」機能: 全機器の編集行に既存チェック追加(.existing)。ネットワーク図/アイコン一覧で既存機器を点線枠＋緑「既存」バッジ表示(SVGはd.meta.existingも参照=オン資↔YAMAHAルーター等の子機器も対応)。※オン資端末↔YAMAHAルーター接続は台数1で従来から自動表示。表示のみ・集計非干渉。-10-27=ネットワーク図の文字を拡大: 機器名11→13/型番9→10/トレイ詳細8.5→13(＋行間12→15・下部ゾーン高さ260→320・_pcDeviceBlockHeightを連動調整して重なり防止)。表示のみ・集計非干渉。-10-26=構成図アイコン一覧の印刷を1枚に圧縮(印刷時フォント/余白/セクション間を縮小)＋@page margin:0でブラウザ既定ヘッダー/フッター(日付/タイトル/URL/ページ番号)を抑制(余白は.pc-diagram内側paddingで確保)。※ブラウザの「ヘッダーとフッター」設定ONだと出るのでOFF案内。表示のみ・集計非干渉。-10-25=アイコン一覧の文字が大きすぎたためバランス調整: 機器名18pt→16px・型番15pt→11px・トレイ22px→14px・カード幅も縮小。階層=機器名>トレイ>型番。表示のみ・集計非干渉。-10-24=アイコン一覧の文字を全体統一: 機器名(.pc-icon-label/.pc-printer-name)=18pt・型番/サブラベル(.pc-icon-sublabel/.pc-printer-model)=15pt。端末カードとプリンタカードで統一＋カード幅拡張。表示のみ・集計非干渉。-10-23=構成図: ①各機器(サーバー/レセコン/薬歴/オン資/ルーター/HUB/プリンタ/その他)の行に備考欄(.note)を追加(編集画面・保存対応・_pcMigrateは非破壊なので保持)。②アイコン一覧のプリンタのトレイ用途文字を大幅拡大(11px→22px)＋カード幅拡張(220→380)。表示/編集のみ・集計非干渉。-10-22=構成図ネットワーク図: 親機の付随機器(satellite)を縦積み→【横並び】に変更(縦だと重なり窮屈だったため)。親のcx中心に横方向へ並べ各機器から親へ線接続・確保する高さも1段分に。表示のみ・集計非干渉。-10-21=構成図: その他周辺機器に「接続先(親機器)」欄を追加(サーバー/レセコン/薬歴端末/プリンタから選択)。ネットワーク図で親指定のある周辺機器を親機にぶら下げて線で接続(server=上・レセコン等bottom系=下にsatellite描画・図の高さを自動確保)。親未指定は従来通り上部HUB直結。表示のみ・集計非干渉。-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-37'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-37=🖥プレゼンモード追加(会議用大画面・サブタブ): 拠点×当月/翌月で 売上・粗利の実績/予算/達成率(特大・ゲージ)＋内訳(受注薬局)＋未達時の達成策(進行中案件の確度加重見込み・着地見込みと同ロジック)。全画面ボタン。既存集計関数(getActualValue/getBudgetValue/getProbDef)を再利用=数字は予実表と一致。読取専用・集計非干渉。-10-36=「未同期だった案件を保護しました」トーストを30秒に1回まで連発防止(多PC同時接続＋一斉リロードで通知が画面に積み上がる問題)。保護処理自体は毎回実行・表示のみ・集計非干渉。-10-35=【Phase3・同期コア】stale保存ブロック時でも「自分が編集した拠点のbranchActuals(実績)」を拠点別パスで書く(他拠点を踏まない)=別PCが新しいだけでExcelインポートがサーバに届かず消える問題(福岡8月2026-07)を根治。通常時(writeRest=true)は完全に同挙動・stale時のみ実績を書き足す＋書いた拠点だけbaseline更新。-10-16のequipMaster同手法をbranchActualsに適用。-10-34=Pages再デプロイ(前回-10-33のdeploy工程がGitHub側のtry-again-laterで失敗したため再トリガー・機能は同じ=予実表mt-sumの数字拡大)。-10-33=予実管理(営業会議タブ)の表mt-sumの数字を拡大=WEB会議の画面共有で見やすく: 数字18→23px・計行20→28px・計ラベル18→22px・td.lbl18→21px・th15→17px・差異バッジ11→13px。表示のみ・集計非干渉。-10-32=構成図ネットワーク図【自由配置Phase3:文字編集】: 「✏文字を編集」モードで機器クリック→名称/型番をprompt編集(pc._labels[key]={name,model}で上書き・空欄で自動に戻す)。_pcDevLabel/_pcDevSubで描画・高さ計算に反映。「🔄文字」でリセット。移動/線編集/文字編集の3モード排他。表示のみ・集計非干渉。-10-31=構成図ネットワーク図【自由配置Phase2:線の手動接続】: 「🔗線を編集」モードで機器を2つクリックで接続(pc._links)・線クリックで削除(手動は_links/自動は_hideLinks)。全機器の最終座標を_devPosに記録し手動線を機器中心間で描画・透明ヒット線でクリック容易化・「線リセット」で初期化。表示のみ・集計非干渉。-10-30=構成図ネットワーク図に【自由配置Phase1】: 機器をドラッグで移動(pc._layout[key]={x,y}保存=自動配置を上書き・線も追従・全ゾーン対応)。「🔄自動配置に戻す」ボタン＋案内。座標変換はviewBox+getBoundingClientRect(CSS zoom対応)。Phase2で線の手動接続予定。表示のみ・集計非干渉。-10-29=構成図ネットワーク図: オン資端末↔YAMAHAルーターのペアリング判定を完全一致(r.type==='YAMAHA')→部分一致(/YAMAHA/i)に修正。種別が「YAMAHA_NVR510」等の派生名でもオン資端末が原則YAMAHAルーターに接続表示(従来は中央HUB直下に浮いていた)。無線も部分一致化。表示のみ・集計非干渉。-10-28=構成図に「既存(流用)」機能: 全機器の編集行に既存チェック追加(.existing)。ネットワーク図/アイコン一覧で既存機器を点線枠＋緑「既存」バッジ表示(SVGはd.meta.existingも参照=オン資↔YAMAHAルーター等の子機器も対応)。※オン資端末↔YAMAHAルーター接続は台数1で従来から自動表示。表示のみ・集計非干渉。-10-27=ネットワーク図の文字を拡大: 機器名11→13/型番9→10/トレイ詳細8.5→13(＋行間12→15・下部ゾーン高さ260→320・_pcDeviceBlockHeightを連動調整して重なり防止)。表示のみ・集計非干渉。-10-26=構成図アイコン一覧の印刷を1枚に圧縮(印刷時フォント/余白/セクション間を縮小)＋@page margin:0でブラウザ既定ヘッダー/フッター(日付/タイトル/URL/ページ番号)を抑制(余白は.pc-diagram内側paddingで確保)。※ブラウザの「ヘッダーとフッター」設定ONだと出るのでOFF案内。表示のみ・集計非干渉。-10-25=アイコン一覧の文字が大きすぎたためバランス調整: 機器名18pt→16px・型番15pt→11px・トレイ22px→14px・カード幅も縮小。階層=機器名>トレイ>型番。表示のみ・集計非干渉。-10-24=アイコン一覧の文字を全体統一: 機器名(.pc-icon-label/.pc-printer-name)=18pt・型番/サブラベル(.pc-icon-sublabel/.pc-printer-model)=15pt。端末カードとプリンタカードで統一＋カード幅拡張。表示のみ・集計非干渉。-10-23=構成図: ①各機器(サーバー/レセコン/薬歴/オン資/ルーター/HUB/プリンタ/その他)の行に備考欄(.note)を追加(編集画面・保存対応・_pcMigrateは非破壊なので保持)。②アイコン一覧のプリンタのトレイ用途文字を大幅拡大(11px→22px)＋カード幅拡張(220→380)。表示/編集のみ・集計非干渉。-10-22=構成図ネットワーク図: 親機の付随機器(satellite)を縦積み→【横並び】に変更(縦だと重なり窮屈だったため)。親のcx中心に横方向へ並べ各機器から親へ線接続・確保する高さも1段分に。表示のみ・集計非干渉。-10-21=構成図: その他周辺機器に「接続先(親機器)」欄を追加(サーバー/レセコン/薬歴端末/プリンタから選択)。ネットワーク図で親指定のある周辺機器を親機にぶら下げて線で接続(server=上・レセコン等bottom系=下にsatellite描画・図の高さを自動確保)。親未指定は従来通り上部HUB直結。表示のみ・集計非干渉。-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
