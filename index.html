@@ -3522,6 +3522,16 @@ body.has-sidepanel #home-deal-mode {
   <div id="karte-body"></div>
 </div>
 
+<!-- ════════ 🗺 未開拓マップ(新規開拓) ════════ -->
+<div id="tab-mikaitaku" class="sec">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:15px;font-weight:800">🗺 未開拓マップ</span>
+    <span id="mikaitaku-asof" style="font-size:11px;color:var(--tx3)"></span>
+    <div id="mikaitaku-scope" style="display:flex;gap:5px;flex-wrap:wrap;margin-left:auto"></div>
+  </div>
+  <div id="mikaitaku-body"></div>
+</div>
+
 <!-- ════════ 月次レポート ════════ -->
 <div id="tab-monthly" class="sec">
   <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
@@ -12546,6 +12556,7 @@ function showTab(name,btn){
   if(name==='news'){renderNews();}
   if(name==='joho'){renderJoho();}
   if(name==='karte'){renderKarte();}
+  if(name==='mikaitaku'){renderMikaitaku();}
 }
 
 // ════════════════════════════════════════════════════════
@@ -23395,6 +23406,159 @@ function _yakuPick(dealId, rowEl) {
   if (box) { box.style.display='none'; box.innerHTML=''; }
 }
 
+// ══════════════════════════════════════════════════════════════
+// 🗺 未開拓マップ(新規開拓) — 厚生局マスタ vs 当社案件で導入率/未開拓を可視化
+//    ・表示専用の追加ビュー。既存の数字・集計・保存には一切触れない。
+//    ・導入済み=受注(確度5) / 商談中=進行中(失注除く) / 未開拓=案件なし
+// ══════════════════════════════════════════════════════════════
+function _mikaiCity(addr) {
+  var a = String(addr||'').replace(/^(福岡|佐賀|長崎|熊本|大分|宮崎|鹿児島|沖縄)県/,'');
+  var m = a.match(/^(.+?市.+?区|.+?市|.+?郡.+?[町村])/);
+  return m ? m[1] : 'その他';
+}
+function _mikaiDealIndex() {
+  // 都道府県ごとに 受注(won)/商談中(active) の正規化薬局名セットを作る
+  var idx = {};
+  (D.deals||[]).forEach(function(d){
+    if (!d || !d.name) return;
+    if (lstat(d) === '失注') return;
+    var key = _yakuNorm(d.name); if (!key) return;
+    var pref = d.pref || '';
+    if (!idx[pref]) idx[pref] = { won:{}, active:{} };
+    if (getProb(d) === 5) idx[pref].won[key] = true;
+    else if (!idx[pref].won[key]) idx[pref].active[key] = true;
+  });
+  return idx;
+}
+function _mikaiSetScope(p){ window._mikaitakuScope = p; window._mikaitakuCity = ''; renderMikaitaku(); }
+function _mikaiSetCity(c){ window._mikaitakuCity = (window._mikaitakuCity === c ? '' : c); renderMikaitaku(); }
+function _mikaiCard(label, val, bg, col){
+  return '<div style="background:'+bg+';border-radius:9px;padding:11px 13px">' +
+    '<div style="font-size:12px;color:'+(col==='var(--tx)'?'var(--tx3)':col)+'">'+label+'</div>' +
+    '<div style="font-size:22px;font-weight:800;color:'+col+'">'+val+'</div></div>';
+}
+function _mikaiBar(name, total, won, active, onclick){
+  var rate = total ? won/total*100 : 0, pct = Math.round(rate);
+  var apct = total ? Math.round((won+active)/total*100) : 0;
+  var col = rate < 3 ? ['#fcebeb','#a32d2d'] : rate < 6 ? ['#faeeda','#854f0b'] : ['#eaf3de','#3b6d11'];
+  return '<div onclick="'+onclick+'" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0" onmouseover="this.style.opacity=.75" onmouseout="this.style.opacity=1">' +
+    '<div style="width:150px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_esc(name)+'</div>' +
+    '<div style="flex:1;height:20px;background:#f1efe8;border-radius:4px;overflow:hidden;position:relative;min-width:60px">' +
+      '<div style="position:absolute;left:0;top:0;height:100%;width:'+apct+'%;background:#cfe0ef"></div>' +
+      '<div style="position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:#97c459"></div></div>' +
+    '<div style="width:104px;text-align:right;font-size:12px;color:var(--tx3)">導入'+won+' / 全'+total+'</div>' +
+    '<div style="width:56px;text-align:right;font-size:13px;font-weight:700;background:'+col[0]+';color:'+col[1]+';padding:3px 8px;border-radius:6px">'+rate.toFixed(1)+'%</div>' +
+    '</div>';
+}
+function renderMikaitaku() {
+  var body = document.getElementById('mikaitaku-body'); if (!body) return;
+  if (!window._mikaitakuScope) window._mikaitakuScope = '福岡';
+  var scope = window._mikaitakuScope;
+  // 都道府県スコープボタン
+  var scopeEl = document.getElementById('mikaitaku-scope');
+  if (scopeEl) {
+    scopeEl.innerHTML = ['__all__'].concat(Object.keys(_YAKU_FILE)).map(function(p){
+      var lab = p==='__all__' ? '九州全県' : p, on = (p===scope);
+      return '<button onclick="_mikaiSetScope(\''+p+'\')" style="font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer;border:1px solid '+(on?'var(--acc)':'var(--bd)')+';background:'+(on?'var(--acc)':'var(--s1)')+';color:'+(on?'#fff':'var(--tx2)')+';font-weight:'+(on?'700':'500')+'">'+lab+'</button>';
+    }).join('');
+  }
+  fetch('data/yakkyoku/index.json').then(function(r){return r.ok?r.json():null;}).then(function(j){var e=document.getElementById('mikaitaku-asof');if(e&&j)e.textContent='厚生局データ基準日 '+j.asOf;}).catch(function(){});
+
+  body.innerHTML = '<div style="padding:24px;color:var(--tx3);font-size:13px">薬局マスタを読み込み中…</div>';
+  var prefs = scope==='__all__' ? Object.keys(_YAKU_FILE) : [scope];
+  Promise.all(prefs.map(_yakuLoad)).then(function(arrs){
+    if (window._mikaitakuScope !== scope) return; // ロード中にスコープが変わった
+    var dealIdx = _mikaiDealIndex();
+    var perPref = {}, totTotal=0, totWon=0, totActive=0, masterKeys={};
+    prefs.forEach(function(pref, pi){
+      var items = arrs[pi]||[], di = dealIdx[pref]||{won:{},active:{}};
+      var p = { total:0, won:0, active:0, cities:{}, items:[] }; masterKeys[pref] = {};
+      // 同名薬局(チェーン)対策: 1つの受注/商談は先頭の1軒だけに割り当て(重複水増し防止)
+      var usedWon = {}, usedActive = {};
+      items.forEach(function(it){
+        var key = _yakuNorm(it.n); masterKeys[pref][key] = true;
+        var city = _mikaiCity(it.a);
+        var status = 'none';
+        if (di.won[key] && !usedWon[key]) { status = 'won'; usedWon[key] = true; }
+        else if (di.active[key] && !di.won[key] && !usedActive[key]) { status = 'active'; usedActive[key] = true; }
+        p.total++; if(status==='won')p.won++; else if(status==='active')p.active++;
+        if(!p.cities[city]) p.cities[city] = {total:0,won:0,active:0};
+        p.cities[city].total++; if(status==='won')p.cities[city].won++; else if(status==='active')p.cities[city].active++;
+        p.items.push({ n:it.n, a:it.a, city:city, status:status });
+      });
+      perPref[pref] = p; totTotal+=p.total; totWon+=p.won; totActive+=p.active;
+    });
+    // 照合できなかった案件(スコープ内・県設定ありでマスタ未一致 / 県未設定)
+    var unmatched=0, noPref=0;
+    (D.deals||[]).forEach(function(d){
+      if(!d||!d.name) return; if(lstat(d)==='失注') return;
+      var key=_yakuNorm(d.name); if(!key) return;
+      var pref=d.pref||'';
+      if(!pref){ noPref++; return; }
+      if(prefs.indexOf(pref)<0) return;
+      if(!(masterKeys[pref]&&masterKeys[pref][key])) unmatched++;
+    });
+    window._mikaiData = { perPref:perPref, scope:scope };
+    var rate = totTotal ? totWon/totTotal*100 : 0;
+    var mikaitaku = totTotal - totWon - totActive;
+    var h = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">';
+    h += _mikaiCard('全薬局', fmtN(totTotal), 'var(--s3)', 'var(--tx)');
+    h += _mikaiCard('導入済み', fmtN(totWon), '#eaf3de', '#3b6d11');
+    h += _mikaiCard('商談中', fmtN(totActive), '#e6f1fb', '#185fa5');
+    h += _mikaiCard('未開拓', fmtN(mikaitaku), '#faeeda', '#854f0b');
+    h += _mikaiCard('導入率', rate.toFixed(1)+'%', '#eef1f6', 'var(--acc)');
+    h += '</div>';
+    h += '<div style="font-size:11px;color:var(--tx3);margin-bottom:14px">※導入率=導入済み÷全薬局。当社側は本年度('+fy+')の案件データに基づく概算(導入済み=受注/商談中=進行中)。'+((unmatched||noPref)?'照合できなかった案件: '+unmatched+'件(名称がマスタと不一致)'+(noPref?' / '+noPref+'件(都道府県未設定)':'')+'。':'')+'</div>';
+
+    if (scope==='__all__') {
+      h += '<div style="font-size:12px;color:var(--tx2);font-weight:700;margin-bottom:8px">都道府県別(導入率の低い順=狙い目) — クリックで県内へ</div>';
+      var rows = prefs.map(function(p){return {pref:p,d:perPref[p]};}).sort(function(a,b){return (a.d.won/(a.d.total||1))-(b.d.won/(b.d.total||1));});
+      h += '<div style="display:flex;flex-direction:column;gap:7px">';
+      rows.forEach(function(r){ h += _mikaiBar(r.pref, r.d.total, r.d.won, r.d.active, "_mikaiSetScope('"+r.pref+"')"); });
+      h += '</div>';
+    } else {
+      var p = perPref[scope];
+      var cities = Object.keys(p.cities).map(function(c){return {city:c, t:p.cities[c].total, w:p.cities[c].won, a:p.cities[c].active};});
+      cities.sort(function(a,b){return (a.w/(a.t||1))-(b.w/(b.t||1)) || b.t-a.t;});
+      h += '<div style="font-size:12px;color:var(--tx2);font-weight:700;margin-bottom:8px">市区町村別(導入率の低い順=狙い目) — クリックで薬局一覧</div>';
+      h += '<div style="display:flex;flex-direction:column;gap:7px">';
+      cities.forEach(function(c){ h += _mikaiBar(c.city, c.t, c.w, c.a, "_mikaiSetCity('"+c.city.replace(/'/g,"\\'")+"')"); });
+      h += '</div>';
+      var city = window._mikaitakuCity;
+      if (city && p.cities[city]) {
+        var order = {none:0, active:1, won:2};
+        var list = p.items.filter(function(x){return x.city===city;}).sort(function(a,b){return order[a.status]-order[b.status];});
+        h += '<div style="margin-top:14px;border-top:1px solid var(--bds);padding-top:12px">';
+        h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:13px;font-weight:700">'+_esc(city)+' の薬局 '+list.length+'件</span>' +
+          '<button onclick="_mikaiPrint(\''+city.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--s1);cursor:pointer;color:var(--tx2)">🖨 未開拓リストを印刷</button></div>';
+        h += '<div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">';
+        list.forEach(function(x){
+          var tag = x.status==='won' ? '<span style="font-size:11px;background:#eaf3de;color:#3b6d11;padding:2px 8px;border-radius:6px;white-space:nowrap">導入済み</span>'
+                  : x.status==='active' ? '<span style="font-size:11px;background:#e6f1fb;color:#185fa5;padding:2px 8px;border-radius:6px;white-space:nowrap">商談中</span>'
+                  : '<span style="font-size:11px;background:#faeeda;color:#854f0b;padding:2px 8px;border-radius:6px;white-space:nowrap">未開拓</span>';
+          h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 11px;background:var(--s1);border:1px solid var(--bds);border-radius:7px">' +
+            '<div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_esc(x.n)+'</div>' +
+            '<div style="font-size:10px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍'+_esc(x.a)+'</div></div>'+tag+'</div>';
+        });
+        h += '</div></div>';
+      }
+    }
+    body.innerHTML = h;
+  });
+}
+function _mikaiPrint(city) {
+  var data = window._mikaiData; if (!data) return;
+  var p = data.perPref[data.scope]; if (!p) return;
+  var list = p.items.filter(function(x){return x.city===city && x.status==='none';});
+  var rows = list.map(function(x,i){return '<tr><td>'+(i+1)+'</td><td>'+_esc(x.n)+'</td><td>'+_esc(x.a)+'</td><td></td></tr>';}).join('');
+  var w = window.open('', '_blank'); if (!w) { _showToast && _showToast('ポップアップがブロックされました', 'warn', 3000); return; }
+  w.document.write('<html><head><meta charset="utf-8"><title>未開拓リスト '+_esc(city)+'</title>' +
+    '<style>body{font-family:sans-serif;padding:20px;color:#222}h1{font-size:16px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #999;padding:5px 7px;text-align:left}th{background:#eee}td:nth-child(4){width:160px}</style></head><body>' +
+    '<h1>未開拓薬局リスト — '+_esc(data.scope)+' '+_esc(city)+'('+list.length+'件)</h1>' +
+    '<table><thead><tr><th>#</th><th>薬局名</th><th>住所</th><th>訪問メモ</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+  w.document.close();
+}
+
 function getOptionArray(productOption) {
   if (!productOption) return [];
   return productOption.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
@@ -26144,6 +26308,7 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-monthly-btn" onclick="showTab('monthly',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📄 月次レポート</button>
   <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
   <button class="htab" id="tab-karte-btn" onclick="showTab('karte',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🗂 担当者カルテ</button>
+  <button class="htab" id="tab-mikaitaku-btn" onclick="showTab('mikaitaku',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🗺 未開拓マップ</button>
   <button class="htab" id="tab-kpt-menu-btn" onclick="showTab('kpt',this);renderKPT();closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">💭 KPT</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
