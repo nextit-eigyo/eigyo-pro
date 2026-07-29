@@ -1,0 +1,16 @@
+{
+  "_note": "九州厚生局 保険薬局 指定状況の取得元。毎月更新される(厚生局は毎月1日基準)。更新月はindex_00006.htmleから最新のzip番号を取り直してurlを差し替えること。",
+  "indexUrl": "https://kouseikyoku.mhlw.go.jp/kyushu/gyomu/gyomu/hoken_kikan/index_00006.html",
+  "asOf": "2026-07-01",
+  "base": "https://kouseikyoku.mhlw.go.jp",
+  "sources": [
+    { "pref": "福岡",   "romaji": "fukuoka",  "zip": "/kyushu/000491318.zip" },
+    { "pref": "佐賀",   "romaji": "saga",     "zip": "/kyushu/000491319.zip" },
+    { "pref": "長崎",   "romaji": "nagasaki", "zip": "/kyushu/000491320.zip" },
+    { "pref": "熊本",   "romaji": "kumamoto", "zip": "/kyushu/000491321.zip" },
+    { "pref": "大分",   "romaji": "oita",     "zip": "/kyushu/000491322.zip" },
+    { "pref": "宮崎",   "romaji": "miyazaki", "zip": "/kyushu/000491323.zip" },
+    { "pref": "鹿児島", "romaji": "kagoshima","zip": "/kyushu/000491324.zip" },
+    { "pref": "沖縄",   "romaji": "okinawa",  "zip": "/kyushu/r8_07_okinawa.zip" }
+  ]
+}

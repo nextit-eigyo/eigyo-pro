@@ -1,0 +1,38 @@
+{
+ "asOf": "2026-07-01",
+ "source": "https://kouseikyoku.mhlw.go.jp/kyushu/gyomu/gyomu/hoken_kikan/index_00006.html",
+ "prefs": {
+  "福岡": {
+   "file": "fukuoka.json",
+   "count": 2958
+  },
+  "佐賀": {
+   "file": "saga.json",
+   "count": 501
+  },
+  "長崎": {
+   "file": "nagasaki.json",
+   "count": 697
+  },
+  "熊本": {
+   "file": "kumamoto.json",
+   "count": 889
+  },
+  "大分": {
+   "file": "oita.json",
+   "count": 567
+  },
+  "宮崎": {
+   "file": "miyazaki.json",
+   "count": 572
+  },
+  "鹿児島": {
+   "file": "kagoshima.json",
+   "count": 842
+  },
+  "沖縄": {
+   "file": "okinawa.json",
+   "count": 559
+  }
+ }
+}

@@ -16340,8 +16340,9 @@ function buildDealBody(d) {
       ${secHeader('basic','🏥','基本情報',d.id)}
       <div class="dc-sec-content">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div class="ff"><label>薬局名 *</label>
-            <input type="text" class="fi" value="${_esc(d.name||'').replace(/"/g,'&quot;')}" placeholder="○○薬局" oninput="updDeal('${d.id}','name',this.value)">
+          <div class="ff" style="position:relative"><label>薬局名 *</label>
+            <input id="dn-${d.id}" type="text" class="fi" autocomplete="off" value="${_esc(d.name||'').replace(/"/g,'&quot;')}" placeholder="○○薬局(2文字で候補表示)" oninput="updDeal('${d.id}','name',this.value);_yakuSuggest('${d.id}',this)" onfocus="_yakuSuggest('${d.id}',this)" onblur="_yakuHideLater('${d.id}')">
+            <div id="dn-sug-${d.id}" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:3500;background:var(--s1);border:1px solid var(--bd);border-top:none;border-radius:0 0 10px 10px;max-height:260px;overflow-y:auto;box-shadow:0 10px 24px rgba(0,0,0,.14)"></div>
           </div>
           <div class="ff"><label>担当者</label>
             <select class="fs" onchange="updDeal('${d.id}','spId',this.value)">
@@ -16351,7 +16352,7 @@ function buildDealBody(d) {
             </select>
           </div>
           <div class="ff"><label>都道府県</label>
-            <select class="fs" onchange="updDeal('${d.id}','pref',this.value)"><option value="">選択</option>${prefOpts}</select>
+            <select id="dp-${d.id}" class="fs" onchange="updDeal('${d.id}','pref',this.value)"><option value="">選択</option>${prefOpts}</select>
           </div>
           <div class="ff"><label>区分</label>
             <select class="fs" onchange="updDeal('${d.id}','category',this.value)">
@@ -23308,6 +23309,90 @@ function getOptionMaster() {
     .filter(function(p){ return p.category === 'オプション' || p.category === 'その他'; })
     .map(function(p){ return p.name; });
   return opts.length ? opts : ['薬歴くんV8','サブサーバー','薬歴くんCLOUD','ふらっとくんV8','オンライン資格確認'];
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🏥 薬局名オートコンプリート(九州厚生局 保険薬局マスタ from data/yakkyoku/*.json)
+//    ・巨大リストは localStorage/Firebase に載せず、必要時にJSONをfetch(メモリキャッシュ)
+//    ・集計・データ保存には非干渉(選んだ名称の文字列だけがdealに入る)
+// ══════════════════════════════════════════════════════════════
+var _YAKU_FILE = { '福岡':'fukuoka','佐賀':'saga','長崎':'nagasaki','熊本':'kumamoto','大分':'oita','宮崎':'miyazaki','鹿児島':'kagoshima','沖縄':'okinawa' };
+window._yakuCache = window._yakuCache || {};   // pref -> items配列
+window._yakuProm  = window._yakuProm  || {};   // pref -> ロード中Promise
+
+// 検索用の正規化: 空白(全角半角)・法人格・括弧を除去して小文字化
+function _yakuNorm(s) {
+  return String(s||'').replace(/[\s　]/g,'').replace(/株式会社|有限会社|医療法人|[（）()]/g,'').toLowerCase();
+}
+function _yakuLoad(pref) {
+  var file = _YAKU_FILE[pref];
+  if (!file) return Promise.resolve([]);
+  if (window._yakuCache[pref]) return Promise.resolve(window._yakuCache[pref]);
+  if (window._yakuProm[pref])  return window._yakuProm[pref];
+  var p = fetch('data/yakkyoku/' + file + '.json')
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ var items = (j && j.items) || []; window._yakuCache[pref] = items; return items; })
+    .catch(function(){ window._yakuCache[pref] = []; return []; });
+  window._yakuProm[pref] = p;
+  return p;
+}
+function _yakuHideLater(dealId) {
+  setTimeout(function(){ var b = document.getElementById('dn-sug-' + dealId); if (b) { b.style.display='none'; } }, 200);
+}
+function _yakuSuggest(dealId, inp) {
+  var box = document.getElementById('dn-sug-' + dealId);
+  if (!box) return;
+  var q = (inp.value || '').trim();
+  if (q.length < 2) { box.style.display='none'; box.innerHTML=''; return; }
+  var d = (D.deals||[]).find(function(x){ return x.id === dealId; });
+  var pref = (d && d.pref) ? d.pref : '';
+  var prefs = pref ? [pref] : Object.keys(_YAKU_FILE);  // 都道府県未設定なら九州全県を検索
+  var nq = _yakuNorm(q);
+  Promise.all(prefs.map(_yakuLoad)).then(function(arrs){
+    // 入力が変わっていたら破棄
+    if ((inp.value||'').trim() !== q) return;
+    var out = [];
+    for (var pi = 0; pi < arrs.length && out.length <= 300; pi++) {
+      var pf = prefs[pi], arr = arrs[pi] || [];
+      for (var i = 0; i < arr.length; i++) {
+        var nn = _yakuNorm(arr[i].n);
+        var pos = nn.indexOf(nq);
+        if (pos >= 0) { out.push({ n:arr[i].n, a:arr[i].a, pref:pf, sw: pos===0 }); if (out.length > 300) break; }
+      }
+    }
+    out.sort(function(a,b){ return (b.sw - a.sw) || (a.n.length - b.n.length); });
+    out = out.slice(0, 30);
+    if (!out.length) {
+      box.innerHTML = '<div style="padding:9px 11px;font-size:11px;color:var(--tx3)">該当なし' + (pref?'':'(九州全県)') + '</div>';
+      box.style.display='block';
+      return;
+    }
+    box.innerHTML = out.map(function(o){
+      var nm = _esc(o.n), ad = _esc(o.a||''), pv = _esc(o.pref);
+      return '<div onmousedown="_yakuPick(\'' + dealId + '\',this)" data-n="' + nm.replace(/"/g,'&quot;') + '" data-pref="' + pv + '"' +
+        ' style="padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--bds)" onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'\'">' +
+        '<div style="font-weight:700;font-size:12px;color:var(--tx)">' + nm + (pref?'':' <span style="font-size:10px;color:var(--acc);font-weight:800">' + pv + '</span>') + '</div>' +
+        (ad ? '<div style="font-size:10px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍' + ad + '</div>' : '') +
+      '</div>';
+    }).join('');
+    box.style.display='block';
+  });
+}
+function _yakuPick(dealId, rowEl) {
+  var name = rowEl.getAttribute('data-n');
+  var pref = rowEl.getAttribute('data-pref');
+  var inp = document.getElementById('dn-' + dealId);
+  if (inp) inp.value = name;
+  updDeal(dealId, 'name', name);
+  var d = (D.deals||[]).find(function(x){ return x.id === dealId; });
+  // 都道府県が空の時だけ自動セット(既存の選択は上書きしない)
+  if (pref && d && !d.pref) {
+    updDeal(dealId, 'pref', pref);
+    var sel = document.getElementById('dp-' + dealId);
+    if (sel) sel.value = pref;
+  }
+  var box = document.getElementById('dn-sug-' + dealId);
+  if (box) { box.style.display='none'; box.innerHTML=''; }
 }
 
 function getOptionArray(productOption) {
