@@ -3588,6 +3588,17 @@ body.has-sidepanel #home-deal-mode {
   <div id="karte-body"></div>
 </div>
 
+<!-- ════════ 👥 顧客管理(顧客台帳・P1) ════════ -->
+<div id="tab-customers" class="sec">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:15px;font-weight:800">👥 顧客管理</span>
+    <span id="customers-meta" style="font-size:11px;color:var(--tx3)"></span>
+    <div id="customers-rep" style="display:flex;gap:5px;flex-wrap:wrap;margin-left:auto"></div>
+  </div>
+  <div id="customers-body"></div>
+  <input type="file" id="customers-import-file" accept=".json" style="display:none" onchange="importCustomersJson(this)">
+</div>
+
 <!-- ════════ 🗺 未開拓マップ(新規開拓) ════════ -->
 <div id="tab-mikaitaku" class="sec">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
@@ -7331,6 +7342,11 @@ function sanitizeD() {
   // ⭐A2: _cre/_mod を持たない旧案件に番兵(=1)を付与。受信マージで「古い=同期済み」と正しく扱う。
   try { D.deals.forEach(function(d){ if (d && d.id){ if (!d._cre) d._cre = 1; if (!d._mod) d._mod = d._cre; } }); } catch(e){}
   if (!D.people)       D.people = [];
+  // 顧客台帳(顧客管理・P1)。案件/数字集計とは独立。Firebase等がobjectで返したら配列化。
+  if (D.customers && !Array.isArray(D.customers)) D.customers = Object.values(D.customers);
+  if (!Array.isArray(D.customers)) D.customers = [];
+  if (!Array.isArray(D.customerOptions) || !D.customerOptions.length)
+    D.customerOptions = ['薬歴くん','オン資','電子処方箋','医療扶助','医療費助成'];
   if (!D.actuals)      D.actuals = {};
   if (!D.budgets)      D.budgets = {};
   if (!D.tasks)        D.tasks = [];
@@ -12717,6 +12733,7 @@ function showTab(name,btn){
   if(name==='joho'){renderJoho();}
   if(name==='karte'){renderKarte();}
   if(name==='mikaitaku'){renderMikaitaku();}
+  if(name==='customers'){renderCustomers();}
 }
 
 // ════════════════════════════════════════════════════════
@@ -23793,6 +23810,100 @@ function _mikaiPrint(city) {
   w.document.close();
 }
 
+// ══════════════════════════════════════════════════════════════
+// 👥 顧客管理(顧客台帳・P1) — 直販＋購入情報の顧客をオプション軸で可視化
+//   D.customers は案件/数字集計と独立。取込は _autoBackup 後に上書き。
+// ══════════════════════════════════════════════════════════════
+function _custOptList(){ return (D.customerOptions && D.customerOptions.length) ? D.customerOptions : ['薬歴くん','オン資','電子処方箋','医療扶助','医療費助成']; }
+function _custSetRep(r){ window._custRep = (window._custRep===r ? '' : r); renderCustomers(); }
+function renderCustomers(){
+  var body = document.getElementById('customers-body'); if (!body) return;
+  var meta = document.getElementById('customers-meta');
+  var repEl = document.getElementById('customers-rep');
+  var custs = D.customers || [];
+  if (!custs.length){
+    if (meta) meta.textContent = '';
+    if (repEl) repEl.innerHTML = '';
+    body.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--tx3)">'
+      + '<div style="font-size:15px;font-weight:700;color:var(--tx2);margin-bottom:8px">顧客台帳がまだありません</div>'
+      + '<div style="font-size:12px;margin-bottom:16px">九州顧客管理(直販＋購入情報)のシードJSONを取り込みます。</div>'
+      + '<button class="btn pr" style="font-size:14px;padding:10px 22px" onclick="document.getElementById(\'customers-import-file\').click()">📥 顧客台帳を取り込む(JSON)</button></div>';
+    return;
+  }
+  var OPTS = _custOptList();
+  var reps = custs.map(function(c){ return c.rep; }).filter(function(v,i,a){ return v && a.indexOf(v)===i; });
+  var rep = window._custRep || '';
+  var list = rep ? custs.filter(function(c){ return c.rep===rep; }) : custs;
+  if (meta) meta.textContent = '直販 '+custs.length+'件' + (rep ? ' / '+rep+' '+list.length+'件' : '');
+  if (repEl){
+    repEl.innerHTML = ['__all__'].concat(reps).map(function(r){
+      var lab = r==='__all__' ? '全担当' : r, on = (r==='__all__' ? rep==='' : rep===r);
+      return '<button onclick="_custSetRep(\''+(r==='__all__'?'':r)+'\')" style="font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer;border:1px solid '+(on?'var(--acc)':'var(--bd)')+';background:'+(on?'var(--acc)':'var(--s1)')+';color:'+(on?'#fff':'var(--tx2)')+';font-weight:'+(on?'700':'500')+'">'+lab+'</button>';
+    }).join('') + '<button onclick="document.getElementById(\'customers-import-file\').click()" title="再取り込み(上書き)" style="font-size:11px;padding:5px 10px;border-radius:7px;border:1px solid var(--bd);background:var(--s1);color:var(--tx3);cursor:pointer">📥 再取込</button>';
+  }
+  function rate(o){ var n=list.filter(function(c){ return c.options && c.options[o]; }).length; return { n:n, pct: list.length ? Math.round(n/list.length*100) : 0 }; }
+  var h = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">';
+  h += _mikaiCard('顧客数', fmtN(list.length), 'var(--s3)', 'var(--tx)');
+  h += _mikaiCard('担当者数', String(reps.length), '#e6f1fb', '#185fa5');
+  var avg = list.length ? (list.reduce(function(a,c){ return a + OPTS.filter(function(o){ return c.options && c.options[o]; }).length; }, 0)/list.length) : 0;
+  h += _mikaiCard('平均導入オプション', avg.toFixed(1)+' / '+OPTS.length, '#eaf3de', '#3b6d11');
+  h += '</div>';
+  h += '<div style="font-size:12px;color:var(--tx2);font-weight:700;margin-bottom:8px">オプション別 導入率(未導入=クロスセル余地)</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:7px;margin-bottom:18px">';
+  OPTS.forEach(function(o){
+    var r = rate(o), col = r.pct<50 ? ['#fcebeb','#a32d2d'] : r.pct<80 ? ['#faeeda','#854f0b'] : ['#eaf3de','#3b6d11'];
+    h += '<div style="display:flex;align-items:center;gap:10px">'
+      + '<div style="width:110px;font-size:13px">'+_esc(o)+'</div>'
+      + '<div style="flex:1;height:18px;background:#f1efe8;border-radius:4px;overflow:hidden;min-width:60px"><div style="width:'+r.pct+'%;height:100%;background:#97c459"></div></div>'
+      + '<div style="width:120px;text-align:right;font-size:12px;color:var(--tx3)">導入 '+r.n+' / 未 '+(list.length-r.n)+'</div>'
+      + '<div style="width:52px;text-align:right;font-size:13px;font-weight:700;background:'+col[0]+';color:'+col[1]+';padding:3px 8px;border-radius:6px">'+r.pct+'%</div></div>';
+  });
+  h += '</div>';
+  h += '<div style="font-size:12px;color:var(--tx2);font-weight:700;margin-bottom:8px">顧客 × オプション マトリクス <span style="font-weight:400;color:var(--tx3)">('+list.length+'件・未導入が多い順)</span></div>';
+  h += '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12px">';
+  h += '<thead><tr style="background:var(--s3)"><th style="text-align:left;padding:7px 9px;position:sticky;left:0;background:var(--s3);z-index:1">店舗名</th><th style="padding:7px 6px">担当</th>';
+  OPTS.forEach(function(o){ h += '<th style="padding:7px 5px;font-size:11px;white-space:nowrap">'+_esc(o)+'</th>'; });
+  h += '<th style="padding:7px 6px">未導入</th></tr></thead><tbody>';
+  var sorted = list.slice().sort(function(a,b){
+    var ma = OPTS.filter(function(o){ return !(a.options && a.options[o]); }).length;
+    var mb = OPTS.filter(function(o){ return !(b.options && b.options[o]); }).length;
+    return mb - ma;
+  });
+  sorted.forEach(function(c){
+    var miss = OPTS.filter(function(o){ return !(c.options && c.options[o]); }).length;
+    h += '<tr style="border-bottom:0.5px solid var(--bds)">'
+      + '<td style="padding:6px 9px;font-weight:600;position:sticky;left:0;background:var(--s1);white-space:nowrap">'+_esc(c.store||'')+(c.ver?' <span style="font-size:10px;color:var(--tx3)">'+_esc(c.ver)+'</span>':'')+'</td>'
+      + '<td style="text-align:center;padding:6px;color:var(--tx3);font-size:11px;white-space:nowrap">'+_esc(c.rep||'—')+'</td>';
+    OPTS.forEach(function(o){
+      var on = c.options && c.options[o];
+      h += '<td style="text-align:center;padding:6px 5px">'+(on?'<span style="color:#3b6d11;font-weight:800">●</span>':'<span style="color:#d8d2c4">○</span>')+'</td>';
+    });
+    h += '<td style="text-align:center;padding:6px">'+(miss?'<span style="font-size:11px;background:#faeeda;color:#854f0b;padding:1px 7px;border-radius:9px;font-weight:700">'+miss+'</span>':'<span style="font-size:11px;color:#3b6d11">完備</span>')+'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">● 導入済み / ○ 未導入。未導入が多い順に表示(クロスセル候補)。担当ボタンで絞り込み。</div>';
+  body.innerHTML = h;
+}
+function importCustomersJson(input){
+  var f = input.files && input.files[0]; if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    try{
+      var j = JSON.parse(reader.result);
+      var arr = Array.isArray(j) ? j : (j.customers || []);
+      if (!arr.length){ if(typeof _showToast==='function') _showToast('顧客データが見つかりません','warn',3000); input.value=''; return; }
+      if (typeof _autoBackup==='function') _autoBackup('before_customers_import');
+      D.customers = arr;
+      if (j.options && j.options.length) D.customerOptions = j.options;
+      save();
+      if (typeof _showToast==='function') _showToast('✅ 顧客を'+arr.length+'件取り込みました','ok',3500);
+      renderCustomers();
+    }catch(e){ if(typeof _showToast==='function') _showToast('JSON読込エラー: '+e.message,'warn',5000); }
+    input.value='';
+  };
+  reader.readAsText(f);
+}
+
 function getOptionArray(productOption) {
   if (!productOption) return [];
   return productOption.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
@@ -26543,6 +26654,7 @@ setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.va
   <button class="htab" id="tab-furikaeri-btn" onclick="showTab('furikaeri',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">📋 月末振り返りシート</button>
   <button class="htab" id="tab-karte-btn" onclick="showTab('karte',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🗂 担当者カルテ</button>
   <button class="htab" id="tab-mikaitaku-btn" onclick="showTab('mikaitaku',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">🗺 未開拓マップ</button>
+  <button class="htab" id="tab-customers-btn" onclick="showTab('customers',this);closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">👥 顧客管理</button>
   <button class="htab" id="tab-kpt-menu-btn" onclick="showTab('kpt',this);renderKPT();closeReportMenu()" style="display:flex;width:100%;border-radius:8px;text-align:left;margin:1px 0;padding:8px 12px;font-size:12px;color:var(--tx);background:none;border:none;cursor:pointer;align-items:center;gap:8px" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='none'">💭 KPT</button>
 </div>
 <!-- ── Memo Full-screen Modal ── -->
