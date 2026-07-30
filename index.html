@@ -2623,8 +2623,8 @@ body.has-sidepanel #home-deal-mode {
         <button id="sort-amount-btn"   class="btn sm" onclick="setDealSort('amount')"   style="font-size:12px;padding:6px 13px">💴 金額順</button>
       </div>
       <div style="display:flex;gap:2px;background:var(--s3);border-radius:9px;padding:2px;flex-shrink:0" title="表示切替">
-        <button id="dview-list-btn"   class="btn sm" onclick="setDealKanban(false)" style="font-size:12px;padding:6px 13px;background:var(--tx);color:#fff;border-color:var(--tx)">≣ リスト</button>
-        <button id="dview-kanban-btn" class="btn sm" onclick="setDealKanban(true)"  style="font-size:12px;padding:6px 13px">🗂 ステータス別</button>
+        <button id="dview-list-btn"   class="btn sm" onclick="setDealKanban(false)" style="font-size:12px;padding:6px 13px">≣ リスト</button>
+        <button id="dview-kanban-btn" class="btn sm" onclick="setDealKanban(true)"  style="font-size:12px;padding:6px 13px;background:var(--tx);color:#fff;border-color:var(--tx)">🗂 ステータス別</button>
       </div>
     </div>
     <!-- 2段目：担当者タブ -->
@@ -9232,7 +9232,7 @@ function renderProgressView(deals) {
 //   既存の絞り込み結果 deals をステータス列に並べ替えて表示するだけ。
 //   カードクリックは既存の _openSidepanel を再利用。数字・保存には触れない。
 // ══════════════════════════════════════════════════════════════
-var _dealKanban = false;
+var _dealKanban = true;  // ステータス別をデフォルト表示
 function setDealKanban(on){
   _dealKanban = !!on;
   var lb = document.getElementById('dview-list-btn'), kb = document.getElementById('dview-kanban-btn');
@@ -9277,16 +9277,32 @@ function renderDealsKanban(deals){
       var dt = (d.dealType||'');
       var tt = dt.indexOf('新規')>=0 ? '<span style="font-size:10px;background:#e6f1fb;color:#185fa5;padding:1px 6px;border-radius:5px">新規</span>'
              : dt.indexOf('既存')>=0 ? '<span style="font-size:10px;background:#eaf3de;color:#3b6d11;padding:1px 6px;border-radius:5px">既存</span>' : '';
+      // 粗利(原価が入っている案件のみ)
+      var profit = (d.sales!==''&&d.sales!=null&&d.cost!==''&&d.cost!=null) ? ((parseFloat(d.sales)||0)-(parseFloat(d.cost)||0)) : null;
+      // 左下の情報: 次アクション+期限。無ければ計上月/稼働月で空きスペースを有効活用
+      var info = [];
+      if (d.nextAction) info.push('<div style="font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">▶ '+_esc(d.nextAction)+'</div>');
+      var db = dlBadge(d);
+      if (db) info.push('<div style="margin-top:'+(d.nextAction?'3px':'0')+'">'+db+'</div>');
+      if (!d.nextAction && !d.nextDate) {
+        var mm = [];
+        if (d.deliveryMonth) mm.push('🗓 計上 '+fmtMo(d.deliveryMonth));
+        if (d.activationMonth) mm.push('稼働 '+fmtMo(d.activationMonth));
+        if (mm.length) info.push('<div style="font-size:10px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+mm.join(' / ')+'</div>');
+      }
       return '<div onclick="_openSidepanel(\''+d.id+'\')" style="background:var(--s1);border:1px solid var(--bd);border-radius:9px;padding:9px 10px;cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor=\'var(--acc)\';this.style.boxShadow=\'0 3px 12px rgba(90,123,158,.14)\'" onmouseout="this.style.borderColor=\'var(--bd)\';this.style.boxShadow=\'none\'">'
         + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:13px;font-weight:800;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_esc(d.name||'（名称未設定）')+'</span>'+tt+'</div>'
-        + '<div style="font-size:11px;color:var(--tx3);display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:5px">'
+        + '<div style="font-size:11px;color:var(--tx3);display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">'
           + (d.pref?'<span>📍'+_esc(d.pref)+'</span>':'')
           + (pp?'<span>👤'+_esc(pp.name)+'</span>':'')
           + '<span style="letter-spacing:1px">'+stars(getProb(d))+'</span></div>'
-        + ((d.nextAction||d.nextDate)?'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
-            + (d.nextAction?'<span style="font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">▶ '+_esc(d.nextAction)+'</span>':'<span></span>')
-            + dlBadge(d) + '</div>':'')
-        + ((d.sales!==''&&d.sales!=null)?'<div style="text-align:right;font-size:13px;font-weight:800;margin-top:5px">'+fmtN(d.sales)+'<span style="font-size:10px;color:var(--tx3)">千</span></div>':'')
+        + '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px">'
+          + '<div style="min-width:0;flex:1">'+info.join('')+'</div>'
+          + '<div style="text-align:right;flex-shrink:0">'
+            + ((d.sales!==''&&d.sales!=null)?'<div style="font-size:13px;font-weight:800;white-space:nowrap">'+fmtN(d.sales)+'<span style="font-size:10px;color:var(--tx3)">千</span></div>':'')
+            + (profit!==null?'<div style="font-size:11px;color:var(--grn);font-weight:700;white-space:nowrap">粗利 '+fmtN(profit)+'千</div>':'')
+          + '</div>'
+        + '</div>'
         + '</div>';
     }).join('') : '<div style="font-size:11px;color:var(--tx3);text-align:center;padding:16px 0">該当なし</div>';
     html += '<div style="flex:0 0 236px;background:var(--s3);border:1px solid var(--bd);border-radius:12px;padding:8px">'
