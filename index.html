@@ -1023,6 +1023,68 @@ tr:hover td{background:rgba(90,123,158,.02)}
 .sub-tab .nb{ position:absolute;top:0;right:4px; }
 .sub-tab.active .nb{background:var(--red);color:#fff}
 
+/* ═══════════════════════════════════════════════════════════
+   🧭 左サイドバー・レイアウト
+   ・ヘッダー(#hdr)を左固定サイドバーに、ナビ(.sub-tab)を縦並びに。
+   ・右コントロール(#hdr-r)は上部スリムバーへ。sticky基準(--nav)を上部バー高に。
+   ・クイック記録バー(#ql-bar)もサイドバー幅ぶん右へ。
+   ・元に戻すにはこのブロックごと削除すればOK(表示のみ・機能非干渉)。
+   ═══════════════════════════════════════════════════════════ */
+:root{ --side:210px; --topbar:52px; --nav:var(--topbar); }
+
+/* 本体を右へ寄せる */
+body{ padding-left:var(--side); }
+
+/* ── サイドバー本体 ── */
+#hdr{
+  position:fixed; top:0; left:0; bottom:0; width:var(--side);
+  flex-direction:column; align-items:stretch; gap:0;
+  padding:14px 10px 14px; min-height:0;
+  border-bottom:none; border-right:1px solid var(--bd);
+  box-shadow:2px 0 16px rgba(90,75,55,.06);
+  overflow-y:auto; z-index:300;
+}
+#logo{ font-size:19px; padding:2px 8px 16px; }
+
+/* ── ナビを縦並びに ── */
+#hdr .htabs{
+  flex:1 1 auto; flex-direction:column; align-items:stretch;
+  flex-wrap:nowrap; gap:3px; width:100%; padding:0;
+}
+#hdr .sub-tab{
+  flex-direction:row; align-items:center; justify-content:flex-start;
+  width:100%; text-align:left; gap:11px; font-size:13px;
+  padding:9px 11px; border-bottom:none !important; border-radius:9px;
+}
+#hdr .sub-tab .st-ic{ width:30px; height:30px; font-size:17px; }
+#hdr .sub-tab .st-lab{ flex:1; }
+#hdr .sub-tab:hover{ background:var(--s3); }
+#hdr .sub-tab.active{ background:var(--s3); color:var(--acc); }
+#hdr .sub-tab.active .st-ic{ box-shadow:0 3px 9px rgba(90,123,158,.28); }
+#hdr .sub-tab .nb{ position:static; margin-left:auto; }
+
+/* ── 右コントロール群 → 上部スリムバー ── */
+#hdr-r{
+  position:fixed; top:0; left:var(--side); right:0; height:var(--topbar);
+  background:var(--s1); border-bottom:1px solid var(--bd);
+  gap:10px; padding:0 18px; z-index:250; justify-content:flex-end;
+}
+#hdr-r > #save-group{ flex-direction:row !important; align-items:center; gap:8px; }
+
+/* 本体の上端が上部バーに潜らないよう余白 */
+.sec{ padding-top:calc(var(--topbar) + 8px); }
+
+/* クイック記録バーもサイドバー分ずらす */
+#ql-bar{ left:var(--side); }
+
+/* ── 画面が狭い時: サイドバーをアイコンのみに畳む ── */
+@media(max-width:1000px){
+  :root{ --side:62px; }
+  #hdr .sub-tab .st-lab{ display:none; }
+  #hdr .sub-tab{ justify-content:center; padding:9px 6px; }
+  #logo{ font-size:0; padding:2px 0 14px; }
+}
+
 /* === 🛠 薬局構成図 (PharmacyConfig) === */
 .pc-section-title{font-size:12px;font-weight:700;color:var(--tx);padding:6px 0 4px;border-bottom:1px solid var(--bd);margin-bottom:8px;letter-spacing:.04em}
 .pc-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--tx2);flex-wrap:wrap}
