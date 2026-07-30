@@ -18681,15 +18681,40 @@ function toggleReportMenu(btn) {
   if (isOpen) { m.style.display = 'none'; return; }
   const rect = btn.getBoundingClientRect();
   const menuW = 220;
-  m.style.top = (rect.bottom + 4) + 'px';
-  if (rect.left + menuW <= window.innerWidth - 8) {
+  // 横位置: ボタン右側に収まればボタン左端、無理なら右寄せ。左サイドバーのボタンは右側に開く
+  if (rect.right + 4 + menuW <= window.innerWidth - 8) {
+    m.style.left  = (rect.right + 4) + 'px';  // サイドバーの右隣に出す
+    m.style.right = 'auto';
+  } else if (rect.left + menuW <= window.innerWidth - 8) {
     m.style.left  = rect.left + 'px';
     m.style.right = 'auto';
   } else {
     m.style.left  = 'auto';
     m.style.right = (window.innerWidth - rect.right) + 'px';
   }
+  // 縦位置: いったん表示して高さを測り、画面内に収める(下が狭ければ上向き＋必要なら最大高さ+スクロール)
+  m.style.maxHeight = '';
+  m.style.overflowY = 'hidden';
+  m.style.top = '-9999px';
   m.style.display = 'block';
+  const margin = 8;
+  const menuH = m.offsetHeight;
+  const spaceBelow = window.innerHeight - rect.bottom - margin;
+  const spaceAbove = rect.top - margin;
+  if (menuH <= spaceBelow) {
+    m.style.top = (rect.bottom + 4) + 'px';
+    m.style.bottom = 'auto';
+  } else if (spaceAbove >= spaceBelow) {
+    // 上向きに開く(ボタンの上端に下端を合わせる)
+    m.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    m.style.top = 'auto';
+    if (menuH > spaceAbove) { m.style.maxHeight = Math.max(140, spaceAbove) + 'px'; m.style.overflowY = 'auto'; }
+  } else {
+    m.style.top = (rect.bottom + 4) + 'px';
+    m.style.bottom = 'auto';
+    m.style.maxHeight = Math.max(140, spaceBelow) + 'px';
+    m.style.overflowY = 'auto';
+  }
   setTimeout(() => {
     function closeMenu(e) {
       if (!m.contains(e.target) && e.target !== btn) {
