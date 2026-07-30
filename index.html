@@ -23827,6 +23827,17 @@ function _custSetRep(r){ window._custRep = (window._custRep===r ? '' : r); windo
 function _custSetView(v){ window._custView = v; window._custOpenKey=''; renderCustomers(); }
 function _custToggleRow(k){ window._custOpenKey = (window._custOpenKey===k ? '' : k); renderCustomers(); }
 function _custQuickDeal(key){ if (typeof openCustomerPicker==='function'){ openCustomerPicker(); setTimeout(function(){ if(typeof _custPickSelect==='function') _custPickSelect(key); }, 80); } }
+// オプションの導入/未導入をこの画面で直接切替(D.customersを更新→保存→同期)。数字集計には非干渉。
+function _custToggleOption(key, opt){
+  var c = (D.customers||[]).find(function(x){ return _custKey(x)===key; });
+  if (!c) return;
+  if (!c.options) c.options = {};
+  if (c.options[opt]) delete c.options[opt];  // 導入済み → 未導入
+  else c.options[opt] = true;                  // 未導入 → 導入済み
+  c._mod = Date.now();
+  if (typeof save === 'function') save();
+  renderCustomers();  // 展開状態(_custOpenKey)は保持されるので同じ行が開いたまま
+}
 function renderCustomers(){
   var body = document.getElementById('customers-body'); if (!body) return;
   var meta = document.getElementById('customers-meta');
@@ -23873,8 +23884,8 @@ function renderCustomers(){
       var chips=miss.slice(0,3).map(function(o){ return '<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:#fdf3e4;color:#8a5a1a;border:1px dashed #d9b47a;white-space:nowrap">'+_esc(o)+'</span>'; }).join('');
       if (miss.length>3) chips+='<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:var(--s3);color:var(--tx3)">+'+(miss.length-3)+'</span>';
       var kk=key.replace(/'/g,"\\'");
-      var grid=OPTS.map(function(o){ var on=c.options&&c.options[o];
-        return '<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;'+(on?'':'color:var(--tx2)')+'"><span style="width:16px;text-align:center;'+(on?'color:#3b6d11;font-weight:900':'color:#d8c9ad')+'">'+(on?'●':'○')+'</span>'+_esc(o)+(on?'':'<button onclick="event.stopPropagation();_custQuickDeal(\''+kk+'\')" style="margin-left:auto;font-size:10px;color:var(--acc);border:1px solid var(--bd);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--s1)">＋提案</button>')+'</div>';
+      var grid=OPTS.map(function(o){ var on=c.options&&c.options[o]; var oo=String(o).replace(/'/g,"\\'");
+        return '<div onclick="_custToggleOption(\''+kk+'\',\''+oo+'\')" title="クリックで導入/未導入を切替" style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 5px;cursor:pointer;border-radius:6px;'+(on?'':'color:var(--tx2)')+'" onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'\'"><span style="width:18px;text-align:center;font-size:15px;'+(on?'color:#3b6d11':'color:#c9b98f')+'">'+(on?'☑':'☐')+'</span>'+_esc(o)+(on?'':'<button onclick="event.stopPropagation();_custQuickDeal(\''+kk+'\')" style="margin-left:auto;font-size:10px;color:var(--acc);border:1px solid var(--bd);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--s1)">＋提案</button>')+'</div>';
       }).join('');
       return '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:11px;margin-bottom:8px;overflow:hidden">'
         + '<div onclick="_custToggleRow(\''+kk+'\')" style="display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer">'
