@@ -2608,7 +2608,10 @@ body.has-sidepanel #home-deal-mode {
       <button class="btn sm active" id="deal-sub-active"   onclick="setDealSubTab('active')"  style="font-size:13px;padding:7px 14px">📋 進行中案件</button>
       <button class="btn sm"        id="deal-sub-won"      onclick="setDealSubTab('won')"     style="font-size:13px;padding:7px 14px">🏆 受注済み</button>
     </div>
-    <button class="btn pr" onclick="openAddDealModal()" style="padding:8px 18px;font-size:14px;font-weight:700">＋ 案件追加</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="openCustomerPicker()" style="padding:8px 16px;font-size:14px;font-weight:700">👥 既存顧客から</button>
+      <button class="btn pr" onclick="openAddDealModal()" style="padding:8px 18px;font-size:14px;font-weight:700">＋ 案件追加</button>
+    </div>
   </div>
 
   <!-- フィルターバー（進行中用） -->
@@ -23903,6 +23906,118 @@ function importCustomersJson(input){
     input.value='';
   };
   reader.readAsText(f);
+}
+
+// ── 既存顧客から案件追加(② 顧客→案件リンク) ──────────────────
+//   顧客台帳(D.customers)から選んで案件を新規作成(進行中で作成=集計に非干渉)。
+//   受注時の実績反映は既存の updDeal/applyDealToActuals に委ね、この経路では触らない。
+var _CUST_OPT_TO_DEAL = { '薬歴くん':'薬歴くんV8', 'オン資':'オンライン資格確認', '電子処方箋':'電子処方箋', '医療扶助':'医療扶助', '医療費助成':'医療費助成' };
+var _custPickSel = null;
+function _custMiss(c){ return _custOptList().filter(function(o){ return !(c.options && c.options[o]); }).length; }
+function _custKey(c){ return String(c.id || c.store || ''); }
+function openCustomerPicker(){
+  _custPickSel = null;
+  var ex = document.getElementById('custpick-overlay'); if (ex) ex.remove();
+  var ov = document.createElement('div');
+  ov.id = 'custpick-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick = function(e){ if (e.target===ov) _custPickerClose(); };
+  var custs = D.customers || [];
+  if (!custs.length){
+    ov.innerHTML = '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:16px;max-width:440px;width:100%;box-shadow:var(--shd);padding:40px 24px;text-align:center;color:var(--tx3)">'
+      + '<div style="font-size:14px;font-weight:700;color:var(--tx2);margin-bottom:8px">顧客台帳がありません</div>'
+      + '<div style="font-size:12px">「顧客管理」タブでシードJSONを取り込んでください。</div>'
+      + '<button class="btn pr" style="margin-top:16px" onclick="_custPickerClose();showTab(\'customers\',document.getElementById(\'subtab-customers\'))">顧客管理を開く</button></div>';
+    document.body.appendChild(ov); return;
+  }
+  ov.innerHTML = '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:16px;max-width:920px;width:100%;max-height:90vh;overflow:hidden;box-shadow:var(--shd);display:flex;flex-direction:column">'
+    + '<div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--bds);background:var(--s3)"><span style="font-size:16px">👥</span><span style="font-size:15px;font-weight:900">既存顧客から案件追加</span><button onclick="_custPickerClose()" style="margin-left:auto;background:none;border:none;font-size:20px;color:var(--tx3);cursor:pointer">×</button></div>'
+    + '<div style="display:grid;grid-template-columns:320px 1fr;flex:1;min-height:0">'
+      + '<div style="border-right:1px solid var(--bds);padding:12px;display:flex;flex-direction:column;min-height:0">'
+        + '<div style="position:relative;margin-bottom:10px"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:14px">🔍</span><input id="custpick-q" type="text" placeholder="顧客(薬局名)を検索…" oninput="_custPickerList()" style="width:100%;height:36px;border:1px solid var(--bd);border-radius:9px;background:var(--s1);padding:0 10px 0 32px;font-size:13px;font-family:inherit;outline:none"></div>'
+        + '<div id="custpick-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:5px"></div></div>'
+      + '<div id="custpick-form" style="padding:20px 22px;overflow-y:auto"><div style="font-size:12px;color:var(--tx3);text-align:center;padding-top:120px">← 左から顧客を選ぶと案件フォームが表示されます</div></div>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+  _custPickerList();
+}
+function _custPickerClose(){ var ov=document.getElementById('custpick-overlay'); if (ov) ov.remove(); _custPickSel=null; }
+function _custPickerList(){
+  var box = document.getElementById('custpick-list'); if (!box) return;
+  var q = (document.getElementById('custpick-q').value||'').trim();
+  var list = (D.customers||[]).filter(function(c){ return !q || (c.store||'').indexOf(q)>=0 || (c.pref||'').indexOf(q)>=0; });
+  box.innerHTML = list.length ? list.map(function(c){
+    var m = _custMiss(c), on = (_custPickSel && _custKey(_custPickSel)===_custKey(c));
+    return '<div onclick="_custPickSelect(\''+_custKey(c).replace(/'/g,"\\'")+'\')" style="padding:8px 10px;border:1px solid '+(on?'var(--acc)':'var(--bd)')+';border-radius:9px;cursor:pointer;background:'+(on?'rgba(90,123,158,.07)':'var(--s1)')+'">'
+      + '<div style="font-size:13px;font-weight:700">'+_esc(c.store||'')+'</div>'
+      + '<div style="font-size:11px;color:var(--tx3);display:flex;gap:7px;flex-wrap:wrap;margin-top:2px"><span>📍'+_esc(c.pref||'')+'</span><span>👤'+_esc(c.rep||'—')+'</span>'+(m?'<span style="font-size:10px;background:#faeeda;color:#854f0b;padding:0 6px;border-radius:8px;font-weight:700">未導入 '+m+'</span>':'<span style="font-size:10px;color:#3b6d11">完備</span>')+'</div></div>';
+  }).join('') : '<div style="font-size:12px;color:var(--tx3);padding:14px;text-align:center">該当なし</div>';
+}
+function _cpFld(label,val){ return '<div><div style="font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:4px">'+label+'</div><div style="background:var(--s3);border:1px solid var(--bd);border-radius:8px;padding:8px 11px;font-size:13px;font-weight:700">'+val+'</div></div>'; }
+function _custPickSelect(key){
+  var custs = D.customers||[];
+  _custPickSel = custs.find(function(c){ return _custKey(c)===key; });
+  if (!_custPickSel) return;
+  _custPickerList();
+  var c = _custPickSel, OPTS = _custOptList();
+  var optRows = OPTS.map(function(o){
+    var done = c.options && c.options[o];
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;'+(done?'color:var(--tx3)':'')+'">'
+      + (done ? '<input type="checkbox" disabled style="width:16px;height:16px">' : '<input type="checkbox" class="custopt" value="'+_esc(o)+'"'+(o==='薬歴くん'?' checked':'')+' style="width:16px;height:16px;cursor:pointer">')
+      + '<span>'+_esc(o)+'</span>'+(done?'<span style="font-size:10px;background:#eaf3de;color:#3b6d11;padding:1px 7px;border-radius:8px;margin-left:auto">導入済み</span>':'')+'</label>';
+  }).join('');
+  var inpCss = 'width:100%;height:34px;border:1px solid var(--bd);border-radius:8px;background:var(--s1);padding:0 10px;font-size:13px;font-family:inherit';
+  document.getElementById('custpick-form').innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      + _cpFld('薬局名（顧客から自動）', _esc(c.store||'')) + _cpFld('都道府県', _esc(c.pref||'—'))
+      + _cpFld('担当者', _esc(c.rep||'—')) + _cpFld('区分', '直販（既存顧客）')
+    + '</div>'
+    + '<div style="border:1px dashed var(--amb,#b3823f);background:#fdf8f1;border-radius:10px;padding:11px 13px;margin:10px 0"><div style="font-size:12px;font-weight:800;color:#b3823f;margin-bottom:8px">💡 この顧客の未導入オプション（提案する商品を選択）</div>'+optRows+'</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      + '<div><label style="font-size:11px;font-weight:700;color:var(--tx2)">商品種別</label><select id="cp-prod" style="'+inpCss+'"><option>その他ソフト</option><option>調剤くんV8</option><option>ハードウェア</option></select></div>'
+      + '<div><label style="font-size:11px;font-weight:700;color:var(--tx2)">ステータス</label><select id="cp-status" style="'+inpCss+'"><option value="状況確認">状況確認</option><option value="デモ・見積提出">デモ・見積提出</option><option value="見積提出" selected>見積提出</option><option value="口頭受注">口頭受注</option></select></div>'
+      + '<div><label style="font-size:11px;font-weight:700;color:var(--tx2)">売上（千円）</label><input id="cp-sales" type="number" placeholder="例：1200" style="'+inpCss+'"></div>'
+      + '<div><label style="font-size:11px;font-weight:700;color:var(--tx2)">計上月（予定）</label><input id="cp-month" type="month" style="'+inpCss+'"></div>'
+    + '</div>'
+    + '<div style="margin-top:10px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">次アクション</label><input id="cp-next" type="text" placeholder="例：薬歴くんデモ日程調整" style="'+inpCss+'"></div>'
+    + '<button class="btn pr" style="width:100%;margin-top:12px;padding:11px;font-size:14px;font-weight:800" onclick="_custCreateDeal()">＋ この内容で案件を作成（顧客に紐づけ）</button>'
+    + '<div style="font-size:11px;color:var(--tx3);margin-top:9px;border-top:1px dashed var(--bds);padding-top:8px">作成後に開く案件カードで詳細を編集できます。受注（確度5）にすると顧客のオプションに反映されます（今後の①連動で自動化予定）。</div>';
+}
+function _custCreateDeal(){
+  var c = _custPickSel; if (!c) return;
+  var people = ap();
+  var sp = people.find(function(p){ return p.name===c.rep; });
+  var status = (document.getElementById('cp-status')||{}).value || '見積提出';
+  var probMap = { '状況確認':2, 'デモ・見積提出':3, '見積提出':3, '口頭受注':4 };
+  var prob = probMap[status] || 3;
+  var opts = [].slice.call(document.querySelectorAll('#custpick-form .custopt:checked')).map(function(cb){ return _CUST_OPT_TO_DEAL[cb.value]||cb.value; });
+  var now = new Date();
+  var originMonth = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var id = uid();
+  var d = {
+    id:id, spId: sp?sp.id:'office', name:c.store||'',
+    pref:c.pref||'', category:'直販',
+    productType:(document.getElementById('cp-prod')||{}).value||'その他ソフト',
+    productOption: opts.join(','),
+    route:'', kyogou:'', resecon:'', dealType:'', routeRef:'',
+    nextAction:(document.getElementById('cp-next')||{}).value||'',
+    originMonth:originMonth, deliveryMonth:(document.getElementById('cp-month')||{}).value||'', activationMonth:'',
+    sales:(document.getElementById('cp-sales')||{}).value||'', cost:'',
+    phase:status, probability:prob,
+    customerId: c.id||'', customerStore: c.store||'',
+    visits:[]
+  };
+  if (!D.deals) D.deals = [];
+  d._cre = Date.now(); d._mod = d._cre;
+  D.deals.unshift(d);
+  if (typeof _auditDealAdd==='function') _auditDealAdd(d);
+  save();  // ※進行中案件のため実績(D.actuals)には非干渉
+  _custPickerClose();
+  if (typeof _showToast==='function') _showToast('✅ '+(c.store||'')+' の案件を作成しました','ok',3000);
+  cdSp = -1;
+  if (typeof setDealSubTab==='function') setDealSubTab('active');
+  renderDeals();
+  setTimeout(function(){ try{ _openSidepanel(id); }catch(e){} }, 120);
 }
 
 function getOptionArray(productOption) {
