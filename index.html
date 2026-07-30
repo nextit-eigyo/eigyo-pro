@@ -2622,6 +2622,10 @@ body.has-sidepanel #home-deal-mode {
         <button id="sort-deadline-btn" class="btn sm" onclick="setDealSort('deadline')" style="font-size:12px;padding:6px 13px">⏰ 期限順</button>
         <button id="sort-amount-btn"   class="btn sm" onclick="setDealSort('amount')"   style="font-size:12px;padding:6px 13px">💴 金額順</button>
       </div>
+      <div style="display:flex;gap:2px;background:var(--s3);border-radius:9px;padding:2px;flex-shrink:0" title="表示切替">
+        <button id="dview-list-btn"   class="btn sm" onclick="setDealKanban(false)" style="font-size:12px;padding:6px 13px;background:var(--tx);color:#fff;border-color:var(--tx)">≣ リスト</button>
+        <button id="dview-kanban-btn" class="btn sm" onclick="setDealKanban(true)"  style="font-size:12px;padding:6px 13px">🗂 ステータス別</button>
+      </div>
     </div>
     <!-- 2段目：担当者タブ -->
     <div id="dptabs-sub-container" style="display:none;margin-bottom:10px">
@@ -9221,6 +9225,81 @@ function renderProgressView(deals) {
     var el = document.getElementById('deal-list');
     if (el) el.innerHTML = '<div class="empty" style="padding:40px 20px">テーブル描画関数が見つかりません</div>';
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🗂 ステータス別カンバン表示(表示専用・集計非干渉)
+//   既存の絞り込み結果 deals をステータス列に並べ替えて表示するだけ。
+//   カードクリックは既存の _openSidepanel を再利用。数字・保存には触れない。
+// ══════════════════════════════════════════════════════════════
+var _dealKanban = false;
+function setDealKanban(on){
+  _dealKanban = !!on;
+  var lb = document.getElementById('dview-list-btn'), kb = document.getElementById('dview-kanban-btn');
+  var act = ';background:var(--tx);color:#fff;border-color:var(--tx)';
+  if (lb) lb.style.cssText = 'font-size:12px;padding:6px 13px' + (!on ? act : '');
+  if (kb) kb.style.cssText = 'font-size:12px;padding:6px 13px' + (on ? act : '');
+  renderDeals();
+}
+function renderDealsKanban(deals){
+  var dl = document.getElementById('deal-list'); if (!dl) return;
+  var people = ap();
+  var COLS = [
+    {label:'アプローチ', color:'#8a8578', core:true,  st:['','電話連絡','状況確認','定期訪問']},
+    {label:'デモ・提案', color:'#5a7b9e', core:true,  st:['デモ・見積提出前','デモ']},
+    {label:'見積提出',   color:'#c8963e', core:true,  st:['デモ・見積提出','見積提出']},
+    {label:'口頭受注',   color:'#7a6bb0', core:true,  st:['口頭受注']},
+    {label:'受注',       color:'#7a8e5a', core:false, st:['受注']},
+    {label:'失注・延期', color:'#a5493a', core:false, st:['失注','延期']}
+  ];
+  function colOf(ls){ for (var i=0;i<COLS.length;i++){ if (COLS[i].st.indexOf(ls)>=0) return i; } return 0; }
+  var buckets = COLS.map(function(){ return []; });
+  deals.forEach(function(d){ buckets[colOf(lstat(d))].push(d); });
+  buckets.forEach(function(b){ b.sort(function(x,y){ return getProb(y)-getProb(x); }); });
+  function stars(p){ var s=''; for (var i=1;i<=5;i++) s+='<span style="color:'+(i<=p?'#c8963e':'#ddd6c6')+'">★</span>'; return s; }
+  function dlBadge(d){
+    if (!d.nextDate) return '';
+    var t=new Date(); t.setHours(0,0,0,0);
+    var nd=new Date(d.nextDate); if (isNaN(nd.getTime())) return '';
+    nd.setHours(0,0,0,0);
+    var diff=Math.round((nd-t)/86400000), md=String(d.nextDate).slice(5);
+    if (diff<0)  return '<span style="font-size:10px;background:#fcebeb;color:#a32d2d;padding:1px 6px;border-radius:5px;white-space:nowrap">📅 '+md+' 超過</span>';
+    if (diff<=3) return '<span style="font-size:10px;background:#faeeda;color:#854f0b;padding:1px 6px;border-radius:5px;white-space:nowrap">📅 '+md+' 間近</span>';
+    return '<span style="font-size:10px;color:var(--tx3);white-space:nowrap">📅 '+md+'</span>';
+  }
+  var html = '<div style="display:flex;gap:12px;overflow-x:auto;padding:4px 0 10px;align-items:flex-start">';
+  COLS.forEach(function(c,ci){
+    var cd = buckets[ci];
+    if (!cd.length && !c.core) return;  // 受注・失注列は該当があるときだけ表示
+    var csum = cd.reduce(function(a,d){ return a + (parseFloat(d.sales)||0); }, 0);
+    var cards = cd.length ? cd.map(function(d){
+      var pp = people.find(function(p){ return p.id===d.spId; });
+      var dt = (d.dealType||'');
+      var tt = dt.indexOf('新規')>=0 ? '<span style="font-size:10px;background:#e6f1fb;color:#185fa5;padding:1px 6px;border-radius:5px">新規</span>'
+             : dt.indexOf('既存')>=0 ? '<span style="font-size:10px;background:#eaf3de;color:#3b6d11;padding:1px 6px;border-radius:5px">既存</span>' : '';
+      return '<div onclick="_openSidepanel(\''+d.id+'\')" style="background:var(--s1);border:1px solid var(--bd);border-radius:9px;padding:9px 10px;cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor=\'var(--acc)\';this.style.boxShadow=\'0 3px 12px rgba(90,123,158,.14)\'" onmouseout="this.style.borderColor=\'var(--bd)\';this.style.boxShadow=\'none\'">'
+        + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:13px;font-weight:800;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_esc(d.name||'（名称未設定）')+'</span>'+tt+'</div>'
+        + '<div style="font-size:11px;color:var(--tx3);display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:5px">'
+          + (d.pref?'<span>📍'+_esc(d.pref)+'</span>':'')
+          + (pp?'<span>👤'+_esc(pp.name)+'</span>':'')
+          + '<span style="letter-spacing:1px">'+stars(getProb(d))+'</span></div>'
+        + ((d.nextAction||d.nextDate)?'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
+            + (d.nextAction?'<span style="font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">▶ '+_esc(d.nextAction)+'</span>':'<span></span>')
+            + dlBadge(d) + '</div>':'')
+        + ((d.sales!==''&&d.sales!=null)?'<div style="text-align:right;font-size:13px;font-weight:800;margin-top:5px">'+fmtN(d.sales)+'<span style="font-size:10px;color:var(--tx3)">千</span></div>':'')
+        + '</div>';
+    }).join('') : '<div style="font-size:11px;color:var(--tx3);text-align:center;padding:16px 0">該当なし</div>';
+    html += '<div style="flex:0 0 236px;background:var(--s3);border:1px solid var(--bd);border-radius:12px;padding:8px">'
+      + '<div style="display:flex;align-items:center;gap:7px;padding:3px 5px 9px">'
+        + '<span style="width:9px;height:9px;border-radius:50%;background:'+c.color+';flex-shrink:0"></span>'
+        + '<span style="font-size:13px;font-weight:800">'+c.label+'</span>'
+        + '<span style="font-size:11px;color:#fff;background:'+c.color+';border-radius:9px;padding:1px 8px">'+cd.length+'</span>'
+        + '<span style="margin-left:auto;font-size:11px;color:var(--tx3)">'+fmtN(csum)+'千</span></div>'
+      + '<div style="display:flex;flex-direction:column;gap:7px">'+cards+'</div></div>';
+  });
+  html += '</div>';
+  html += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">受注・失注も列に出すには、上のフィルターで「受注済みも表示」「失注・延期も表示」をON。カードクリックで詳細が開きます。</div>';
+  dl.innerHTML = html;
 }
 
 // 旧 _buildProgressRow 関数は削除済(Phase4 dead code除去・card viewはテーブル化により不要)
@@ -16222,7 +16301,8 @@ function renderDeals() {
     }
     return;
   }
-  renderProgressView(deals);
+  if (_dealKanban) renderDealsKanban(deals);
+  else renderProgressView(deals);
 }
 
 // ── buildDI 完全リニューアル ────────────────────────────────────
