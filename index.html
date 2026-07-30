@@ -23818,8 +23818,15 @@ function _mikaiPrint(city) {
 // 👥 顧客管理(顧客台帳・P1) — 直販＋購入情報の顧客をオプション軸で可視化
 //   D.customers は案件/数字集計と独立。取込は _autoBackup 後に上書き。
 // ══════════════════════════════════════════════════════════════
-function _custOptList(){ return (D.customerOptions && D.customerOptions.length) ? D.customerOptions : ['薬歴くん','オン資','電子処方箋','医療扶助','医療費助成']; }
-function _custSetRep(r){ window._custRep = (window._custRep===r ? '' : r); renderCustomers(); }
+// オプション軸=商品マスタ(カテゴリ:オプション/その他)から動的取得。全オプション対応・追加も自動反映。
+function _custOptList(){
+  if (typeof getOptionMaster === 'function'){ try { var m = getOptionMaster(); if (m && m.length) return m; } catch(e){} }
+  return (D.customerOptions && D.customerOptions.length) ? D.customerOptions : ['薬歴くんV8','オンライン資格確認','電子処方箋','オンライン資格確認(医療扶助)','オンライン資格確認(医療費助成)'];
+}
+function _custSetRep(r){ window._custRep = (window._custRep===r ? '' : r); window._custOpenKey=''; renderCustomers(); }
+function _custSetView(v){ window._custView = v; window._custOpenKey=''; renderCustomers(); }
+function _custToggleRow(k){ window._custOpenKey = (window._custOpenKey===k ? '' : k); renderCustomers(); }
+function _custQuickDeal(key){ if (typeof openCustomerPicker==='function'){ openCustomerPicker(); setTimeout(function(){ if(typeof _custPickSelect==='function') _custPickSelect(key); }, 80); } }
 function renderCustomers(){
   var body = document.getElementById('customers-body'); if (!body) return;
   var meta = document.getElementById('customers-meta');
@@ -23845,47 +23852,63 @@ function renderCustomers(){
       return '<button onclick="_custSetRep(\''+(r==='__all__'?'':r)+'\')" style="font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer;border:1px solid '+(on?'var(--acc)':'var(--bd)')+';background:'+(on?'var(--acc)':'var(--s1)')+';color:'+(on?'#fff':'var(--tx2)')+';font-weight:'+(on?'700':'500')+'">'+lab+'</button>';
     }).join('') + '<button onclick="document.getElementById(\'customers-import-file\').click()" title="再取り込み(上書き)" style="font-size:11px;padding:5px 10px;border-radius:7px;border:1px solid var(--bd);background:var(--s1);color:var(--tx3);cursor:pointer">📥 再取込</button>';
   }
-  function rate(o){ var n=list.filter(function(c){ return c.options && c.options[o]; }).length; return { n:n, pct: list.length ? Math.round(n/list.length*100) : 0 }; }
-  var h = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">';
+  function optCount(c){ return OPTS.filter(function(o){ return c.options && c.options[o]; }).length; }
+  if (!window._custView) window._custView = 'cust';
+  var view = window._custView, openKey = window._custOpenKey || '';
+  var avg = list.length ? (list.reduce(function(a,c){ return a + optCount(c); }, 0)/list.length) : 0;
+  var h = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">';
   h += _mikaiCard('顧客数', fmtN(list.length), 'var(--s3)', 'var(--tx)');
   h += _mikaiCard('担当者数', String(reps.length), '#e6f1fb', '#185fa5');
-  var avg = list.length ? (list.reduce(function(a,c){ return a + OPTS.filter(function(o){ return c.options && c.options[o]; }).length; }, 0)/list.length) : 0;
   h += _mikaiCard('平均導入オプション', avg.toFixed(1)+' / '+OPTS.length, '#eaf3de', '#3b6d11');
   h += '</div>';
-  h += '<div style="font-size:12px;color:var(--tx2);font-weight:700;margin-bottom:8px">オプション別 導入率(未導入=クロスセル余地)</div>';
-  h += '<div style="display:flex;flex-direction:column;gap:7px;margin-bottom:18px">';
-  OPTS.forEach(function(o){
-    var r = rate(o), col = r.pct<50 ? ['#fcebeb','#a32d2d'] : r.pct<80 ? ['#faeeda','#854f0b'] : ['#eaf3de','#3b6d11'];
-    h += '<div style="display:flex;align-items:center;gap:10px">'
-      + '<div style="width:110px;font-size:13px">'+_esc(o)+'</div>'
-      + '<div style="flex:1;height:18px;background:#f1efe8;border-radius:4px;overflow:hidden;min-width:60px"><div style="width:'+r.pct+'%;height:100%;background:#97c459"></div></div>'
-      + '<div style="width:120px;text-align:right;font-size:12px;color:var(--tx3)">導入 '+r.n+' / 未 '+(list.length-r.n)+'</div>'
-      + '<div style="width:52px;text-align:right;font-size:13px;font-weight:700;background:'+col[0]+';color:'+col[1]+';padding:3px 8px;border-radius:6px">'+r.pct+'%</div></div>';
-  });
-  h += '</div>';
-  h += '<div style="font-size:12px;color:var(--tx2);font-weight:700;margin-bottom:8px">顧客 × オプション マトリクス <span style="font-weight:400;color:var(--tx3)">('+list.length+'件・未導入が多い順)</span></div>';
-  h += '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12px">';
-  h += '<thead><tr style="background:var(--s3)"><th style="text-align:left;padding:7px 9px;position:sticky;left:0;background:var(--s3);z-index:1">店舗名</th><th style="padding:7px 6px">担当</th>';
-  OPTS.forEach(function(o){ h += '<th style="padding:7px 5px;font-size:11px;white-space:nowrap">'+_esc(o)+'</th>'; });
-  h += '<th style="padding:7px 6px">未導入</th></tr></thead><tbody>';
-  var sorted = list.slice().sort(function(a,b){
-    var ma = OPTS.filter(function(o){ return !(a.options && a.options[o]); }).length;
-    var mb = OPTS.filter(function(o){ return !(b.options && b.options[o]); }).length;
-    return mb - ma;
-  });
-  sorted.forEach(function(c){
-    var miss = OPTS.filter(function(o){ return !(c.options && c.options[o]); }).length;
-    h += '<tr style="border-bottom:0.5px solid var(--bds)">'
-      + '<td style="padding:6px 9px;font-weight:600;position:sticky;left:0;background:var(--s1);white-space:nowrap">'+_esc(c.store||'')+(c.ver?' <span style="font-size:10px;color:var(--tx3)">'+_esc(c.ver)+'</span>':'')+'</td>'
-      + '<td style="text-align:center;padding:6px;color:var(--tx3);font-size:11px;white-space:nowrap">'+_esc(c.rep||'—')+'</td>';
-    OPTS.forEach(function(o){
-      var on = c.options && c.options[o];
-      h += '<td style="text-align:center;padding:6px 5px">'+(on?'<span style="color:#3b6d11;font-weight:800">●</span>':'<span style="color:#d8d2c4">○</span>')+'</td>';
-    });
-    h += '<td style="text-align:center;padding:6px">'+(miss?'<span style="font-size:11px;background:#faeeda;color:#854f0b;padding:1px 7px;border-radius:9px;font-weight:700">'+miss+'</span>':'<span style="font-size:11px;color:#3b6d11">完備</span>')+'</td></tr>';
-  });
-  h += '</tbody></table></div>';
-  h += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">● 導入済み / ○ 未導入。未導入が多い順に表示(クロスセル候補)。担当ボタンで絞り込み。</div>';
+  // ビュー切替
+  function vbtn(v,lab){ var on=view===v; return '<button onclick="_custSetView(\''+v+'\')" style="font-size:13px;font-weight:700;padding:6px 15px;border:none;border-radius:8px;cursor:pointer;'+(on?'background:var(--acc);color:#fff':'background:none;color:var(--tx2)')+'">'+lab+'</button>'; }
+  h += '<div style="display:inline-flex;gap:2px;background:var(--s3);border-radius:10px;padding:3px;margin-bottom:12px">'+vbtn('cust','顧客で見る')+vbtn('opt','オプションで見る')+'</div>';
+
+  if (view === 'cust'){
+    h += list.map(function(c){
+      var key=_custKey(c), open=(openKey===key), done=optCount(c);
+      var miss=OPTS.filter(function(o){ return !(c.options && c.options[o]); });
+      var pct=OPTS.length?Math.round(done/OPTS.length*100):0;
+      var chips=miss.slice(0,3).map(function(o){ return '<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:#fdf3e4;color:#8a5a1a;border:1px dashed #d9b47a;white-space:nowrap">'+_esc(o)+'</span>'; }).join('');
+      if (miss.length>3) chips+='<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:var(--s3);color:var(--tx3)">+'+(miss.length-3)+'</span>';
+      var kk=key.replace(/'/g,"\\'");
+      var grid=OPTS.map(function(o){ var on=c.options&&c.options[o];
+        return '<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;'+(on?'':'color:var(--tx2)')+'"><span style="width:16px;text-align:center;'+(on?'color:#3b6d11;font-weight:900':'color:#d8c9ad')+'">'+(on?'●':'○')+'</span>'+_esc(o)+(on?'':'<button onclick="event.stopPropagation();_custQuickDeal(\''+kk+'\')" style="margin-left:auto;font-size:10px;color:var(--acc);border:1px solid var(--bd);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--s1)">＋提案</button>')+'</div>';
+      }).join('');
+      return '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:11px;margin-bottom:8px;overflow:hidden">'
+        + '<div onclick="_custToggleRow(\''+kk+'\')" style="display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer">'
+          + '<span style="color:var(--tx3);font-size:12px;display:inline-block;'+(open?'transform:rotate(90deg)':'')+'">▶</span>'
+          + '<div style="min-width:150px"><div style="font-size:14px;font-weight:800">'+_esc(c.store||'')+'</div><div style="font-size:11px;color:var(--tx3);margin-top:2px;display:flex;gap:8px"><span>📍'+_esc(c.pref||'')+'</span><span>👤'+_esc(c.rep||'—')+'</span></div></div>'
+          + '<div style="display:flex;align-items:center;gap:8px;min-width:110px"><div style="flex:1;height:8px;background:#efe9dd;border-radius:99px;overflow:hidden;min-width:44px"><div style="height:100%;background:#97c459;border-radius:99px;width:'+pct+'%"></div></div><span style="font-size:12px;font-weight:800;color:var(--grn);white-space:nowrap">'+done+'/'+OPTS.length+'</span></div>'
+          + '<div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">'+(miss.length?chips:'<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:#eaf3de;color:#3b6d11">完備</span>')+'</div>'
+        + '</div>'
+        + (open ? '<div style="border-top:1px solid var(--bds);padding:10px 14px 12px;background:#fffef9"><div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px">'+grid+'</div></div>' : '')
+      + '</div>';
+    }).join('');
+    h += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">未導入オプション(=提案候補)をチップ表示。行クリックで全'+OPTS.length+'項目の導入状況。「＋提案」で既存顧客から案件追加。</div>';
+  } else {
+    h += OPTS.map(function(o){
+      var key='opt::'+o, open=(openKey===key);
+      var users=list.filter(function(c){ return c.options && c.options[o]; });
+      var miss=list.filter(function(c){ return !(c.options && c.options[o]); });
+      var pct=list.length?Math.round(users.length/list.length*100):0;
+      var col=pct<40?'#a32d2d':pct<70?'#854f0b':'#3b6d11';
+      var mlist=miss.map(function(c){ var kk=_custKey(c).replace(/'/g,"\\'");
+        return '<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--bds)"><span>'+_esc(c.store||'')+'</span><span style="color:var(--tx3);font-size:11px">('+_esc(c.pref||'')+'・'+_esc(c.rep||'')+')</span><button onclick="_custQuickDeal(\''+kk+'\')" style="margin-left:auto;font-size:11px;color:#fff;background:var(--acc);border:none;border-radius:7px;padding:4px 11px;cursor:pointer">＋案件</button></div>';
+      }).join('') || '<div style="font-size:12px;color:var(--tx3);padding:6px 0">全顧客が導入済み</div>';
+      return '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:11px;margin-bottom:8px;overflow:hidden">'
+        + '<div onclick="_custToggleRow(\''+key.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer">'
+          + '<span style="color:var(--tx3);font-size:12px;display:inline-block;'+(open?'transform:rotate(90deg)':'')+'">▶</span>'
+          + '<div style="font-size:14px;font-weight:800;flex:1;min-width:0">'+_esc(o)+'</div>'
+          + '<div style="display:flex;align-items:center;gap:8px;min-width:110px"><div style="flex:1;height:8px;background:#efe9dd;border-radius:99px;overflow:hidden;min-width:44px"><div style="height:100%;border-radius:99px;width:'+pct+'%;background:'+(pct<40?'#e07a6a':'#97c459')+'"></div></div><span style="font-size:12px;font-weight:800;color:'+col+';white-space:nowrap">'+pct+'%</span></div>'
+          + '<div style="font-size:11px;background:#fdf3e4;color:#8a5a1a;border-radius:9px;padding:2px 9px;white-space:nowrap">未導入 '+miss.length+'</div>'
+        + '</div>'
+        + (open ? '<div style="border-top:1px solid var(--bds);padding:8px 14px 12px;background:#fffef9">'+mlist+'</div>' : '')
+      + '</div>';
+    }).join('');
+    h += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">商品ごとの導入率。行クリックで未導入の顧客(=売れる先)。「＋案件」で既存顧客から案件追加。</div>';
+  }
   body.innerHTML = h;
 }
 function importCustomersJson(input){
