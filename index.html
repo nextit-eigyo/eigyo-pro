@@ -9282,9 +9282,11 @@ function renderDealsKanban(deals){
       // 左下の情報: 次アクション+期限。無ければ計上月/稼働月で空きスペースを有効活用
       var info = [];
       if (d.nextAction) info.push('<div style="font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">▶ '+_esc(d.nextAction)+'</div>');
-      var db = dlBadge(d);
+      // 受注・口頭受注は期限(超過)バッジを表示しない(実質クローズでノイズになるため)
+      var _ls = lstat(d);
+      var db = (_ls==='受注' || _ls==='口頭受注') ? '' : dlBadge(d);
       if (db) info.push('<div style="margin-top:'+(d.nextAction?'3px':'0')+'">'+db+'</div>');
-      if (!d.nextAction && !d.nextDate) {
+      if (!d.nextAction && !db) {
         var mm = [];
         if (d.deliveryMonth) mm.push('🗓 計上 '+fmtMo(d.deliveryMonth));
         if (d.activationMonth) mm.push('稼働 '+fmtMo(d.activationMonth));
