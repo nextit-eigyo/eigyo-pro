@@ -3597,6 +3597,7 @@ body.has-sidepanel #home-deal-mode {
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
     <span style="font-size:15px;font-weight:800">👥 顧客管理</span>
     <span id="customers-meta" style="font-size:11px;color:var(--tx3)"></span>
+    <button onclick="openCustomerEdit('')" title="顧客を新規追加" style="font-size:12px;font-weight:700;padding:6px 13px;border:1px solid var(--acc);border-radius:8px;background:var(--acc);color:#fff;cursor:pointer">➕ 顧客追加</button>
     <div id="customers-rep" style="display:flex;gap:5px;flex-wrap:wrap;margin-left:auto"></div>
   </div>
   <div id="customers-body"></div>
@@ -7346,9 +7347,27 @@ function sanitizeD() {
   // ⭐A2: _cre/_mod を持たない旧案件に番兵(=1)を付与。受信マージで「古い=同期済み」と正しく扱う。
   try { D.deals.forEach(function(d){ if (d && d.id){ if (!d._cre) d._cre = 1; if (!d._mod) d._mod = d._cre; } }); } catch(e){}
   if (!D.people)       D.people = [];
-  // 顧客台帳(顧客管理・P1)。案件/数字集計とは独立。Firebase等がobjectで返したら配列化。
+  // 顧客台帳(顧客管理・P1/P2)。案件/数字集計とは独立。Firebase等がobjectで返したら配列化。
   if (D.customers && !Array.isArray(D.customers)) D.customers = Object.values(D.customers);
   if (!Array.isArray(D.customers)) D.customers = [];
+  // ⭐P2: 多PC同期でID単位マージするため _cre/_mod 番兵を付与(旧顧客=同期済み扱い)。id は名寄せ用に補完(店舗名派生・全PCで一致)。
+  try {
+    D.customers.forEach(function(c){
+      if (!c) return;
+      if (!c._cre) c._cre = 1;
+      if (!c._mod) c._mod = c._cre;
+      if (!c.id && c.store) c.id = 'cu_' + encodeURIComponent(String(c.store)); // 決定的id=全PCで同一(名寄せキーは store 優先なので衝突しない)
+    });
+  } catch(e){}
+  // ⭐P2: 顧客の削除記録(tombstone)を初期化＋古い記録を剪定(60日)。多PCで「削除」を正しく伝播。
+  if (!D._deletedCustomers || typeof D._deletedCustomers !== 'object') D._deletedCustomers = {};
+  try {
+    var _cNow = Date.now(), _cKeep = 60 * 24 * 60 * 60 * 1000;
+    Object.keys(D._deletedCustomers).forEach(function(k){
+      var t = parseFloat(D._deletedCustomers[k]) || 0;
+      if (!t || (_cNow - t) > _cKeep) delete D._deletedCustomers[k];
+    });
+  } catch(e){}
   if (!Array.isArray(D.customerOptions) || !D.customerOptions.length)
     D.customerOptions = ['薬歴くん','オン資','電子処方箋','医療扶助','医療費助成'];
   if (!D.actuals)      D.actuals = {};
@@ -15203,6 +15222,60 @@ function _mergeLocalDealChanges(remote) {
     return cnt;
   } catch(e) { console.warn('[EIGYO PRO] 案件マージ失敗', e); return 0; }
 }
+// ══════════════════════════════════════════════════════════════
+// 👥 顧客台帳(D.customers)の多PC同期: 案件と同じ思想でID単位マージ(丸ごとsetで他PCの追加/編集/削除を踏み潰さない)。
+//   マージキー = store(店舗名) 優先 → id。※シード顧客はstoreがキー・追加顧客もstore必須。数字/集計には非干渉。
+// ══════════════════════════════════════════════════════════════
+function _custMergeKey(c){ return String((c && c.store) || (c && c.id) || ''); }
+// remoteを土台に、ローカルの未同期新規/編集だけ重ねる(案件 _mergeDealsById と同ロジック)。
+function _mergeCustomersById(remoteArr, localArr, since){
+  var map = {};
+  (remoteArr || []).forEach(function(c){ var k = _custMergeKey(c); if (k) map[k] = c; }); // 土台=remote全件保持
+  var WIN = 30 * 60 * 1000, now = Date.now();
+  (localArr || []).forEach(function(c){
+    var k = _custMergeKey(c); if (!k) return;
+    var r = map[k];
+    if (!r){
+      // ローカルのみ存在 → 自分の未同期新規 or 他PCが削除。前回同期以降の作成/編集 or 直近30分の新規のみ採用。
+      var lm = parseFloat(c._mod) || parseFloat(c._cre) || 0;
+      if ((since > 0 && lm > since) || (c._cre && (now - c._cre) < WIN)) map[k] = c;
+      return;
+    }
+    var lmod = parseFloat(c._mod) || parseFloat(c._cre) || 0;
+    var rmod = parseFloat(r._mod) || parseFloat(r._cre) || 0;
+    if (lmod >= rmod) map[k] = c; // 新しい編集が勝つ
+  });
+  return map;
+}
+// 削除tombstoneを適用(削除時刻が対象の編集時刻以上なら削除を尊重)。
+function _applyCustTombstones(map, tomb){
+  if (!map || !tomb) return;
+  Object.keys(tomb).forEach(function(k){
+    var c = map[k]; if (!c) return;
+    var t = parseFloat(tomb[k]) || 0;
+    var cm = parseFloat(c._mod) || parseFloat(c._cre) || 0;
+    if (t >= cm) delete map[k];
+  });
+}
+// 受信時: 未同期のローカル顧客変更(新規/編集)を remote に載せ替えて保護(D=remote で消えない)。案件 _mergeLocalDealChanges と同型。
+function _mergeLocalCustomerChanges(remote){
+  try{
+    if (!remote || !Array.isArray(remote.customers) || typeof D === 'undefined' || !D || !Array.isArray(D.customers)) return 0;
+    var since = FB.lastApplyWall || 0, now = Date.now(), WIN = 30 * 60 * 1000;
+    var rIdx = {}; remote.customers.forEach(function(c, i){ var k = _custMergeKey(c); if (k) rIdx[k] = i; });
+    var cnt = 0;
+    D.customers.forEach(function(lc){
+      var k = _custMergeKey(lc); if (!k) return;
+      var mod = parseFloat(lc._mod) || 0, cre = parseFloat(lc._cre) || 0;
+      var changed = (since > 0 && (mod > since || cre > since)) || (cre && (now - cre) < WIN);
+      if (!changed) return;
+      if (k in rIdx) remote.customers[rIdx[k]] = lc; else remote.customers.push(lc);
+      cnt++;
+    });
+    return cnt;
+  }catch(e){ console.warn('[EIGYO PRO] 顧客マージ失敗', e); return 0; }
+}
+
 // 受信適用の共通処理(リスナーと復帰時soft再同期の両方から呼ぶ)。
 // 🖥 機器マスタの受信時マージ(操作ログと同様: D=remote で丸ごと置換されても
 //   ローカル未同期の登録が消えないよう remote と union する)。
@@ -15242,6 +15315,20 @@ function _fbApplyRemote(remote, remoteTs) {
     remote.deals = Object.values(_m);
     remote._deletedDeals = _tomb;
   } catch(e){ console.warn('[EIGYO PRO] 受信時tombstone適用失敗', e); }
+  // ⭐P2: 顧客台帳の受信マージ。未同期のローカル追加/編集を保護し、削除tombstoneを適用(D=remoteで消えない/復活しない)。
+  if (remote.customers && !Array.isArray(remote.customers)) {
+    remote.customers = Object.values(remote.customers).filter(function(c){ return c && _custMergeKey(c); });
+  }
+  var _custPreserved = _mergeLocalCustomerChanges(remote);
+  try {
+    var _ctomb = _tombMerge(remote._deletedCustomers, (D && D._deletedCustomers) || {});
+    if (Array.isArray(remote.customers)) {
+      var _cm = {}; remote.customers.forEach(function(c){ var k = _custMergeKey(c); if (k) _cm[k] = c; });
+      _applyCustTombstones(_cm, _ctomb);
+      remote.customers = Object.values(_cm);
+    }
+    remote._deletedCustomers = _ctomb;
+  } catch(e){ console.warn('[EIGYO PRO] 受信時顧客tombstone適用失敗', e); }
   // ⭐Phase2: 受信前に「未保存のbranchActuals拠点編集」を保護(remoteに自分のdirty拠点を上書きで残す)
   var _baDirtyRecv = [], _baLocalRecv = (D && D.branchActuals) ? D.branchActuals : {};
   try { _baDirtyRecv = _dirtyBABranches(); } catch(e){}
@@ -15343,7 +15430,7 @@ function _installWakeResync() {
 // ⭐A3: バージョンゲート — 古いキャッシュのコードが全防御(マージ/ブロック)を素通りして
 //   blob全置換で他PC案件を消す事故を防ぐ。各PCは起動時に自版を meta/codeVersion へ publish(自分が新しければ)。
 //   他PCがより新しい版を載せたら(デプロイ後に誰かが最新を開いたら)、古い版のPCへ再読込を促す。
-var APP_VERSION = '2026-06-10-45'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-45=🗺未開拓マップに「都道府県を一括補完」ボタン(_mikaiFillPref)追加: 既存案件のd.prefが空で導入済み判定に乗らない(都道府県未設定)問題の解消。厚生局マスタ(九州8県)で薬局名が1県だけに一致する案件のd.prefを自動セット(曖昧=複数県/未一致は手動・既に県ありは不変・福岡営業所or未割当のみ対象で他リージョン誤設定防止)。実行前に確認+_autoBackup、補完件数を表示。prefは表示・マップ突合のみ=売上/粗利の数字には一切影響しない。_mod刻印で多PC同期保護。(※前回の未開拓マップ/オートコンプリート追加=4b644d0/99002a8はAPP_VERSION据置きだった)。-10-44=起動時の手動バックアップ促しバナー(#backup-banner)を廃止=_checkBackupBannerを常時非表示に。自動バックアップ(_autoBackup:危険操作直前に自動保存＋履歴)運用に移行済みのため不要(馬場さん指示)。表示のみ・集計非干渉。-10-43=🛡branchActuals同期をセル(月)単位マージに=stale表示/クロバー根治。従来は拠点まるごと保護で「ローカルの空セルがサーバーの実値を踏み潰す」(受信=正値を空で上書きしstale表示・書込=空をサーバーに書きクロバー)危険があった。_baMergeCells(local非空セルは保持=編集を守る/local空セルはremote値で補完)を受信(_fbApplyRemote)・書込(_phase1Write)両方に適用。入っている数字は不変・空が実値を消さなくなるだけ。サーバーデータは診断時点で全拠点ドリフト0=正常だったため予防的根治。-10-42=🖥プレゼンに月切替を追加(◀前月/翌月▶): 当月/翌月固定(_presMonth)をやめ任意の会計月index(_presMi・0=4月〜11=3月)に。過去月も振り返れる=販売店受注が4-6月中心のため過去月表示が必須だった。月ラベルに当月/翌月/過去/先の月を表示・当月以外は「📅当月へ」表示・端月は◀▶をdisabled。表示専用・集計非干渉=数字不変。-10-41=🖥プレゼン内訳の受注案件(won)側でも販売店を区別: 販売店案件131件はwon側(D.deals category=販売店・dealer名あり)にあった。won/imp両ソースを共通の3色チャネルタグに統一(直販=藍/販売店=銅+代理店名/グループ=紫)。won側は従来category文字のみ・色は直販と同じだったのを是正。imp直販ラベルもV8→直販に統一(内容はV8のみ維持)。表示専用・集計非干渉=数字不変。-10-40=🖥プレゼン内訳で「販売店」を区別表示: インポート明細のdealer(販売店名)をbranchImportDetailに格納し、内訳を3種タグで色分け(グループ薬局=紫「グループ」/dealerあり=銅「販売店」+販売店名表示/それ以外=藍「V8」直販)。優先順位はアプリのcategory割当(11969)に合わせグループ>販売店>直販。V8のみ絞り込みは維持。表示専用・集計非干渉=数字不変。要各拠点Excel再インポートで反映。-10-39=🖥プレゼン内訳を「調剤くんV8」のみに限定(HW/その他システム/その他ソフト=ティエスプラン等は除外)。インポート保存時にproductType==='調剤くんV8'の行だけをbranchImportDetailに格納・グループチェーン薬局は_isGroupChainで判定しgrpフラグ付与→内訳で「グループ」/「V8」タグ色分け表示(案件モードと同色)。HW/保守/その他は従来通り残差「保守料・その他ほか」に。表示専用・集計非干渉=数字不変。要各拠点Excel再インポートで反映。-10-38=🖥プレゼン内訳を福岡以外の拠点でも表示: 月次Excelインポート時にソフト明細(薬局名/売上/粗利)をD.branchImportDetail[拠点][月]に表示専用で保存(getActualValue等の集計には非干渉=二重計上ゼロ・予実の数字は不変)。_presDealsが手入力案件の無い拠点はこの取込明細を内訳に出す(案件がある拠点は従来通り案件側を表示・二重表示防止)。神戸/高知/東京/新潟でも「どの薬局に導入したか」が会議で言える。過去分は各拠点Excelを1回再インポートで蓄積(数字は同一結果)。-10-37=🖥プレゼンモード追加(会議用大画面・サブタブ): 拠点×当月/翌月で 売上・粗利の実績/予算/達成率(特大・ゲージ)＋内訳(受注薬局)＋未達時の達成策(進行中案件の確度加重見込み・着地見込みと同ロジック)。全画面ボタン。既存集計関数(getActualValue/getBudgetValue/getProbDef)を再利用=数字は予実表と一致。読取専用・集計非干渉。-10-36=「未同期だった案件を保護しました」トーストを30秒に1回まで連発防止(多PC同時接続＋一斉リロードで通知が画面に積み上がる問題)。保護処理自体は毎回実行・表示のみ・集計非干渉。-10-35=【Phase3・同期コア】stale保存ブロック時でも「自分が編集した拠点のbranchActuals(実績)」を拠点別パスで書く(他拠点を踏まない)=別PCが新しいだけでExcelインポートがサーバに届かず消える問題(福岡8月2026-07)を根治。通常時(writeRest=true)は完全に同挙動・stale時のみ実績を書き足す＋書いた拠点だけbaseline更新。-10-16のequipMaster同手法をbranchActualsに適用。-10-34=Pages再デプロイ(前回-10-33のdeploy工程がGitHub側のtry-again-laterで失敗したため再トリガー・機能は同じ=予実表mt-sumの数字拡大)。-10-33=予実管理(営業会議タブ)の表mt-sumの数字を拡大=WEB会議の画面共有で見やすく: 数字18→23px・計行20→28px・計ラベル18→22px・td.lbl18→21px・th15→17px・差異バッジ11→13px。表示のみ・集計非干渉。-10-32=構成図ネットワーク図【自由配置Phase3:文字編集】: 「✏文字を編集」モードで機器クリック→名称/型番をprompt編集(pc._labels[key]={name,model}で上書き・空欄で自動に戻す)。_pcDevLabel/_pcDevSubで描画・高さ計算に反映。「🔄文字」でリセット。移動/線編集/文字編集の3モード排他。表示のみ・集計非干渉。-10-31=構成図ネットワーク図【自由配置Phase2:線の手動接続】: 「🔗線を編集」モードで機器を2つクリックで接続(pc._links)・線クリックで削除(手動は_links/自動は_hideLinks)。全機器の最終座標を_devPosに記録し手動線を機器中心間で描画・透明ヒット線でクリック容易化・「線リセット」で初期化。表示のみ・集計非干渉。-10-30=構成図ネットワーク図に【自由配置Phase1】: 機器をドラッグで移動(pc._layout[key]={x,y}保存=自動配置を上書き・線も追従・全ゾーン対応)。「🔄自動配置に戻す」ボタン＋案内。座標変換はviewBox+getBoundingClientRect(CSS zoom対応)。Phase2で線の手動接続予定。表示のみ・集計非干渉。-10-29=構成図ネットワーク図: オン資端末↔YAMAHAルーターのペアリング判定を完全一致(r.type==='YAMAHA')→部分一致(/YAMAHA/i)に修正。種別が「YAMAHA_NVR510」等の派生名でもオン資端末が原則YAMAHAルーターに接続表示(従来は中央HUB直下に浮いていた)。無線も部分一致化。表示のみ・集計非干渉。-10-28=構成図に「既存(流用)」機能: 全機器の編集行に既存チェック追加(.existing)。ネットワーク図/アイコン一覧で既存機器を点線枠＋緑「既存」バッジ表示(SVGはd.meta.existingも参照=オン資↔YAMAHAルーター等の子機器も対応)。※オン資端末↔YAMAHAルーター接続は台数1で従来から自動表示。表示のみ・集計非干渉。-10-27=ネットワーク図の文字を拡大: 機器名11→13/型番9→10/トレイ詳細8.5→13(＋行間12→15・下部ゾーン高さ260→320・_pcDeviceBlockHeightを連動調整して重なり防止)。表示のみ・集計非干渉。-10-26=構成図アイコン一覧の印刷を1枚に圧縮(印刷時フォント/余白/セクション間を縮小)＋@page margin:0でブラウザ既定ヘッダー/フッター(日付/タイトル/URL/ページ番号)を抑制(余白は.pc-diagram内側paddingで確保)。※ブラウザの「ヘッダーとフッター」設定ONだと出るのでOFF案内。表示のみ・集計非干渉。-10-25=アイコン一覧の文字が大きすぎたためバランス調整: 機器名18pt→16px・型番15pt→11px・トレイ22px→14px・カード幅も縮小。階層=機器名>トレイ>型番。表示のみ・集計非干渉。-10-24=アイコン一覧の文字を全体統一: 機器名(.pc-icon-label/.pc-printer-name)=18pt・型番/サブラベル(.pc-icon-sublabel/.pc-printer-model)=15pt。端末カードとプリンタカードで統一＋カード幅拡張。表示のみ・集計非干渉。-10-23=構成図: ①各機器(サーバー/レセコン/薬歴/オン資/ルーター/HUB/プリンタ/その他)の行に備考欄(.note)を追加(編集画面・保存対応・_pcMigrateは非破壊なので保持)。②アイコン一覧のプリンタのトレイ用途文字を大幅拡大(11px→22px)＋カード幅拡張(220→380)。表示/編集のみ・集計非干渉。-10-22=構成図ネットワーク図: 親機の付随機器(satellite)を縦積み→【横並び】に変更(縦だと重なり窮屈だったため)。親のcx中心に横方向へ並べ各機器から親へ線接続・確保する高さも1段分に。表示のみ・集計非干渉。-10-21=構成図: その他周辺機器に「接続先(親機器)」欄を追加(サーバー/レセコン/薬歴端末/プリンタから選択)。ネットワーク図で親指定のある周辺機器を親機にぶら下げて線で接続(server=上・レセコン等bottom系=下にsatellite描画・図の高さを自動確保)。親未指定は従来通り上部HUB直結。表示のみ・集計非干渉。-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
+var APP_VERSION = '2026-06-10-46'; // ⚠デプロイの度に必ず増やす(YYYY-MM-DD-NN)。再発防止コードの最低版。(-10-46=👥顧客管理P2: 顧客の追加/編集/削除を実装(マスター運用・Excel卒業)。ヘッダー「➕顧客追加」＋一覧の行(顧客で見る)を開くと「✏️編集/🗑削除」。編集モーダル=店舗名(必須)/法人名/担当者/都道府県/住所/郵便番号/電話/Ver。⭐多PC同期はID単位マージで保護(丸ごとset禁止=案件消失[[project_multipc_deal_loss_fix]]と同方式): 顧客専用のchild('customers').transaction(_mergeCustomersById=マージキーstore優先→id・remote土台にローカルの新規/編集だけ重ね新しい_modが勝つ)＋削除tombstone(D._deletedCustomers・_applyCustTombstones・_upd経由でmeta書込)＋受信保護(_mergeLocalCustomerChangesで未同期のローカル追加/編集をD=remote前に載せ替え)＋書込前事前マージ(_doFbWrite)。sanitizeDで全顧客に決定的id(cu_+encode(store)=全PCで一致)/_cre/_mod番兵を補完＋tombstone剪定(60日)。改名時は旧storeをtombstone化しid不変(案件customerId保持)。削除は_autoBackup('before_customer_delete')後。⭐顧客台帳は案件/売上/粗利の数字集計に一切非干渉(getActualValue等に触れない)。ロールバック=git revert HEAD(D.customers/customerOptions以外は不変・顧客データはFirebase data/eigyo3_<fy>/customersに保持)。-10-45=🗺未開拓マップに「都道府県を一括補完」ボタン(_mikaiFillPref)追加: 既存案件のd.prefが空で導入済み判定に乗らない(都道府県未設定)問題の解消。厚生局マスタ(九州8県)で薬局名が1県だけに一致する案件のd.prefを自動セット(曖昧=複数県/未一致は手動・既に県ありは不変・福岡営業所or未割当のみ対象で他リージョン誤設定防止)。実行前に確認+_autoBackup、補完件数を表示。prefは表示・マップ突合のみ=売上/粗利の数字には一切影響しない。_mod刻印で多PC同期保護。(※前回の未開拓マップ/オートコンプリート追加=4b644d0/99002a8はAPP_VERSION据置きだった)。-10-44=起動時の手動バックアップ促しバナー(#backup-banner)を廃止=_checkBackupBannerを常時非表示に。自動バックアップ(_autoBackup:危険操作直前に自動保存＋履歴)運用に移行済みのため不要(馬場さん指示)。表示のみ・集計非干渉。-10-43=🛡branchActuals同期をセル(月)単位マージに=stale表示/クロバー根治。従来は拠点まるごと保護で「ローカルの空セルがサーバーの実値を踏み潰す」(受信=正値を空で上書きしstale表示・書込=空をサーバーに書きクロバー)危険があった。_baMergeCells(local非空セルは保持=編集を守る/local空セルはremote値で補完)を受信(_fbApplyRemote)・書込(_phase1Write)両方に適用。入っている数字は不変・空が実値を消さなくなるだけ。サーバーデータは診断時点で全拠点ドリフト0=正常だったため予防的根治。-10-42=🖥プレゼンに月切替を追加(◀前月/翌月▶): 当月/翌月固定(_presMonth)をやめ任意の会計月index(_presMi・0=4月〜11=3月)に。過去月も振り返れる=販売店受注が4-6月中心のため過去月表示が必須だった。月ラベルに当月/翌月/過去/先の月を表示・当月以外は「📅当月へ」表示・端月は◀▶をdisabled。表示専用・集計非干渉=数字不変。-10-41=🖥プレゼン内訳の受注案件(won)側でも販売店を区別: 販売店案件131件はwon側(D.deals category=販売店・dealer名あり)にあった。won/imp両ソースを共通の3色チャネルタグに統一(直販=藍/販売店=銅+代理店名/グループ=紫)。won側は従来category文字のみ・色は直販と同じだったのを是正。imp直販ラベルもV8→直販に統一(内容はV8のみ維持)。表示専用・集計非干渉=数字不変。-10-40=🖥プレゼン内訳で「販売店」を区別表示: インポート明細のdealer(販売店名)をbranchImportDetailに格納し、内訳を3種タグで色分け(グループ薬局=紫「グループ」/dealerあり=銅「販売店」+販売店名表示/それ以外=藍「V8」直販)。優先順位はアプリのcategory割当(11969)に合わせグループ>販売店>直販。V8のみ絞り込みは維持。表示専用・集計非干渉=数字不変。要各拠点Excel再インポートで反映。-10-39=🖥プレゼン内訳を「調剤くんV8」のみに限定(HW/その他システム/その他ソフト=ティエスプラン等は除外)。インポート保存時にproductType==='調剤くんV8'の行だけをbranchImportDetailに格納・グループチェーン薬局は_isGroupChainで判定しgrpフラグ付与→内訳で「グループ」/「V8」タグ色分け表示(案件モードと同色)。HW/保守/その他は従来通り残差「保守料・その他ほか」に。表示専用・集計非干渉=数字不変。要各拠点Excel再インポートで反映。-10-38=🖥プレゼン内訳を福岡以外の拠点でも表示: 月次Excelインポート時にソフト明細(薬局名/売上/粗利)をD.branchImportDetail[拠点][月]に表示専用で保存(getActualValue等の集計には非干渉=二重計上ゼロ・予実の数字は不変)。_presDealsが手入力案件の無い拠点はこの取込明細を内訳に出す(案件がある拠点は従来通り案件側を表示・二重表示防止)。神戸/高知/東京/新潟でも「どの薬局に導入したか」が会議で言える。過去分は各拠点Excelを1回再インポートで蓄積(数字は同一結果)。-10-37=🖥プレゼンモード追加(会議用大画面・サブタブ): 拠点×当月/翌月で 売上・粗利の実績/予算/達成率(特大・ゲージ)＋内訳(受注薬局)＋未達時の達成策(進行中案件の確度加重見込み・着地見込みと同ロジック)。全画面ボタン。既存集計関数(getActualValue/getBudgetValue/getProbDef)を再利用=数字は予実表と一致。読取専用・集計非干渉。-10-36=「未同期だった案件を保護しました」トーストを30秒に1回まで連発防止(多PC同時接続＋一斉リロードで通知が画面に積み上がる問題)。保護処理自体は毎回実行・表示のみ・集計非干渉。-10-35=【Phase3・同期コア】stale保存ブロック時でも「自分が編集した拠点のbranchActuals(実績)」を拠点別パスで書く(他拠点を踏まない)=別PCが新しいだけでExcelインポートがサーバに届かず消える問題(福岡8月2026-07)を根治。通常時(writeRest=true)は完全に同挙動・stale時のみ実績を書き足す＋書いた拠点だけbaseline更新。-10-16のequipMaster同手法をbranchActualsに適用。-10-34=Pages再デプロイ(前回-10-33のdeploy工程がGitHub側のtry-again-laterで失敗したため再トリガー・機能は同じ=予実表mt-sumの数字拡大)。-10-33=予実管理(営業会議タブ)の表mt-sumの数字を拡大=WEB会議の画面共有で見やすく: 数字18→23px・計行20→28px・計ラベル18→22px・td.lbl18→21px・th15→17px・差異バッジ11→13px。表示のみ・集計非干渉。-10-32=構成図ネットワーク図【自由配置Phase3:文字編集】: 「✏文字を編集」モードで機器クリック→名称/型番をprompt編集(pc._labels[key]={name,model}で上書き・空欄で自動に戻す)。_pcDevLabel/_pcDevSubで描画・高さ計算に反映。「🔄文字」でリセット。移動/線編集/文字編集の3モード排他。表示のみ・集計非干渉。-10-31=構成図ネットワーク図【自由配置Phase2:線の手動接続】: 「🔗線を編集」モードで機器を2つクリックで接続(pc._links)・線クリックで削除(手動は_links/自動は_hideLinks)。全機器の最終座標を_devPosに記録し手動線を機器中心間で描画・透明ヒット線でクリック容易化・「線リセット」で初期化。表示のみ・集計非干渉。-10-30=構成図ネットワーク図に【自由配置Phase1】: 機器をドラッグで移動(pc._layout[key]={x,y}保存=自動配置を上書き・線も追従・全ゾーン対応)。「🔄自動配置に戻す」ボタン＋案内。座標変換はviewBox+getBoundingClientRect(CSS zoom対応)。Phase2で線の手動接続予定。表示のみ・集計非干渉。-10-29=構成図ネットワーク図: オン資端末↔YAMAHAルーターのペアリング判定を完全一致(r.type==='YAMAHA')→部分一致(/YAMAHA/i)に修正。種別が「YAMAHA_NVR510」等の派生名でもオン資端末が原則YAMAHAルーターに接続表示(従来は中央HUB直下に浮いていた)。無線も部分一致化。表示のみ・集計非干渉。-10-28=構成図に「既存(流用)」機能: 全機器の編集行に既存チェック追加(.existing)。ネットワーク図/アイコン一覧で既存機器を点線枠＋緑「既存」バッジ表示(SVGはd.meta.existingも参照=オン資↔YAMAHAルーター等の子機器も対応)。※オン資端末↔YAMAHAルーター接続は台数1で従来から自動表示。表示のみ・集計非干渉。-10-27=ネットワーク図の文字を拡大: 機器名11→13/型番9→10/トレイ詳細8.5→13(＋行間12→15・下部ゾーン高さ260→320・_pcDeviceBlockHeightを連動調整して重なり防止)。表示のみ・集計非干渉。-10-26=構成図アイコン一覧の印刷を1枚に圧縮(印刷時フォント/余白/セクション間を縮小)＋@page margin:0でブラウザ既定ヘッダー/フッター(日付/タイトル/URL/ページ番号)を抑制(余白は.pc-diagram内側paddingで確保)。※ブラウザの「ヘッダーとフッター」設定ONだと出るのでOFF案内。表示のみ・集計非干渉。-10-25=アイコン一覧の文字が大きすぎたためバランス調整: 機器名18pt→16px・型番15pt→11px・トレイ22px→14px・カード幅も縮小。階層=機器名>トレイ>型番。表示のみ・集計非干渉。-10-24=アイコン一覧の文字を全体統一: 機器名(.pc-icon-label/.pc-printer-name)=18pt・型番/サブラベル(.pc-icon-sublabel/.pc-printer-model)=15pt。端末カードとプリンタカードで統一＋カード幅拡張。表示のみ・集計非干渉。-10-23=構成図: ①各機器(サーバー/レセコン/薬歴/オン資/ルーター/HUB/プリンタ/その他)の行に備考欄(.note)を追加(編集画面・保存対応・_pcMigrateは非破壊なので保持)。②アイコン一覧のプリンタのトレイ用途文字を大幅拡大(11px→22px)＋カード幅拡張(220→380)。表示/編集のみ・集計非干渉。-10-22=構成図ネットワーク図: 親機の付随機器(satellite)を縦積み→【横並び】に変更(縦だと重なり窮屈だったため)。親のcx中心に横方向へ並べ各機器から親へ線接続・確保する高さも1段分に。表示のみ・集計非干渉。-10-21=構成図: その他周辺機器に「接続先(親機器)」欄を追加(サーバー/レセコン/薬歴端末/プリンタから選択)。ネットワーク図で親指定のある周辺機器を親機にぶら下げて線で接続(server=上・レセコン等bottom系=下にsatellite描画・図の高さを自動確保)。親未指定は従来通り上部HUB直結。表示のみ・集計非干渉。-10-20=ネットワーク構成図の下部「📦ソフトウェア/✨オプション」枠の文字を拡大(ソフト13→17・オプション12→15/2行時11→14)＋枠と全体高さを拡張(見切れ防止)。表示のみ・集計非干渉。-10-19=構成図プリンタのトレイ用途プルダウンに「トレイ4」を追加(sanitizeD既定値+_pcBuildTrayRowで既存データにも表示・非破壊)。表示のみ・集計非干渉。-10-18=構成図一覧の「⚙マスタ管理」ボタンを削除(機器マスタタブと役割が重複のため)。トレイ名/印刷用途/ルーター種別/接続種別の候補は既定値+使用中の値で従来通り動作(編集UIのみ廃止)。表示のみ・集計非干渉。-10-17=【機器マスタ消失の真因=localStorage容量超過を修正】自動バックアップ肥大(2025分約1MB×多数)でlocalStorageが約5MB上限に達し、setItemがquota超過で静かに失敗→編集がリロードで消えていた(equipMaster以外も危険)。_localSaveに容量超過リカバリ(古い自動バックアップを整理して再保存・保存を握り潰さない)+_trimAutoBackupsを個数(10→6)&合計サイズ(約1.6MB)の両上限に。数字集計は非干渉。-10-16=機器マスタ保存強化: 書込み側でもstale時(writeRest=false)含め常にequipMasterをupdate(パス単位・数字非干渉)=追加が確実にFirebaseへ届く。受信unionマージ(-10-15)と両輪で「追加してもリロードで消える」を根治。-10-15=🖥機器マスタが「追加してもリロードで消える」不具合を修正: 受信処理_fbApplyRemoteのD=remote全置換で保護対象外のequipMaster(ローカル未同期の登録)が消えていた。操作ログ同様に受信時unionマージ(_mergeEquipMaster)で保護(2箇所のD=remote直前)。数字集計には非干渉。-10-14=機器マスタのカード内入力欄(機種名/型番/メーカー)がflexのmin-width:auto問題でカード幅からはみ出し見切れる不具合を修正(min-width:0;box-sizing:border-box)。表示のみ・集計非干渉。-10-13=🖥機器マスタ(設定タブ)追加: 機種名/型番/メーカーのカタログ・8カテゴリ(プリンタ/PC・サーバー/レセコン/薬歴端末/オン資端末/ルーター/HUB/その他周辺機器)。構成図エディタの各機器の型番欄をカテゴリ別datalist候補に連携(equipMaster由来+旧共通型番pharmacyModelMasterはフォールバック)。オン資端末に型番欄追加。表示専用で売上/予実の数字には非干渉。-10-12=先行受注管理: Excel無し月(未来月等)のソフト実績を確度5受注案件から直接合算(_wonSoftForBranch)。groupActualsキャッシュ不完全問題を回避し、入れた受注がそのまま実績に。getActualValueと内訳を同条件に。Excel有り月は早期returnで不変。福岡9月=受注案件4,014+保守2,435=6,449。-10-11=【-10-10を撤回】取込後上乗せの_manualExtra加算は二重計上リスク(取込後上乗せ案件がgrp=trueでgroupActualsにも乗る・groupActuals不安定)のため撤回。保守料の未来月計上(-10-09)は維持。9月グループ受注の反映不整合は別途データ調査。-10-09=予実の実績に【未来月の保守料】を計上(getActualValueと内訳_getBreakdownForMiを同条件で・HW/その他/消耗品は従来通り未来月スキップ=前倒し膨張防止)。福岡9月粗利2,614→5,049(保守2,435込)。全社通期見込みに既入力保守が乗る。-10-08=予実テーブルの確度列で失注→「失注」/延期→「延期」表示(従来はprobability由来でA/B/C誤表示)+案件サイドパネルの初期タブを次の動き→基本情報に変更。いずれも表示のみ集計非干渉。-10-07=ステータス完全一本化(StepB+確度統合): 確度ドロップダウン廃止し確度はステータスから自動連動(STATUS_PROB・setDealPhase)・活動フォームのアクションselect撤去(活動ログ専用)・失注/延期はKPI確度バッジ非表示。受注=確度5計上ルール不変。-10-06=ステータス設定をサイドパネル「🔖ステータス」ピルに集約(StepA): ピル追加(setDealPhase経由=計上不変)+カードのステータスdropdownを表示バッジ化+失注理由インライン。-10-05=担当者選択に「グループ薬局(拠点)」追加+グループ薬局案件の担当欄を拠点短縮名で表示(表示は全グループ案件・実績移行は選択した当該1件のみ・既存数字は不変)。-10-04=情報提供書のニュース差込見出しを「最新トピック」に(全国業界ニュース対応)。-10-03=情報提供書:会社名ネグジット総研/作成者・EIGYOPRO作成を削除/地域ニュース差込UI追加。-10-02=📑情報提供書ビルダー追加(レポートメニュー・data/joho-blocks.json・印刷・承認はlocalStorage・集計非干渉)。-10-01=🗞地域ニュースタブ追加(data/region-news.json表示・読取専用・集計非干渉)。-09-02=操作ログを多PC間でunionマージ:受信/書込で上書きせず=岩下さんのログイン記録が消える根本原因の修正。-09-01=未登録ユーザーもログインID記録)
 var _pendingNewVer = null;
 // 🔒 リロードしても安全か = 入力中/モーダル表示中/保存処理中 は不可(打ちかけの未保存入力を守る)。不明時も不可(安全側)。
 function _safeToReload(){
@@ -15482,6 +15569,10 @@ function fbStartSync() {
           remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
         }
         try { remote.equipMaster = _mergeEquipMaster(D && D.equipMaster, remote.equipMaster); } catch(e){}
+        try { // ⭐P2: 初回受信でも顧客のローカル未同期分を保護(通常は空だが安全側)
+          _mergeLocalCustomerChanges(remote);
+          if (remote.customers && !Array.isArray(remote.customers)) remote.customers = Object.values(remote.customers).filter(function(c){ return c && _custMergeKey(c); });
+        } catch(e){}
         D = remote;
         _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
         FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
@@ -15627,6 +15718,10 @@ function _phase1Write(remote, writeRest){
     var _localDeals = (D.deals || []).slice();
     var _combTomb = _tombMerge(remote && remote._deletedDeals, D._deletedDeals);
     D._deletedDeals = _combTomb;
+    // ⭐P2: 顧客台帳のマージ用スナップショット＋削除tombstoneをremoteと統合(下の専用transactionで使う)。
+    var _localCusts = (D.customers || []).slice();
+    var _custTomb = _tombMerge(remote && remote._deletedCustomers, D._deletedCustomers);
+    D._deletedCustomers = _custTomb;
     // 1) 案件: トランザクションでアトミックにマージ(別PCが間に書いても再実行で取りこぼさない=同時追加に強い)
     FB.dbRef.child('deals').transaction(function(curr){
       var rArr = curr ? (Array.isArray(curr) ? curr.filter(Boolean) : Object.values(curr).filter(function(x){return x&&x.id;})) : [];
@@ -15640,7 +15735,7 @@ function _phase1Write(remote, writeRest){
         return;
       }
       // 2) meta＋(通常時のみ)非案件キーを update(パス単位マージ・dealsノードは触らない)
-      var _upd = { _ts: firebase.database.ServerValue.TIMESTAMP, _wid: D._wid, _wseq: D._wseq, _lastBy: D._lastBy, _deletedDeals: D._deletedDeals || {} };
+      var _upd = { _ts: firebase.database.ServerValue.TIMESTAMP, _wid: D._wid, _wseq: D._wseq, _lastBy: D._lastBy, _deletedDeals: D._deletedDeals || {}, _deletedCustomers: D._deletedCustomers || {} };
       var _baSplit = false;
       // ⭐Phase3: branchActuals(実績)は「自分が編集した拠点」だけを拠点別パスで書く(他拠点を踏まない)。
       //   拠点別パスは他拠点の新しい値を上書きしないので、stale時(writeRest=false)でも安全に書ける。
@@ -15651,6 +15746,7 @@ function _phase1Write(remote, writeRest){
       if (writeRest) {
         Object.keys(D).forEach(function(k){
           if (k === 'deals' || k === '_ts' || k === '_wid' || k === '_wseq' || k === '_lastBy' || k === '_deletedDeals') return;
+          if (k === 'customers' || k === '_deletedCustomers') return; // ⭐P2: 顧客は下の専用transactionでID単位マージ(update丸ごと上書きで他PCの追加/編集/削除を踏まない)
           if (k === 'auditLog') return; // ⭐ 操作ログは下の専用transactionでunionマージ(update上書きで他PCのログイン記録を消さない)
           if (k === 'branchActuals' && _baPathOK) return; // 下で拠点別に書く(分割不可なら丸ごと=通常時のみ)
           _upd[k] = D[k];
@@ -15678,6 +15774,16 @@ function _phase1Write(remote, writeRest){
         if (!err && committed && snap) { try { D.auditLog = _mergeAuditLog(D.auditLog, snap.val()); } catch(e){} }
       });
     } catch(e){ console.warn('[EIGYO PRO] 操作ログ同期失敗', e); }
+    // ⭐P2: 顧客台帳は専用 transaction でID単位マージ(update丸ごと上書きで他PCの追加/編集/削除を踏み潰さない)。
+    //   顧客は数字非干渉なので stale 時(writeRest=false)も書く=追加/編集/削除が確実にFirebaseへ届く。削除tombstoneも適用。
+    try {
+      FB.dbRef.child('customers').transaction(function(curr){
+        var rArr = curr ? (Array.isArray(curr) ? curr.filter(Boolean) : Object.values(curr).filter(function(x){ return x && _custMergeKey(x); })) : [];
+        var cmap = _mergeCustomersById(rArr, _localCusts, _since);
+        _applyCustTombstones(cmap, Object.assign({}, _custTomb));
+        return Object.values(cmap);
+      });
+    } catch(e){ console.warn('[EIGYO PRO] 顧客台帳同期失敗', e); }
   } catch(e){
     console.warn('[EIGYO PRO] Phase1書込み失敗', e);
     if (writeRest) _phase1Fallback();
@@ -15767,6 +15873,24 @@ function _doFbWrite() {
         if (_rescued > 0) console.log('[EIGYO PRO] B4: 書込み時マージで他PC案件 ' + _rescued + ' 件を保持');
       }
     } catch(e){ console.warn('[EIGYO PRO] B4案件マージ失敗(従来動作で継続)', e); }
+
+    // ── ⭐P2: 書込み直前に顧客台帳をID単位マージ(丸ごと更新で他PCの追加/編集を踏み潰さない) ──
+    //   remote(最新)を土台に自分の新規/編集だけ重ね、削除tombstoneを適用。集計数値には一切触れない。
+    try {
+      var _remoteCusts = remote
+        ? (Array.isArray(remote.customers) ? remote.customers : (remote.customers ? Object.values(remote.customers) : []))
+        : [];
+      if (Array.isArray(D.customers) && _remoteCusts.length > 0) {
+        var _cBefore = D.customers.length;
+        var _cmap = _mergeCustomersById(_remoteCusts, D.customers, FB.lastApplyWall || 0);
+        var _ctomb2 = _tombMerge(remote && remote._deletedCustomers, D._deletedCustomers);
+        _applyCustTombstones(_cmap, _ctomb2);
+        D.customers = Object.values(_cmap);
+        D._deletedCustomers = _ctomb2;
+        var _cRescued = D.customers.length - _cBefore;
+        if (_cRescued > 0) console.log('[EIGYO PRO] P2: 書込み時マージで他PC顧客 ' + _cRescued + ' 件を保持');
+      }
+    } catch(e){ console.warn('[EIGYO PRO] P2顧客マージ失敗(従来動作で継続)', e); }
 
     // 安全確認OK → ⭐Phase1で書込み: 案件はトランザクション(アトミックマージ)、非案件＋metaはupdate。
     //   _phase1Write 内で _localSave・_wid/_wseq/_lastBy・_ts(ServerValue) を付与する。
@@ -23931,7 +24055,11 @@ function renderCustomers(){
           + '<div style="display:flex;align-items:center;gap:8px;min-width:110px"><div style="flex:1;height:8px;background:#efe9dd;border-radius:99px;overflow:hidden;min-width:44px"><div style="height:100%;background:#97c459;border-radius:99px;width:'+pct+'%"></div></div><span style="font-size:12px;font-weight:800;color:var(--grn);white-space:nowrap">'+done+'/'+OPTS.length+'</span></div>'
           + '<div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">'+(doneOpts.length?chips:'<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:var(--s3);color:var(--tx3);border:1px dashed var(--bd)">導入なし</span>')+'</div>'
         + '</div>'
-        + (open ? '<div style="border-top:1px solid var(--bds);padding:10px 14px 12px;background:#fffef9"><div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px">'+grid+'</div></div>' : '')
+        + (open ? '<div style="border-top:1px solid var(--bds);padding:10px 14px 12px;background:#fffef9"><div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px">'+grid+'</div>'
+            + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;padding-top:8px;border-top:1px dashed var(--bds)">'
+              + '<button onclick="event.stopPropagation();openCustomerEdit(\''+kk+'\')" style="font-size:11px;padding:4px 12px;border:1px solid var(--bd);border-radius:7px;background:var(--s1);color:var(--tx2);cursor:pointer">✏️ 編集</button>'
+              + '<button onclick="event.stopPropagation();deleteCustomer(\''+kk+'\')" style="font-size:11px;padding:4px 12px;border:1px solid #e0b4b4;border-radius:7px;background:#fdf1f1;color:#a32d2d;cursor:pointer">🗑 削除</button>'
+            + '</div></div>' : '')
       + '</div>';
     }).join('');
     h += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">導入済みオプションをチップ表示。行クリックで全'+OPTS.length+'項目の導入状況(未導入は「＋提案」で既存顧客から案件追加)。</div>';
@@ -23977,6 +24105,110 @@ function importCustomersJson(input){
     input.value='';
   };
   reader.readAsText(f);
+}
+
+// ══════════════════════════════════════════════════════════════
+// 👥 顧客の追加/編集/削除(P2) — マスター運用(Excel卒業)。多PC同期はID単位マージ(上のtransaction)で保護。数字/集計には非干渉。
+// ══════════════════════════════════════════════════════════════
+function closeCustomerEdit(){ var ex=document.getElementById('custedit-overlay'); if(ex) ex.remove(); }
+// key='' で新規、既存キー(=_custKey)で編集。
+function openCustomerEdit(key){
+  closeCustomerEdit();
+  var isNew = !key;
+  var c = isNew ? null : (D.customers||[]).find(function(x){ return _custKey(x)===key; });
+  if (!isNew && !c){ if(typeof _showToast==='function') _showToast('顧客が見つかりません','warn',3000); return; }
+  var reps = (D.customers||[]).map(function(x){ return x.rep; }).filter(function(v,i,a){ return v && a.indexOf(v)===i; });
+  var repOpts = reps.map(function(r){ return '<option value="'+_esc(r)+'"></option>'; }).join('');
+  function val(k){ return _esc((c && c[k]) || ''); }
+  var ov = document.createElement('div');
+  ov.id = 'custedit-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick = function(e){ if (e.target===ov) closeCustomerEdit(); };
+  function fld(label, id, v, ph, req){
+    return '<div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:3px">'+label+(req?' <span style="color:#a32d2d">*</span>':'')+'</label>'
+      + '<input id="'+id+'" value="'+v+'" placeholder="'+(ph||'')+'" style="width:100%;box-sizing:border-box;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--s1);color:var(--tx)"></div>';
+  }
+  ov.innerHTML = '<div style="background:var(--s1);border:1px solid var(--bd);border-radius:16px;max-width:520px;width:100%;box-shadow:var(--shd);max-height:88vh;overflow:auto">'
+    + '<div style="display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--bds);position:sticky;top:0;background:var(--s1);z-index:1">'
+      + '<span style="font-size:15px;font-weight:800">'+(isNew?'➕ 顧客を追加':'✏️ 顧客を編集')+'</span>'
+      + '<button onclick="closeCustomerEdit()" style="margin-left:auto;font-size:18px;background:none;border:none;color:var(--tx3);cursor:pointer">✕</button>'
+    + '</div>'
+    + '<div style="padding:16px 20px">'
+      + fld('店舗名(薬局名)', 'ce-store', val('store'), '例)〇〇薬局 △△店', true)
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">'
+        + fld('法人名', 'ce-corp', val('corp'), '', false)
+        + '<div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:3px">営業担当者</label>'
+          + '<input id="ce-rep" list="ce-rep-list" value="'+val('rep')+'" placeholder="担当者名" style="width:100%;box-sizing:border-box;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--s1);color:var(--tx)">'
+          + '<datalist id="ce-rep-list">'+repOpts+'</datalist></div>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:120px 1fr;gap:0 12px">'
+        + fld('都道府県', 'ce-pref', val('pref'), '例)福岡県', false)
+        + fld('住所', 'ce-addr', val('addr'), '', false)
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px">'
+        + fld('郵便番号', 'ce-zip', val('zip'), '', false)
+        + fld('電話', 'ce-tel', val('tel'), '', false)
+        + fld('Ver', 'ce-ver', val('ver'), '', false)
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--tx3);margin-top:2px">※オプションの導入状況は保存後、一覧の行を開いてチェックで編集できます。</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--bds);position:sticky;bottom:0;background:var(--s1)">'
+      + '<button onclick="closeCustomerEdit()" style="font-size:13px;padding:8px 18px;border:1px solid var(--bd);border-radius:8px;background:var(--s1);color:var(--tx2);cursor:pointer">キャンセル</button>'
+      + '<button onclick="saveCustomerEdit(\''+(key||'').replace(/\\\\/g,"\\\\\\\\").replace(/'/g,"\\'")+'\')" class="btn pr" style="font-size:13px;padding:8px 20px;font-weight:700">💾 保存</button>'
+    + '</div>'
+  + '</div>';
+  document.body.appendChild(ov);
+  setTimeout(function(){ var el=document.getElementById('ce-store'); if(el) el.focus(); }, 60);
+}
+function saveCustomerEdit(key){
+  function gv(id){ var el=document.getElementById(id); return el ? String(el.value||'').trim() : ''; }
+  var store = gv('ce-store');
+  if (!store){ if(typeof _showToast==='function') _showToast('店舗名を入力してください','warn',3000); var el=document.getElementById('ce-store'); if(el) el.focus(); return; }
+  var isNew = !key;
+  var now = Date.now();
+  var fields = { store:store, corp:gv('ce-corp'), rep:gv('ce-rep'), pref:gv('ce-pref'), addr:gv('ce-addr'), zip:gv('ce-zip'), tel:gv('ce-tel'), ver:gv('ce-ver') };
+  if (isNew){
+    // 店舗名の重複チェック(マージキー=store のため同名は同一扱いになる)
+    var dup = (D.customers||[]).some(function(x){ return (x.store||'')===store; });
+    if (dup && !confirm('同じ店舗名「'+store+'」が既にあります。別の顧客として追加しますか?\n(同期時に同名は1件に統合される場合があります)')) return;
+    var nc = Object.assign({ id:'cu'+now+'_'+Math.floor(Math.random()*1e6), options:{}, _cre:now, _mod:now }, fields);
+    if (!Array.isArray(D.customers)) D.customers = [];
+    D.customers.push(nc);
+    if(typeof save==='function') save();
+    closeCustomerEdit();
+    if (typeof _showToast==='function') _showToast('✅ 顧客「'+store+'」を追加しました','ok',3000);
+  } else {
+    var c = (D.customers||[]).find(function(x){ return _custKey(x)===key; });
+    if (!c){ if(typeof _showToast==='function') _showToast('顧客が見つかりません','warn',3000); return; }
+    var oldStore = c.store||'', oldMergeKey = _custMergeKey(c);
+    Object.assign(c, fields);
+    c._mod = now;
+    // 店舗名変更(=マージキー変更)時は旧識別子を削除tombstone化(他PCが旧名を残さない)。id は案件リンク保持のため不変。
+    if (oldStore && oldStore !== store && oldMergeKey){
+      if (!D._deletedCustomers) D._deletedCustomers = {};
+      D._deletedCustomers[oldMergeKey] = now;
+      if (window._custOpenKey === key) window._custOpenKey = _custKey(c);
+    }
+    if(typeof save==='function') save();
+    closeCustomerEdit();
+    if (typeof _showToast==='function') _showToast('✅ 顧客「'+store+'」を更新しました','ok',3000);
+  }
+  renderCustomers();
+}
+function deleteCustomer(key){
+  var c = (D.customers||[]).find(function(x){ return _custKey(x)===key; });
+  if (!c){ if(typeof _showToast==='function') _showToast('顧客が見つかりません','warn',3000); return; }
+  var name = c.store || '(名称なし)';
+  if (!confirm('顧客「'+name+'」を顧客台帳から削除しますか?\n\nこの顧客に紐づく案件(あれば)は削除されません。\n※取り消せません(自動バックアップは取得します)')) return;
+  if (typeof _autoBackup==='function') _autoBackup('before_customer_delete');
+  var mk = _custMergeKey(c);
+  if (!D._deletedCustomers) D._deletedCustomers = {};
+  if (mk) D._deletedCustomers[mk] = Date.now();  // 削除を他PCへ伝播(受信マージで復活しない)
+  D.customers = (D.customers||[]).filter(function(x){ return _custKey(x)!==key; });
+  if (window._custOpenKey === key) window._custOpenKey = '';
+  if(typeof save==='function') save();
+  if (typeof _showToast==='function') _showToast('🗑 顧客「'+name+'」を削除しました','ok',3000);
+  renderCustomers();
 }
 
 // ── 既存顧客から案件追加(② 顧客→案件リンク) ──────────────────
