@@ -16868,7 +16868,8 @@ function _refreshViewsAfterDealUpdate() {
       ['tab-dashboard', 'renderDashboard'],
       ['tab-furikaeri', 'renderFurikaeri'],
       ['tab-meeting',   'renderMeeting'],
-      ['tab-report',    'renderReport']
+      ['tab-report',    'renderReport'],
+      ['tab-customers', 'renderCustomers']
     ];
     pairs.forEach(function(p){
       var el = document.getElementById(p[0]);
@@ -16893,6 +16894,11 @@ function updDeal(id, field, val) {
   // ⭐ 受注(確度5/phase受注)に変更した瞬間の時刻を記録(時刻方式のリアルタイム上乗せ用)。
   if ((field === 'probability' && (val === 5 || val === '5')) || (field === 'phase' && val === '受注')) {
     d._wonAt = Date.now();
+    // ① 受注化した瞬間に、紐づく顧客台帳へ商品オプションを自動反映(加算のみ・後段のsave()で永続)
+    if (typeof _syncDealOptionsToCustomer === 'function') {
+      var _optSync = _syncDealOptionsToCustomer(d);
+      if (_optSync && typeof _showToast === 'function') _showToast('👥 顧客台帳に' + _optSync + '件のオプションを反映しました', 'ok', 3000);
+    }
   }
 
   if (field === 'spId') {
@@ -21878,8 +21884,11 @@ function confirmWin() {
   if (mi >= 0 && d.spId) {
     applyDealToActuals(d, false);
   }
+  // ① 受注→顧客オプション自動連動(該当顧客があれば導入済みに反映・save前に反映してrebuildAllへ)
+  var _optSync = (typeof _syncDealOptionsToCustomer === 'function') ? _syncDealOptionsToCustomer(d) : 0;
   modal.style.display = 'none';
   save(); rebuildAll();
+  if (_optSync && typeof _showToast === 'function') _showToast('👥 顧客台帳に' + _optSync + '件のオプションを反映しました', 'ok', 3000);
   alert('受注確定しました！');
 }
 
@@ -23838,6 +23847,34 @@ function _custToggleOption(key, opt){
   if (typeof save === 'function') save();
   renderCustomers();  // 展開状態(_custOpenKey)は保持されるので同じ行が開いたまま
 }
+// ① 受注→顧客オプション自動連動: 受注した案件の商品オプションを、紐づく顧客台帳(D.customers)へ
+//   「導入済み」として反映する。加算のみ(既存フラグは消さない)＝idempotent。数字/集計には非干渉。
+//   ・顧客特定: customerId → customerStore → name(薬局名) の順で完全一致。無ければ何もしない。
+//   ・反映対象: productOption(商品オプション)＋productType(商品種別)のうち、オプションマスタ
+//     (_custOptList)に存在する名称のみ(表記ゆれ由来のゴミ混入を防止)。
+//   戻り値: 新規に反映(追加)したオプション数(0=対象顧客なし or 全て反映済み)。
+function _syncDealOptionsToCustomer(d){
+  try{
+    if (!d) return 0;
+    var custs = D.customers || []; if (!custs.length) return 0;
+    var c = null;
+    if (d.customerId)    c = custs.find(function(x){ return String(x.id||'')    === String(d.customerId); });
+    if (!c && d.customerStore) c = custs.find(function(x){ return (x.store||'') === d.customerStore; });
+    if (!c && d.name)    c = custs.find(function(x){ return (x.store||'')       === d.name; });
+    if (!c) return 0;
+    var master = _custOptList();
+    var cand = getOptionArray(d.productOption || '');
+    if (d.productType) cand.push(d.productType);
+    if (!c.options) c.options = {};
+    var added = 0;
+    cand.forEach(function(o){
+      o = String(o).trim();
+      if (o && master.indexOf(o) >= 0 && !c.options[o]) { c.options[o] = true; added++; }
+    });
+    if (added) c._mod = Date.now();
+    return added;
+  }catch(e){ console.warn('_syncDealOptionsToCustomer 失敗', e); return 0; }
+}
 function renderCustomers(){
   var body = document.getElementById('customers-body'); if (!body) return;
   var meta = document.getElementById('customers-meta');
@@ -23879,10 +23916,10 @@ function renderCustomers(){
   if (view === 'cust'){
     h += list.map(function(c){
       var key=_custKey(c), open=(openKey===key), done=optCount(c);
-      var miss=OPTS.filter(function(o){ return !(c.options && c.options[o]); });
+      var doneOpts=OPTS.filter(function(o){ return c.options && c.options[o]; });  // 導入済みオプション
       var pct=OPTS.length?Math.round(done/OPTS.length*100):0;
-      var chips=miss.slice(0,3).map(function(o){ return '<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:#fdf3e4;color:#8a5a1a;border:1px dashed #d9b47a;white-space:nowrap">'+_esc(o)+'</span>'; }).join('');
-      if (miss.length>3) chips+='<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:var(--s3);color:var(--tx3)">+'+(miss.length-3)+'</span>';
+      var chips=doneOpts.slice(0,3).map(function(o){ return '<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:#eaf3de;color:#3b6d11;border:1px solid #cfe0b4;white-space:nowrap">'+_esc(o)+'</span>'; }).join('');
+      if (doneOpts.length>3) chips+='<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:var(--s3);color:var(--tx3)">+'+(doneOpts.length-3)+'</span>';
       var kk=key.replace(/'/g,"\\'");
       var grid=OPTS.map(function(o){ var on=c.options&&c.options[o]; var oo=String(o).replace(/'/g,"\\'");
         return '<div onclick="_custToggleOption(\''+kk+'\',\''+oo+'\')" title="クリックで導入/未導入を切替" style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 5px;cursor:pointer;border-radius:6px;'+(on?'':'color:var(--tx2)')+'" onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'\'"><span style="width:18px;text-align:center;font-size:15px;'+(on?'color:#3b6d11':'color:#c9b98f')+'">'+(on?'☑':'☐')+'</span>'+_esc(o)+(on?'':'<button onclick="event.stopPropagation();_custQuickDeal(\''+kk+'\')" style="margin-left:auto;font-size:10px;color:var(--acc);border:1px solid var(--bd);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--s1)">＋提案</button>')+'</div>';
@@ -23892,12 +23929,12 @@ function renderCustomers(){
           + '<span style="color:var(--tx3);font-size:12px;display:inline-block;'+(open?'transform:rotate(90deg)':'')+'">▶</span>'
           + '<div style="min-width:150px"><div style="font-size:14px;font-weight:800">'+_esc(c.store||'')+'</div><div style="font-size:11px;color:var(--tx3);margin-top:2px;display:flex;gap:8px"><span>📍'+_esc(c.pref||'')+'</span><span>👤'+_esc(c.rep||'—')+'</span></div></div>'
           + '<div style="display:flex;align-items:center;gap:8px;min-width:110px"><div style="flex:1;height:8px;background:#efe9dd;border-radius:99px;overflow:hidden;min-width:44px"><div style="height:100%;background:#97c459;border-radius:99px;width:'+pct+'%"></div></div><span style="font-size:12px;font-weight:800;color:var(--grn);white-space:nowrap">'+done+'/'+OPTS.length+'</span></div>'
-          + '<div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">'+(miss.length?chips:'<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:#eaf3de;color:#3b6d11">完備</span>')+'</div>'
+          + '<div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">'+(doneOpts.length?chips:'<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:var(--s3);color:var(--tx3);border:1px dashed var(--bd)">導入なし</span>')+'</div>'
         + '</div>'
         + (open ? '<div style="border-top:1px solid var(--bds);padding:10px 14px 12px;background:#fffef9"><div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px">'+grid+'</div></div>' : '')
       + '</div>';
     }).join('');
-    h += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">未導入オプション(=提案候補)をチップ表示。行クリックで全'+OPTS.length+'項目の導入状況。「＋提案」で既存顧客から案件追加。</div>';
+    h += '<div style="font-size:11px;color:var(--tx3);margin-top:8px">導入済みオプションをチップ表示。行クリックで全'+OPTS.length+'項目の導入状況(未導入は「＋提案」で既存顧客から案件追加)。</div>';
   } else {
     h += OPTS.map(function(o){
       var key='opt::'+o, open=(openKey===key);
@@ -24015,7 +24052,7 @@ function _custPickSelect(key){
     + '</div>'
     + '<div style="margin-top:10px"><label style="font-size:11px;font-weight:700;color:var(--tx2)">次アクション</label><input id="cp-next" type="text" placeholder="例：薬歴くんデモ日程調整" style="'+inpCss+'"></div>'
     + '<button class="btn pr" style="width:100%;margin-top:12px;padding:11px;font-size:14px;font-weight:800" onclick="_custCreateDeal()">＋ この内容で案件を作成（顧客に紐づけ）</button>'
-    + '<div style="font-size:11px;color:var(--tx3);margin-top:9px;border-top:1px dashed var(--bds);padding-top:8px">作成後に開く案件カードで詳細を編集できます。受注（確度5）にすると顧客のオプションに反映されます（今後の①連動で自動化予定）。</div>';
+    + '<div style="font-size:11px;color:var(--tx3);margin-top:9px;border-top:1px dashed var(--bds);padding-top:8px">作成後に開く案件カードで詳細を編集できます。受注（確度5）にすると、この案件の商品オプションが顧客台帳に「導入済み」として自動反映されます。</div>';
 }
 function _custCreateDeal(){
   var c = _custPickSel; if (!c) return;
