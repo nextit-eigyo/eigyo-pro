@@ -1,6 +1,6 @@
 {
   "_comment": "拠点別 地域ニュースアンテナ（PoC・リージョン版）。拠点所在地でなく担当エリア(複数県)で収集。各itemにpref(県)タグ。本番は月次Claude Code定期実行がエリア×テーマ(M&A/承継/再編/改定/開局)をweb_search→このファイル生成→馬場さんが確認(useful)を情報提供書/開局アンテナへ。全件draft+出典付き。会社名/店舗数/時期はneedsVerifyで裏取り。",
-  "generatedAt": "2026-06-16",
+  "generatedAt": "2026-08-05",
   "branches": [
     {
       "name": "神戸本社",
@@ -9,11 +9,11 @@
       "coverage": "good",
       "coverageNote": "大手再編・承継ともネタ豊富。関西は大手の調剤ネットワーク拡大が活発。",
       "items": [
-        { "pref": "関西全域", "date": "2026-06-16", "type": "改定・業界動向", "needsVerify": false, "title": "2026調剤報酬改定が6/1施行『門前薬局等立地依存減算▲15点』新設で立地依存型に逆風", "summary": "門前・モール立地に▲15点の減算が新設され、立地依存の中小薬局ほど収益が圧迫される。入替・承継アプローチの母集団が広がる追い風。改定の論点を商談トークに使える。", "source": { "label": "薬事日報 門前薬局等立地依存減算解説", "url": "https://www.yakuji.co.jp/entry131352.html" } },
-        { "pref": "関西全域", "date": "2026-06-16", "type": "一次情報源", "needsVerify": false, "title": "日本M&Aセンター 関西の売却・事業承継案件一覧（随時更新）", "summary": "大阪・京都・兵庫・奈良・滋賀・和歌山の譲渡ニーズが集まる一次情報源。入替・承継の母集団把握に。", "source": { "label": "日本M&Aセンター 関西案件", "url": "https://www.nihon-ma.co.jp/anken/needs_convey.php?a=J006" } },
-        { "pref": "兵庫", "date": "2026-06-16", "type": "大手再編", "needsVerify": true, "title": "スギHDがI&H(芦屋・阪神調剤グループ 約500店)を子会社化、スギ薬局が吸収合併 ※要確認", "summary": "阪神調剤などを展開するI&Hをスギが取得し、その後スギ薬局へ吸収合併。関西の調剤ネットワーク拡大の中核で、地場の勢力図が変化＝競合・取引環境の把握必須。店舗数・時期は要確認。", "source": { "label": "M&A Online スギHD・I&H子会社化", "url": "https://maonline.jp/news/20240227b" } },
-        { "pref": "関西全域", "date": "2026-06-16", "type": "業界動向", "needsVerify": false, "title": "日本M&Aセンター 調剤薬局業界の動向（2025/12更新・関西の買い手把握に）", "summary": "大手チェーン・DS・病院グループによる買収が継続中。関西で誰がどのエリアを取りに来ているかを押さえる起点に。", "source": { "label": "日本M&Aセンター 調剤薬局業界動向", "url": "https://www.nihon-ma.co.jp/sector/dispensary.php" } },
-        { "pref": "関西全域", "date": "2026-06-16", "type": "業界動向", "needsVerify": false, "title": "ウエルシア・ツルハ・スギが関西の調剤を取り込み拡大", "summary": "大手DSが関西の地域薬局を取り込み調剤ネットワークを拡大。中小は入替・承継の対象になりやすい。", "source": { "label": "M&A Online 調剤・ドラッグストアニュース", "url": "https://maonline.jp/tags/%E8%AA%BF%E5%89%A4%E8%96%AC%E5%B1%80%E3%83%BB%E3%83%89%E3%83%A9%E3%83%83%E3%82%B0%E3%82%B9%E3%83%88%E3%82%A2" } }
+        { "pref": "関西全域", "date": "2026-08-05", "type": "一次情報源", "needsVerify": false, "title": "スピカコンサルティング『2026年 調剤薬局業界 主要M&Aと業界動向』(随時更新)", "summary": "月次で調剤M&Aと動向を整理した一次情報源。関西で誰がどのエリアを取りに来ているか、承継の母集団把握の起点に。訪問前のネタ仕込みに便利。", "source": { "label": "スピカコンサルティング 2026年M&Aまとめ", "url": "https://note.com/note_spica/n/n6249e9eddbcf" } },
+        { "pref": "兵庫", "date": "2026-08-05", "type": "大手再編", "needsVerify": true, "title": "スギHDがI&H(芦屋・阪神調剤グループ 約500店)を子会社化、スギ薬局が吸収合併 ※要確認", "summary": "阪神調剤などを展開するI&Hをスギが取得し、その後スギ薬局へ吸収合併。関西の調剤ネットワーク拡大の中核で、地場の勢力図が変化＝競合・取引環境の把握必須。店舗数・時期は要確認。", "source": { "label": "M&A Online スギHD・I&H子会社化", "url": "https://maonline.jp/news/20240227b" } },
+        { "pref": "関西全域", "date": "2026-08-05", "type": "一次情報源", "needsVerify": false, "title": "日本M&Aセンター 関西の売却・事業承継案件一覧（随時更新）", "summary": "大阪・京都・兵庫・奈良・滋賀・和歌山の譲渡ニーズが集まる一次情報源。入替・承継の母集団把握に。", "source": { "label": "日本M&Aセンター 関西案件", "url": "https://www.nihon-ma.co.jp/anken/needs_convey.php?a=J006" } },
+        { "pref": "関西全域", "date": "2026-08-05", "type": "改定・業界動向", "needsVerify": false, "title": "2026調剤報酬改定(6/1施行)の立地依存減算で門前・モール型に逆風", "summary": "門前・モール立地への減算で立地依存の中小薬局ほど収益が圧迫される。入替・承継アプローチの母集団が広がる追い風。改定の論点を商談トークに使える。", "source": { "label": "船井総研 調剤薬局M&A戦略(2026)", "url": "https://ma.funaisoken.co.jp/column/pharmacy-ma-strategy" } },
+        { "pref": "関西全域", "date": "2026-08-05", "type": "業界動向", "needsVerify": false, "title": "ウエルシア・ツルハ・スギが関西の調剤を取り込み拡大", "summary": "大手DSが関西の地域薬局を取り込み調剤ネットワークを拡大。中小は入替・承継の対象になりやすい。", "source": { "label": "日本M&Aセンター 調剤薬局業界動向", "url": "https://www.nihon-ma.co.jp/sector/dispensary.php" } }
       ]
     },
     {
@@ -23,10 +23,10 @@
       "coverage": "medium",
       "coverageNote": "県単位の承継・売却案件は拾える。ただし新規開局のピンポイントは薄く、卸MS・保健所が本命。",
       "items": [
-        { "pref": "福岡", "date": "2026-06-16", "type": "一次情報源", "needsVerify": false, "title": "バトンズ 福岡県の売却・事業承継案件一覧（随時更新）", "summary": "福岡県内の譲渡案件が集まる一次情報源。調剤に絞って入替・承継の見込み先を洗い出す起点に。", "source": { "label": "バトンズ 福岡県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_48/" } },
-        { "pref": "九州・沖縄全域", "date": "2026-06-16", "type": "承継", "needsVerify": true, "title": "バトンズの調剤薬局M&A、九州・沖縄に約57件が掲載（件数は参考）※要確認", "summary": "後継者不在の調剤薬局の売り案件が九州・沖縄で約57件。入替・承継アプローチの母集団。匿名案件が多く個別特定は要確認。", "source": { "label": "バトンズ 調剤薬局M&A案件一覧", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
-        { "pref": "熊本", "date": "2026-06-16", "type": "承継", "needsVerify": true, "title": "熊本県内に調剤薬局の売却(事業承継)案件が複数掲載 ※要確認", "summary": "後継者不在の売り案件が県内に複数。エリアを回る馬場さんの強みが活きる範囲。匿名案件多く要特定。", "source": { "label": "バトンズ 熊本県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_51/" } },
-        { "pref": "九州全域", "date": "2026-06-16", "type": "改定・業界動向", "needsVerify": false, "title": "改定でモール薬局の収益低下→中小の身売り・再編が加速の見通し", "summary": "立地依存モデルへの抑制で収益力が低下し、M&A・再編が加速との報道。九州の中小薬局も入替・承継の機会が拡大。", "source": { "label": "日本経済新聞 モール薬局苦難・M&A加速", "url": "https://www.nikkei.com/article/DGXZQOFC051Z00V00C26A3000000/" } }
+        { "pref": "福岡", "date": "2026-08-05", "type": "承継", "needsVerify": true, "title": "福岡県内に医療モール型の調剤薬局1店舗の譲渡案件(売上1〜2億円規模) ※要確認", "summary": "最寄駅から徒歩圏の医療モール型薬局の売り案件。エリアを回る馬場さんの強みが活きる範囲。売上・譲渡希望額・立地は要確認。", "source": { "label": "バトンズ 福岡県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_48/" } },
+        { "pref": "熊本", "date": "2026-08-05", "type": "承継", "needsVerify": true, "title": "熊本県内に財務健全な調剤薬局(売上約1.5億円・1店舗)の承継案件 ※要確認", "summary": "金融機関借入なしで財務が健全な売り案件。後継者不在型の承継で、設備更新・入替提案の同時アプローチも狙える。売上・条件は要確認。", "source": { "label": "バトンズ 熊本県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_51/" } },
+        { "pref": "九州・沖縄全域", "date": "2026-08-05", "type": "一次情報源", "needsVerify": false, "title": "バトンズ 調剤薬局M&A案件一覧（全国800件超・県で絞込可）", "summary": "後継者不在の調剤薬局の売り案件が集まる一次情報源。九州各県で絞り込み、入替・承継アプローチの母集団を洗い出す起点に。", "source": { "label": "バトンズ 調剤薬局M&A案件一覧", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
+        { "pref": "九州全域", "date": "2026-08-05", "type": "改定・業界動向", "needsVerify": false, "title": "改定でモール薬局の収益低下→中小の身売り・再編が加速の見通し", "summary": "立地依存モデルへの抑制で収益力が低下し、M&A・再編が加速。九州の中小薬局も入替・承継の機会が拡大。卸MS訪問時の共通話題に。", "source": { "label": "スピカコンサルティング 2026年M&Aまとめ", "url": "https://note.com/note_spica/n/n6249e9eddbcf" } }
       ]
     },
     {
@@ -36,10 +36,10 @@
       "coverage": "medium",
       "coverageNote": "高知単独は薄いが、四国全域に広げると承継案件が拾える。一次情報は県薬剤師会・卸MS。",
       "items": [
-        { "pref": "四国全域", "date": "2026-06-16", "type": "一次情報源", "needsVerify": false, "title": "日本M&Aセンター 四国(高知・愛媛・香川・徳島)の売却・承継案件一覧", "summary": "中四国支社が扱う四国の譲渡ニーズ一覧。県を跨いで回れる強みを活かし母集団を把握する起点に。", "source": { "label": "日本M&Aセンター 四国案件", "url": "https://www.nihon-ma.co.jp/anken/needs_convey.php?a=J008" } },
-        { "pref": "四国全域", "date": "2026-06-16", "type": "承継", "needsVerify": true, "title": "バトンズの調剤薬局M&A、四国に約17件が掲載（件数は参考）※要確認", "summary": "四国全体では承継の母集団が一定数ある。エリアを回る営業なら直接アプローチ可。件数・個別案件は要確認。", "source": { "label": "バトンズ 調剤薬局M&A案件一覧", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
-        { "pref": "愛媛", "date": "2026-06-16", "type": "承継", "needsVerify": true, "title": "愛媛県の売却・事業承継案件一覧（調剤に絞り込み可）※要確認", "summary": "県内の譲渡案件一覧。調剤で絞ると具体的な売り案件が拾える。店舗数・売上などは要確認。", "source": { "label": "バトンズ 愛媛県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_45/" } },
-        { "pref": "四国全域", "date": "2026-06-16", "type": "改定・業界動向", "needsVerify": false, "title": "2026改定は立地依存型に逆風、地方ほど承継・再編が進む見通し", "summary": "門前・モール依存への減算と薬剤師不足で、地方の中小ほど承継・再編フェーズへ。四国の入替・承継の追い風。", "source": { "label": "m3.com 2026年調剤報酬改定まとめ", "url": "https://pharmacist.m3.com/column/chouzaihoushu/6981" } }
+        { "pref": "四国全域", "date": "2026-08-05", "type": "一次情報源", "needsVerify": false, "title": "日本M&Aセンター 四国(高知・愛媛・香川・徳島)の売却・承継案件一覧", "summary": "中四国支社が扱う四国の譲渡ニーズ一覧。県を跨いで回れる強みを活かし母集団を把握する起点に。", "source": { "label": "日本M&Aセンター 四国案件", "url": "https://www.nihon-ma.co.jp/anken/needs_convey.php?a=J008" } },
+        { "pref": "四国全域", "date": "2026-08-05", "type": "承継", "needsVerify": true, "title": "バトンズの調剤薬局M&A、四国にも承継案件が継続掲載（件数は参考）※要確認", "summary": "四国全体では承継の母集団が一定数ある。エリアを回る営業なら直接アプローチ可。件数・個別案件は要確認。", "source": { "label": "バトンズ 調剤薬局M&A案件一覧", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
+        { "pref": "愛媛", "date": "2026-08-05", "type": "承継", "needsVerify": true, "title": "愛媛県の売却・事業承継案件一覧（調剤に絞り込み可）※要確認", "summary": "県内の譲渡案件一覧。調剤で絞ると具体的な売り案件が拾える。店舗数・売上などは要確認。", "source": { "label": "バトンズ 愛媛県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_45/" } },
+        { "pref": "四国全域", "date": "2026-08-05", "type": "改定・業界動向", "needsVerify": false, "title": "2026改定は立地依存型に逆風、地方ほど承継・再編が進む見通し", "summary": "門前・モール依存への減算と薬剤師不足で、地方の中小ほど承継・再編フェーズへ。四国の入替・承継の追い風。", "source": { "label": "m3.com 2026年調剤報酬改定まとめ", "url": "https://pharmacist.m3.com/column/chouzaihoushu/6981" } }
       ]
     },
     {
@@ -49,11 +49,10 @@
       "coverage": "good",
       "coverageNote": "M&A案件が最も多い。会社名・店舗数は要裏取り。",
       "items": [
-        { "pref": "関東全域", "date": "2026-06-16", "type": "大手再編", "needsVerify": true, "title": "アインHDがクラフト(さくら薬局 約800店)を完全子会社化、首都圏でも勢力拡大 ※要確認", "summary": "さくら薬局グループは首都圏(東京・神奈川・千葉・埼玉)中心に約800店を展開。最大手アインの取得で関東の競合・取引環境が変化＝把握必須。店舗数・金額は要確認。", "source": { "label": "さくら薬局グループ 完全子会社化のお知らせ", "url": "https://www.kraft-net.co.jp/news/2025/0801-12221/" } },
-        { "pref": "埼玉", "date": "2026-06-16", "type": "大手再編", "needsVerify": true, "title": "スギHDがセキ薬品(埼玉)を子会社化、議決権51%へ ※要確認", "summary": "埼玉中心にDS＋調剤を展開するセキ薬品をスギが追加取得し子会社化。関東のDS×調剤再編の最新例。比率・時期は要確認。", "source": { "label": "M&A Online スギHD記事", "url": "https://topics.smt.docomo.ne.jp/article/maonline/business/maonline-archives_sugihd_20260416?page=4" } },
-        { "pref": "神奈川", "date": "2026-06-16", "type": "M&A", "needsVerify": true, "title": "クオールHDが横浜『ひかり』の調剤8店舗を事業譲受(2026/1譲受予定) ※要確認", "summary": "横浜駅前・メディカルセンター内の8店舗を譲受。首都圏で競合の拡大エリアを示す。店舗数・時期は要確認。", "source": { "label": "日本M&Aセンター クオール・ひかり譲受ニュース", "url": "https://www.nihon-ma.co.jp/news/20251029_3034-23/" } },
-        { "pref": "関東全域", "date": "2026-06-16", "type": "業界動向", "needsVerify": false, "title": "関東は調剤M&A案件が全国最多クラス（母集団が厚い）", "summary": "大手チェーンが地域ドミナント強化で数十〜数百店舗規模の買収を継続。関東の中小は入替・承継の見込み先が厚い。", "source": { "label": "日本M&Aセンター 調剤薬局業界動向", "url": "https://www.nihon-ma.co.jp/sector/dispensary.php" } },
-        { "pref": "全国・関東", "date": "2026-06-16", "type": "改定・業界動向", "needsVerify": false, "title": "2026調剤報酬改定が6/1施行(賃上げ・物価対応＋立地依存減算)", "summary": "改定の要点を押さえると、入替提案や設備更新の商談トークに使える。基本料引き上げの一方で門前・モール立地は減算。", "source": { "label": "m3.com 2026年調剤報酬改定まとめ", "url": "https://pharmacist.m3.com/column/chouzaihoushu/6981" } }
+        { "pref": "埼玉", "date": "2026-08-05", "type": "M&A", "needsVerify": true, "title": "ファーマライズHDが三幸メディカルグループ(『あすか薬局』約16店・埼玉/都内)を子会社化 ※要確認", "summary": "埼玉・都内で調剤16店舗を展開する『あすか薬局』の運営会社を取得(取得価額 約16億円規模)。首都圏の勢力図が動く＝競合・取引環境の把握必須。店舗数・金額・時期は要確認。", "source": { "label": "スピカコンサルティング 2026年M&Aまとめ", "url": "https://note.com/note_spica/n/n6249e9eddbcf" } },
+        { "pref": "関東全域", "date": "2026-08-05", "type": "大手再編", "needsVerify": true, "title": "アインHDがクラフト(さくら薬局 約800店)を完全子会社化、首都圏でも勢力拡大 ※要確認", "summary": "さくら薬局グループは首都圏(東京・神奈川・千葉・埼玉)中心に約800店を展開。最大手アインの取得で関東の競合・取引環境が変化＝把握必須。店舗数・金額は要確認。", "source": { "label": "さくら薬局グループ 完全子会社化のお知らせ", "url": "https://www.kraft-net.co.jp/news/2025/0801-12221/" } },
+        { "pref": "神奈川", "date": "2026-08-05", "type": "M&A", "needsVerify": true, "title": "クオールHDが横浜『ひかり』の調剤8店舗を事業譲受 ※要確認", "summary": "横浜駅前・メディカルセンター内の8店舗を譲受。首都圏で競合の拡大エリアを示す。店舗数・時期は要確認。", "source": { "label": "日本M&Aセンター クオール・ひかり譲受ニュース", "url": "https://www.nihon-ma.co.jp/news/20251029_3034-23/" } },
+        { "pref": "関東全域", "date": "2026-08-05", "type": "一次情報源", "needsVerify": false, "title": "日本M&Aセンター 調剤薬局業界の動向（関東の買い手把握に）", "summary": "大手チェーンが地域ドミナント強化で数十〜数百店舗規模の買収を継続。関東の中小は入替・承継の見込み先が厚い。", "source": { "label": "日本M&Aセンター 調剤薬局業界動向", "url": "https://www.nihon-ma.co.jp/sector/dispensary.php" } }
       ]
     },
     {
@@ -63,10 +62,10 @@
       "coverage": "good",
       "coverageNote": "北陸まで広げると大手参入・承継の具体ネタが増える。",
       "items": [
-        { "pref": "新潟", "date": "2026-06-16", "type": "M&A・大手参入", "needsVerify": true, "title": "アインHDが新潟『エーアンドエム』(県内約30店舗)を買収 ※要確認", "summary": "全国最大手アインが新潟30店舗規模を取得。地場の勢力図が変化＝競合・取引環境の把握必須。アインは調剤を2030年に5,000億円規模へ拡大方針。店舗数・時期は要確認。", "source": { "label": "日本経済新聞 アインHD・エーアンドエム買収", "url": "https://www.nikkei.com/article/DGXZQOFC147JF0U5A310C2000000/" } },
-        { "pref": "甲信越・北陸全域", "date": "2026-06-16", "type": "承継", "needsVerify": true, "title": "バトンズの調剤薬局M&A、甲信越・北陸に約32件が掲載（件数は参考）※要確認", "summary": "新潟・長野・富山・石川・福井・山梨を含む地域の承継案件。地方ほど後継者不在で承継ニーズが厚い。件数・個別案件は要確認。", "source": { "label": "バトンズ 調剤薬局M&A案件一覧", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
-        { "pref": "甲信越・北陸全域", "date": "2026-06-16", "type": "改定・業界動向", "needsVerify": false, "title": "新規開局は鈍化、既存薬局の集約・再編フェーズへ", "summary": "改定と薬剤師不足で地方ほど承継・再編が進む。北陸・甲信越の中小は入替・承継の母集団として注視。", "source": { "label": "バトンズ 調剤薬局M&A解説(2026)", "url": "https://batonz.jp/learn/expert_articles/7137" } },
-        { "pref": "石川", "date": "2026-06-16", "type": "承継", "needsVerify": true, "title": "石川県の売却・事業承継案件一覧（調剤に絞り込み可）※要確認", "summary": "県内の譲渡案件一覧。調剤で絞ると小規模な門前薬局などの承継案件が拾える。条件・売上は要確認。", "source": { "label": "バトンズ 石川県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_20/" } }
+        { "pref": "新潟", "date": "2026-08-05", "type": "M&A・大手参入", "needsVerify": true, "title": "アインHDが新潟『エーアンドエム』(県内約30店舗)を買収 ※要確認", "summary": "全国最大手アインが新潟30店舗規模を取得。地場の勢力図が変化＝競合・取引環境の把握必須。アインは調剤を大幅拡大方針。店舗数・時期は要確認。", "source": { "label": "日本経済新聞 アインHD・エーアンドエム買収", "url": "https://www.nikkei.com/article/DGXZQOFC147JF0U5A310C2000000/" } },
+        { "pref": "甲信越・北陸全域", "date": "2026-08-05", "type": "一次情報源", "needsVerify": false, "title": "バトンズ 調剤薬局M&A案件一覧（甲信越・北陸も県で絞込可）", "summary": "新潟・長野・富山・石川・福井・山梨を含む地域の承継案件。地方ほど後継者不在で承継ニーズが厚い。県で絞って母集団把握を。", "source": { "label": "バトンズ 調剤薬局M&A案件一覧", "url": "https://batonz.jp/sell_cases/bk_1200000/bk_1203001/" } },
+        { "pref": "甲信越・北陸全域", "date": "2026-08-05", "type": "改定・業界動向", "needsVerify": false, "title": "新規開局は鈍化、既存薬局の集約・再編フェーズへ", "summary": "改定と薬剤師不足で地方ほど承継・再編が進む。北陸・甲信越の中小は入替・承継の母集団として注視。", "source": { "label": "バトンズ 調剤薬局M&A解説(2026)", "url": "https://batonz.jp/learn/expert_articles/7137" } },
+        { "pref": "石川", "date": "2026-08-05", "type": "承継", "needsVerify": true, "title": "石川県の売却・事業承継案件一覧（調剤に絞り込み可）※要確認", "summary": "県内の譲渡案件一覧。調剤で絞ると小規模な門前薬局などの承継案件が拾える。条件・売上は要確認。", "source": { "label": "バトンズ 石川県のM&A案件", "url": "https://batonz.jp/sell_cases/pref_20/" } }
       ]
     },
     {
@@ -76,12 +75,12 @@
       "coverage": "good",
       "coverageNote": "目新しい全国の業界トピック(AI/DX/新サービス/制度の新展開/大型再編)。改定の基本要点など周知事項は載せない方針。",
       "items": [
-        { "pref": "全国", "date": "2026-06-16", "type": "大手再編", "needsVerify": true, "title": "アインHDがクラフト(さくら薬局)を約591億円で完全子会社化、グループ2,000店超へ ※要確認", "summary": "最大手アインが2025/8にクラフトを完全子会社化。負債込みで大型再編となり、調剤の巨大化で地域薬局の取り込み・再編が一段と加速＝中小は入替・承継の母集団に。金額・店舗数は要確認。", "source": { "label": "日本M&Aセンター アイン・クラフト買収ニュース", "url": "https://www.nihon-ma.co.jp/news/20250529_9627-17/" } },
-        { "pref": "全国", "date": "2026-06-16", "type": "業界動向", "needsVerify": true, "title": "薬局に生成AI薬歴が本格展開 ― 日本調剤『corte』・メドレー『MEDIXS』が会話を自動要約 ※要確認", "summary": "服薬指導の会話を音声認識→生成AIがSOAP形式で薬歴を自動要約。日本調剤はまず50店で記録時間を約7割削減見込み。人手不足の現場の最大関心事＝卸MS訪問や設備提案の最新トークに。店舗数・数値は要確認。", "source": { "label": "メドレー MEDIXS AIアシスト機能", "url": "https://www.medley.jp/release/20250901-1.html" } },
-        { "pref": "全国", "date": "2026-06-16", "type": "改定・業界動向", "needsVerify": false, "title": "医薬品販売制度の改正が2026/5/1施行 ― 要指導医薬品のネット販売が一部解禁", "summary": "薬剤師の判断でオンライン服薬指導を行えば要指導医薬品もネット販売が可能に(対面必須品目は除く)。販売チャネルの変化は薬局のサービス設計・売り場提案のネタになる。", "source": { "label": "厚生労働省 医薬品販売制度改正(2026/5/1施行)", "url": "https://www.mhlw.go.jp/stf/web_magazine/closeup/20.html" } },
-        { "pref": "全国", "date": "2026-06-16", "type": "業界動向", "needsVerify": true, "title": "電子処方箋の薬局導入率が8割超 ― 電子カルテ情報共有と一体で普及拡大 ※要確認", "summary": "薬局側の電子処方箋導入は8割を超え事実上の標準インフラに。一方で医科診療所は低調。未対応・旧型レセコンの薬局には更新・乗換の動機＝設備提案の好機。導入率は要確認。", "source": { "label": "厚生労働省 電子処方箋", "url": "https://www.mhlw.go.jp/stf/denshishohousen.html" } },
-        { "pref": "全国", "date": "2026-06-16", "type": "業界動向", "needsVerify": true, "title": "MG-DXが服薬指導支援『AI薬師』で大規模言語モデル活用を開始 ※要確認", "summary": "サイバーエージェント系MG-DXが対人業務支援にLLMを導入。遠隔接客AIや調剤ロボの接客活用も進み、人手不足・カスハラ対策に。卸MSとの『現場の困りごと』話のネタに。サービス内容は要確認。", "source": { "label": "MG-DX プレスリリース(AI薬師 LLM活用)", "url": "https://prtimes.jp/main/html/rd/p/000000014.000093498.html" } },
-        { "pref": "全国", "date": "2026-06-16", "type": "業界動向", "needsVerify": false, "title": "調剤ロボット導入が人手不足対策で拡大（導入コストが課題）", "summary": "ロボット調剤で少人数運用・薬剤師の対人業務シフトが進む。中小は費用対効果が課題で、設備投資の相談ニーズあり。", "source": { "label": "マイナビ薬剤師 ロボット調剤の解説", "url": "https://pharma.mynavi.jp/knowhow/workplace/robot-dispensing/" } }
+        { "pref": "全国", "date": "2026-08-05", "type": "業界動向", "needsVerify": true, "title": "三菱電機DIが薬局向けオールインワン基盤『AnyCOMPASS』にAI薬歴アシストを搭載、2026年度中に提供へ ※要確認", "summary": "クラウド型電子薬歴に生成AIアシスタントを載せ『AIエージェントが生み出す新たな薬局体験』を掲げる保険薬局向けプラットフォーム。人手不足の現場の最大関心事＝設備提案・乗換トークの最新ネタに。提供時期・内容は要確認。", "source": { "label": "MEDIXS(調剤薬局向け統合クラウド)", "url": "https://medixs.jp/" } },
+        { "pref": "全国", "date": "2026-08-05", "type": "業界動向", "needsVerify": true, "title": "日本調剤『corte』・メドレー等、生成AI薬歴が本格展開 ― 会話を自動でSOAP要約 ※要確認", "summary": "服薬指導の会話を音声認識→生成AIがSOAP形式で薬歴を自動要約。記録時間の大幅削減が見込まれ、旧型レセコン・電子薬歴の薬局には更新・乗換の動機に。数値・対応機種は要確認。", "source": { "label": "日本調剤 AI薬歴作成支援サービス corte", "url": "https://www.nicho.co.jp/corporate/newsrelease/20241113_nr1/" } },
+        { "pref": "全国", "date": "2026-08-05", "type": "業界動向", "needsVerify": false, "title": "日本病院薬剤師会が『生成AI利活用ガイダンス』を公開(2026/3) ― 薬歴のAI出力はダブルチェック必須", "summary": "薬歴記録に生成AIを使う際のハルシネーション(誤情報)リスクへの注意と、AI出力のダブルチェックの必要性を提示。AI薬歴を提案する際の『正しい使い方』の裏付けに使える。", "source": { "label": "日本病院薬剤師会 生成AI利活用ガイダンス", "url": "https://www.jshp.or.jp/activity/guideline/20260331.html" } },
+        { "pref": "全国", "date": "2026-08-05", "type": "業界動向", "needsVerify": false, "title": "電子薬歴・レセコンの更新に『デジタル化・AI導入補助金2026』が活用可能", "summary": "電子薬歴・レセコン・オンライン服薬指導関連システムなど業務効率化ITが補助金の対象。更新・乗換を渋る薬局への費用面の後押し材料＝設備提案の決め手に。", "source": { "label": "メディコム(ウィーメックス) 補助金2026解説", "url": "https://www.phchd.com/jp/medicom/park/idea/ph-management-digitalization-ai" } },
+        { "pref": "全国", "date": "2026-08-05", "type": "大手再編", "needsVerify": true, "title": "アインHDがクラフト(さくら薬局)を完全子会社化、グループ2,000店超・調剤の巨大化続く ※要確認", "summary": "最大手アインがクラフトを完全子会社化し大型再編。調剤の巨大化で地域薬局の取り込み・再編が一段と加速＝中小は入替・承継の母集団に。金額・店舗数は要確認。", "source": { "label": "日本M&Aセンター アイン・クラフト買収ニュース", "url": "https://www.nihon-ma.co.jp/news/20250529_9627-17/" } },
+        { "pref": "全国", "date": "2026-08-05", "type": "業界動向", "needsVerify": true, "title": "2026年 上期の調剤M&AはスギHD・ファーマライズHD等が牽引、月次で再編続く ※要確認", "summary": "スギHDのセキ薬品前倒し子会社化(4月)、ファーマライズHDの複数取得など、上場企業主導の再編が継続。買い手の動きは月次まとめで把握を。個別の店舗数・金額は要確認。", "source": { "label": "スピカコンサルティング 2026年M&Aまとめ", "url": "https://note.com/note_spica/n/n6249e9eddbcf" } }
       ]
     }
   ]
