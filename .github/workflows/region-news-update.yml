@@ -1,11 +1,12 @@
 name: 地域ニュース自動更新
 
-# ⏸ 一時停止中（API従量課金が発生するため。会社経費の承認後に有効化する）
-# 有効化方法: 下の schedule の行のコメントを外す＋ ANTHROPIC_API_KEY を GitHub Secret に登録。
+# ✅ 有効化済み（2026-08-05 馬場さん承認）。API従量課金あり(目安 月¥数百・Sonnet 4.6・週2回)。
 #   cron "0 22 * * 0,3" = 月・木 朝7:00 JST（GitHubのcronはUTC基準: 22:00 UTC 日/水）
+#   ⚠️ 実行には GitHub Secret「ANTHROPIC_API_KEY」の登録が必須（未登録だと自動実行はエラーで空振り=課金なし）。
+#   手動実行: リポジトリ Actions タブ →「地域ニュース自動更新」→ Run workflow（workflow_dispatch）。
 on:
-  # schedule:
-  #   - cron: "0 22 * * 0,3"
+  schedule:
+    - cron: "0 22 * * 0,3"
   workflow_dispatch: {}
 
 permissions:
