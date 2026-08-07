@@ -5029,7 +5029,11 @@ async function syncLoad() {
       updateSyncUI('warn','OneDrive: ローカル件数が多いため受信スキップ');
       return;
     }
-    if(r && remoteTs >= localTs){D=r; _localSave({preserveTs:true});}
+    // ⚠ 中身のあるローカルを、空のリモートファイルで上書きしない(データ消失防止)。
+    if(r && remoteTs >= localTs && (_hasRealData(r) || !_hasRealData(D))){
+      try { if (typeof _autoBackup==='function' && _hasRealData(D)) _autoBackup('before_receive'); } catch(e){}
+      D=r; _localSave({preserveTs:true});
+    }
     updateSyncUI('ok','同期済み '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}));
   } catch(e){updateSyncUI('err','読込失敗');}
 }
@@ -5098,10 +5102,9 @@ function _autoDailyBackup(){
     if (localStorage.getItem('eigyo_autobackup_daily') === 'off') return;
     var today = new Date().toISOString().slice(0,10);
     if (localStorage.getItem('eigyo_autobackup_date') === today) return; // 本日分は取得済み
-    // データが実在する時だけ実行(空/初期化直後の誤バックアップ防止)
-    var nDeals  = (typeof D!=='undefined' && D && D.deals)  ? D.deals.length : 0;
-    var nPeople = (typeof D!=='undefined' && D && D.people) ? D.people.filter(function(p){ return p && p.name; }).length : 0;
-    if (nDeals === 0 && nPeople <= 3) return;
+    // データが実在する時だけ実行(空/初期化直後の誤バックアップ防止)。
+    //   案件0件でも予算/実績等が入っている端末はバックアップ対象に含める。
+    if (!_hasRealData(D)) return;
     var b = new Blob([JSON.stringify(D, null, 2)], {type:'application/json'});
     var u = URL.createObjectURL(b);
     var a = document.createElement('a');
@@ -5133,10 +5136,15 @@ function importFromFile(input){
 }
 function showRecovery(){
   const found=[];
-  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;try{const v=localStorage.getItem(k);const p=JSON.parse(v);if(p&&(p.deals!==undefined||p.people!==undefined))found.push({key:k,data:p,raw:v});}catch(e){}}}catch(e){}
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;try{const v=localStorage.getItem(k);const p0=JSON.parse(v);
+    // 自動バックアップ({_backupReason,_backupAt,data:D})は中身が .data にネストされているので取り出す
+    const p=(p0&&p0.data&&(p0.data.deals!==undefined||p0.data.people!==undefined))?p0.data:p0;
+    if(p&&(p.deals!==undefined||p.people!==undefined))found.push({key:k,data:p,raw:v,at:(p0&&p0._backupAt)||0});
+  }catch(e){}}}catch(e){}
   if(!found.length){alert('このブラウザには復元できるデータがありませんでした');return;}
+  found.sort((a,b)=>(b.at||0)-(a.at||0)); // 新しい順
   let msg='以下のデータが見つかりました:  ';
-  found.forEach((f,i)=>{msg+=`${i+1}. ${f.key} 案件:${(f.data.deals||[]).length}件 担当者:${(f.data.people||[]).filter(p=>p.name).length}名  `;});
+  found.forEach((f,i)=>{const when=f.at?new Date(f.at).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';msg+=`${i+1}. ${f.key}${when?'('+when+')':''} 案件:${(f.data.deals||[]).length}件 担当者:${(f.data.people||[]).filter(p=>p.name).length}名  `;});
   msg+='読み込む番号を入力:';
   const ans=prompt(msg);if(!ans)return;
   const idx=parseInt(ans)-1;
@@ -5155,6 +5163,85 @@ function clearAllData(){_autoBackup('before_reset');D=initD();save();rebuildAll(
 var _AUTOBACKUP_KEY_PREFIX = 'eigyo_autobackup_';
 var _AUTOBACKUP_MAX = 6;
 
+// ═══════════════════════════════════════════════════════════
+// 🛡 データ保全ヘルパー（2026-08 データ消失リスク監査に基づく多重防御）
+//   ・_objHasNumbers / _hasRealData: 「案件0件でも予算・実績・顧客・担当者等が
+//     入っていれば“実データあり”」と判定。空判定(初回ログイン誤検知→全上書き)を防ぐ。
+//   ・_fbBackupSnapshot: 破壊/受信操作の前に、端末のlocalStorageが消えても残る
+//     Firebase側の世代バックアップ(最新15世代)を残す。
+//   これらは追加のみで、既存の同期/マージ処理には干渉しない。
+// ═══════════════════════════════════════════════════════════
+function _objHasNumbers(root){
+  if (!root || typeof root !== 'object') return false;
+  var keys = ['budgets','actuals','groupActuals','branchActuals','branchBudgets',
+              'branchSoftActuals','maintenance','activityActuals','activityBudgets',
+              'officeBudget','consumables','hardware','other'];
+  for (var ki=0; ki<keys.length; ki++){
+    var dom = root[keys[ki]];
+    if (!dom || typeof dom !== 'object') continue;
+    var owners = Array.isArray(dom) ? dom : Object.keys(dom).map(function(k){ return dom[k]; });
+    for (var oi=0; oi<owners.length; oi++){
+      var cell = owners[oi];
+      if (!cell) continue;
+      var arrs = [];
+      if (Array.isArray(cell)) arrs.push(cell);
+      else if (typeof cell === 'object'){ if (Array.isArray(cell.s)) arrs.push(cell.s); if (Array.isArray(cell.p)) arrs.push(cell.p); }
+      for (var ai=0; ai<arrs.length; ai++){
+        var a = arrs[ai];
+        for (var vi=0; vi<a.length; vi++){
+          var v = a[vi];
+          if (v === '' || v === null || v === undefined) continue;
+          var sv = String(v).trim();
+          if (sv !== '' && sv !== '0') return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+// D 相当のオブジェクトが「実データ」を持つか（配列・オブジェクト両対応）
+function _hasRealData(x){
+  if (!x || typeof x !== 'object') return false;
+  var dl = x.deals;      if (dl && (Array.isArray(dl) ? dl.length : Object.keys(dl).length)) return true;
+  var cl = x.customers;  if (cl && (Array.isArray(cl) ? cl.length : Object.keys(cl).length)) return true;
+  if (Array.isArray(x.people) && x.people.filter(function(p){ return p && p.name && String(p.name).trim(); }).length > 3) return true;
+  if (Array.isArray(x.referrals) && x.referrals.length) return true;
+  if (Array.isArray(x.hanbaiList) && x.hanbaiList.length) return true;
+  if (Array.isArray(x.tasks) && x.tasks.length) return true;
+  if (_objHasNumbers(x)) return true;
+  return false;
+}
+// Firebase側の世代バックアップ（端末が消えても残る遠隔スナップショット）。
+// 任意オブジェクトを backups/<key>/<ts> に保存し、最新15世代に剪定。同reasonは60秒に1回。
+function _fbBackupObject(reason, obj){
+  try{
+    if (typeof firebase === 'undefined' || !firebase.database) return;
+    if (typeof FB === 'undefined' || !FB || !FB.connected) return; // オフライン時はスキップ(次の機会に取得)
+    if (!obj) return;
+    var r = String(reason || '');
+    var key = 'eigyo3_' + fy;
+    window._fbBkThrottle = window._fbBkThrottle || {};
+    var now = Date.now();
+    if (window._fbBkThrottle[r] && (now - window._fbBkThrottle[r]) < 60000) return;
+    window._fbBkThrottle[r] = now;
+    var bref = firebase.database().ref('backups/' + key);
+    bref.child(String(now)).set({ _backupAt: now, _reason: r, _by: (typeof D!=='undefined' && D && D._lastBy) || '', data: obj })
+      .then(function(){
+        bref.once('value').then(function(snap){
+          var v = snap.val() || {}; var ks = Object.keys(v).sort();
+          for (var i=0; i < ks.length - 15; i++){ try{ bref.child(ks[i]).remove(); }catch(e){} }
+        }).catch(function(){});
+        console.log('[EIGYO PRO] Firebase世代バックアップ作成 reason=' + r);
+      }).catch(function(e){ console.warn('[EIGYO PRO] Firebase世代バックアップ書込失敗', e); });
+  }catch(e){ console.warn('[EIGYO PRO] Firebase世代バックアップ失敗', e); }
+}
+// 破壊/受信の直前(reason が before_ で始まる時)だけ、現在のDを遠隔バックアップ。
+function _fbBackupSnapshot(reason){
+  var r = String(reason || '');
+  if (r.indexOf('before_') !== 0) return;
+  _fbBackupObject(r, (typeof D !== 'undefined') ? D : null);
+}
+
 function _autoBackup(reason) {
   try {
     var ts = Date.now();
@@ -5162,6 +5249,7 @@ function _autoBackup(reason) {
     var payload = JSON.stringify({ _backupReason: reason, _backupAt: ts, data: D });
     localStorage.setItem(key, payload);
     _trimAutoBackups(_AUTOBACKUP_MAX);
+    try { _fbBackupSnapshot(reason); } catch(e){} // 端末が消えても残る遠隔世代バックアップ(before_*のみ)
     console.log('[EIGYO PRO] 自動バックアップ作成: ' + key + ' (' + Math.round(payload.length/1024) + 'KB) reason=' + reason);
     if (typeof _showToast === 'function') {
       _showToast('🛡 自動バックアップを作成しました(復元可)', 'ok', 2500);
@@ -5176,12 +5264,16 @@ function _autoBackup(reason) {
 function _trimAutoBackups(keepN) {
   try {
     var _BUDGET = 1600 * 1024; // 自動バックアップ合計サイズの上限(約1.6MB)。localStorage全体(約5MB)を圧迫させない
-    var arr = [];
+    // 破壊/受信前スナップショット(before_*)は「消えると困る証拠」なので剪定から優先保護する。
+    var _isDurable = function(k){ return /_before_(reset|resync|restore|json_restore|receive|recalc)/.test(k); };
+    var arr = [], durable = [];
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
-      if (k && k.indexOf(_AUTOBACKUP_KEY_PREFIX) === 0) {
-        arr.push({ k: k, ts: parseInt((k.split('_')[2]) || '0'), sz: (localStorage.getItem(k) || '').length });
-      }
+      if (!k || k.indexOf(_AUTOBACKUP_KEY_PREFIX) !== 0) continue;
+      var _seg = k.split('_')[2];
+      if (!/^\d{10,}$/.test(_seg || '')) continue; // 設定キー(eigyo_autobackup_daily/date 等)は数値tsが無いので除外
+      var _rec = { k: k, ts: parseInt(_seg), sz: (localStorage.getItem(k) || '').length };
+      if (_isDurable(k)) durable.push(_rec); else arr.push(_rec);
     }
     arr.sort(function(a, b) { return b.ts - a.ts; }); // 新しい順
     // 新しい方から、個数(keepN)と合計サイズ(_BUDGET)の両上限を満たす分だけ残し、残り(古い方)は削除。最低1件は残す。
@@ -5194,6 +5286,9 @@ function _trimAutoBackups(keepN) {
         kept++; cum += arr[j].sz;
       }
     }
+    // 破壊前スナップショットは最新8世代まで優先保持(超過した古い分のみ削除)。
+    durable.sort(function(a, b) { return b.ts - a.ts; });
+    for (var d = 8; d < durable.length; d++) { try { localStorage.removeItem(durable[d].k); } catch(e3){} }
   } catch(e) {
     console.warn('古いバックアップ削除失敗:', e);
   }
@@ -5485,10 +5580,14 @@ function forceResyncFromFirebase(){
   location.reload();
 }
 function checkDataOnStart(){
-  if(D.deals&&D.deals.length)return;
-  if(D.people&&D.people.filter(p=>p.name).length)return;
+  // 現在のDに実データがあれば何もしない(案件0でも数字等があればOK)
+  if(_hasRealData(D))return;
   let found=false;
-  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;try{const p=JSON.parse(localStorage.getItem(k)||'{}');if(p&&(p.deals&&p.deals.length>0||p.people&&p.people.filter(q=>q.name).length>0)){found=true;break;}}catch(e){}}}catch(e){}
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k)continue;try{
+    const p0=JSON.parse(localStorage.getItem(k)||'{}');
+    const p=(p0&&p0.data)?p0.data:p0; // 自動バックアップは .data にネスト
+    if(_hasRealData(p)){found=true;break;}
+  }catch(e){}}}catch(e){}
   if(found){const b=document.getElementById('recovery-banner');if(b)b.style.display='';}
 }
 
@@ -7541,7 +7640,16 @@ function initD(){return{
   supportActivities:[],
   _ts:0
 }}
-function load(){try{const r=localStorage.getItem(skey());if(r){D=JSON.parse(r);return}}catch(e){}D=initD()}
+function load(){
+  var _raw=null;
+  try{ _raw=localStorage.getItem(skey()); if(_raw){ D=JSON.parse(_raw); window._loadedEmpty=false; return; } }
+  catch(e){
+    // パース失敗=データ破損。空Dで上書きして失う前に、生データを別キーへ退避(手動復元可)。
+    try{ if(_raw) localStorage.setItem('eigyo_corrupt_'+skey()+'_'+Date.now(), _raw); }catch(_){}
+    console.error('[EIGYO PRO] ローカルデータ破損を検知→生データを退避しました(eigyo_corrupt_*)', e);
+  }
+  D=initD(); window._loadedEmpty=true; // 空ロード: 起動時の空保存(上書き)を抑止するフラグ
+}
 // ── ローカルのみ保存（Firebaseを呼ばない・ループ防止用）─────────
 function _localSave(opts){
   sanitizeD();
@@ -7561,9 +7669,11 @@ function _localSave(opts){
     //   (2026-07-02: 機器マスタ消失の真因=自動バックアップ肥大でlocalStorage満杯)。
     //   Firebaseへは別途保存されるが、localStorageも必ず更新して初期表示のズレを防ぐ。
     try {
+      var _isDur = function(k){ return /_before_(reset|resync|restore|json_restore|receive|recalc)/.test(k); };
       var _backs = [];
-      for (var _i=0; _i<localStorage.length; _i++){ var _k=localStorage.key(_i); if(_k && _k.indexOf('eigyo_autobackup_')===0) _backs.push(_k); }
-      _backs.sort(function(a,b){ var ma=a.match(/autobackup_(\d+)/), mb=b.match(/autobackup_(\d+)/); return (ma?+ma[1]:0)-(mb?+mb[1]:0); }); // 古い順
+      for (var _i=0; _i<localStorage.length; _i++){ var _k=localStorage.key(_i); if(_k && _k.indexOf('eigyo_autobackup_')===0 && /autobackup_\d{10,}/.test(_k)) _backs.push(_k); }
+      // 非破壊前スナップショット(古い順)を先に削除し、破壊前スナップショット(before_*)は最後の手段としてのみ削除。
+      _backs.sort(function(a,b){ var da=_isDur(a)?1:0, db=_isDur(b)?1:0; if(da!==db) return da-db; var ma=a.match(/autobackup_(\d+)/), mb=b.match(/autobackup_(\d+)/); return (ma?+ma[1]:0)-(mb?+mb[1]:0); });
       for (var _j=0; _j<_backs.length; _j++){
         try { localStorage.removeItem(_backs[_j]); } catch(e2){}
         try { localStorage.setItem(skey(), _json); console.warn('[EIGYO PRO] localStorage容量超過→古い自動バックアップ'+(_j+1)+'件整理で保存成功'); return; } catch(e3){}
@@ -15422,6 +15532,16 @@ function _mergeEquipMaster(local, remote) {
 }
 
 function _fbApplyRemote(remote, remoteTs) {
+  // ⭐ 受信で D=remote に全置換する前に、ローカルの現状をスナップショット(復元可)。
+  //   未同期のローカル数字編集が万一リモートで上書きされても後から復元できるようにする。
+  //   60秒に1回に制限し、実データがある時だけ取得(空バックアップ抑止)。
+  try {
+    if (typeof _autoBackup === 'function' && _hasRealData(D) &&
+        (!window._lastRecvBackup || Date.now() - window._lastRecvBackup > 60000)) {
+      window._lastRecvBackup = Date.now();
+      _autoBackup('before_receive');
+    }
+  } catch(e){}
   if (remote.deals && !Array.isArray(remote.deals)) {
     remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
   }
@@ -15652,8 +15772,8 @@ function fbStartSync() {
       
       if (!remote) {
         // Firebaseにデータなし
-        // ⚠ 安全確認：ローカルに実データがある場合のみFirebaseに書き込む
-        if (localDeals > 0 || localPeople > 3) {
+        // ⚠ 安全確認：ローカルに実データ(案件/顧客/担当者/予算/実績等いずれか)がある場合のみ書き込む
+        if (_hasRealData(D)) {
           console.log('[EIGYO PRO] Firebaseが空 → ローカルデータで初期化', {localDeals, localPeople});
           fbWrite(true);
         } else {
@@ -15702,8 +15822,10 @@ function fbStartSync() {
         return;
       }
 
-      // ② ローカルが空（初回ログイン）→ Firebaseから強制受信
-      if (localDeals === 0 && localPeople <= 3) {
+      // ② ローカルに実データが無い（初回ログイン相当）→ Firebaseから強制受信
+      //   ※ 案件0件でも予算/実績/顧客等が入っている端末を「空」と誤判定して
+      //     数字を丸ごと上書きしないよう、_hasRealData で厳格に判定する。
+      if (!_hasRealData(D)) {
         console.log('[EIGYO PRO] 初回ログイン検出 → Firebaseから受信', {remoteDeals});
         if (remote.deals && !Array.isArray(remote.deals)) {
           remote.deals = Object.values(remote.deals).filter(function(d){ return d && d.id; });
@@ -15713,6 +15835,8 @@ function fbStartSync() {
           _mergeLocalCustomerChanges(remote);
           if (remote.customers && !Array.isArray(remote.customers)) remote.customers = Object.values(remote.customers).filter(function(c){ return c && _custMergeKey(c); });
         } catch(e){}
+        // 万一の誤受信に備え、上書き直前のローカルをスナップショット(復元可)
+        try { if (typeof _autoBackup==='function' && (D.deals&&D.deals.length || _hasRealData(D))) _autoBackup('before_receive'); } catch(e){}
         D = remote;
         _localSave({preserveTs:true}); // 受信した remote._ts を保持(clock skew対策)
         FB.lastRemoteTs = remoteTs; FB.staleDeclined = false; FB.lastApplyWall = Date.now();
@@ -15883,6 +16007,14 @@ function _maintMergeCells(remoteBr, localBr){
 //   dealsは配列のまま=Phase0(set/array)と互換・移行不要。失敗時は set() 全置換へフォールバック(フェイルセーフ)。
 function _phase1Fallback(){
   try {
+    // ⭐ コールドスタート保護: 未受信(FB.lastRemoteTs===0)の窓での全置換set()は、
+    //   リモートの豊富なデータを踏み潰す恐れがあるため実行しない。最新を取り直す。
+    if ((typeof FB !== 'undefined') && (FB.lastRemoteTs || 0) === 0) {
+      console.warn('[EIGYO PRO] fallback抑止: 未受信のため全置換set()をスキップ→再受信');
+      fbSetStatus('warn','⚠️ 保存を保留しました（最新を未受信）。🔥強制再受信してください');
+      if (typeof _softResync === 'function') setTimeout(function(){ _softResync('fallback-coldstart'); }, 300);
+      return;
+    }
     var _payload = Object.assign({}, D, { _ts: firebase.database.ServerValue.TIMESTAMP });
     FB.dbRef.set(_payload)
       .then(function(){ showSyncBadge('保存'); if (typeof _hideSyncBlockBanner==='function') _hideSyncBlockBanner(); })
@@ -16001,8 +16133,10 @@ function _doFbWrite() {
       return;
     }
 
-    // ローカルが完全に空（deals=0）でリモートに1件以上ある場合も中止
-    if (localDeals === 0 && remoteDeals > 0) {
+    // ローカルに実データが無く、リモートには実データがある場合は中止
+    //   （案件だけでなく予算/実績/顧客/担当者等いずれも無い“空”端末が、
+    //     中身のあるリモートを上書きする事故を防ぐ）
+    if (!_hasRealData(D) && _hasRealData(remote)) {
       fbSetStatus('warn', '⚠️ 安全停止: ローカルデータが空のため書き込みを中止しました');
       console.warn('[EIGYO PRO] 安全停止: 空データの書き込みをブロックしました');
       return;
@@ -16086,6 +16220,23 @@ function _doFbWrite() {
         if (_cRescued > 0) console.log('[EIGYO PRO] P2: 書込み時マージで他PC顧客 ' + _cRescued + ' 件を保持');
       }
     } catch(e){ console.warn('[EIGYO PRO] P2顧客マージ失敗(従来動作で継続)', e); }
+
+    // ── ⭐ 縮小防止バックアップ ──────────────────────────────────
+    //   これから全置換に近い書込みを行う前に、案件が大幅に減る(=薄いローカルが
+    //   リッチなリモートを上書きしかねない)兆候があれば、上書きされる“リモートの現状”を
+    //   退避しておく(後から必ず復元可能)。書込み自体は従来通り=回帰なし。
+    //   ※ 件数10件以上の激減は上のG1で既に中止済み。ここは10件未満の境界を補完する。
+    try {
+      var _rDealCnt = (remote && remote.deals) ? (Array.isArray(remote.deals) ? remote.deals.length : Object.keys(remote.deals).length) : 0;
+      var _lDealCnt = (D.deals || []).length;
+      if (!_ownEcho && _hasRealData(remote) && _rDealCnt > 0 && _lDealCnt < _rDealCnt * 0.5) {
+        var _bk = 'eigyo_autobackup_' + Date.now() + '_before_fb_shrink';
+        try { localStorage.setItem(_bk, JSON.stringify({ _backupReason:'before_fb_shrink(remote)', _backupAt:Date.now(), data:remote })); } catch(e){}
+        try { if (typeof _trimAutoBackups==='function') _trimAutoBackups(_AUTOBACKUP_MAX); } catch(e){}
+        try { if (typeof _fbBackupObject==='function') _fbBackupObject('before_fb_shrink', remote); } catch(e){}
+        console.warn('[EIGYO PRO] 縮小検知: 上書き前にリモートを退避(復元可)', {_rDealCnt, _lDealCnt});
+      }
+    } catch(e){}
 
     // 安全確認OK → ⭐Phase1で書込み: 案件はトランザクション(アトミックマージ)、非案件＋metaはupdate。
     //   _phase1Write 内で _localSave・_wid/_wseq/_lastBy・_ts(ServerValue) を付与する。
@@ -22845,6 +22996,13 @@ function _silentApplyWonToActuals() {
       applyDealToActuals(d, false);
     }
   });
+  // ⭐ 空ロード直後(データ破損 or まだFirebase未受信)は、空Dを保存して
+  //   localStorage/Firebaseの蓄積を上書きしない。Firebase初回受信か実際の編集が
+  //   起きるまで保存を保留する(データ消失防止)。
+  if (window._loadedEmpty && (D.deals||[]).length === 0 && !_hasRealData(D)) {
+    console.warn('[EIGYO PRO] 空ロード検知 → 起動時の空保存をスキップ(データ保護)');
+    return;
+  }
   save();
 }
 
@@ -27448,7 +27606,7 @@ document.addEventListener('keydown', function(e) {
     if (modal && modal.classList.contains('open')) closeMemoModal();
   }
 });
-initFY();load();migrateBranchBudgets();_migrateHWOther();_migrateBranchSoftActuals();_migrateGroupActuals();_initDealProbabilities();_migrateManualWonAt();_cleanupAbnormalActuals();_silentApplyWonToActuals();rebuildAll();checkAuthOnStart();
+initFY();load();migrateBranchBudgets();_migrateHWOther();_migrateBranchSoftActuals();_migrateGroupActuals();_initDealProbabilities();_migrateManualWonAt();_cleanupAbnormalActuals();_silentApplyWonToActuals();rebuildAll();checkDataOnStart();checkAuthOnStart();
 // 検索ボックスのオートフィル強制クリア（Chrome対策）
 setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.value)el.value='';},100);
 setTimeout(function(){var el=document.getElementById('deal-search');if(el&&el.value)el.value='';},500);
