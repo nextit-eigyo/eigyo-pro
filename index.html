@@ -1085,6 +1085,84 @@ body{ padding-left:var(--side); }
   #logo{ font-size:0; padding:2px 0 14px; }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   📱 スマホ(≤600px)最適化 — 実用レベル
+   ・左サイドバー(#hdr)を「スライドイン・ドロワー」に変更。
+     ハンバーガー(☰)で開閉し、予実管理/顧客管理を含む全ナビに到達可能。
+   ・上部バー(#hdr-r)は全幅に整理（ハンバーガー＋再受信＋年度のみ）。
+   ・ボトムナビ(#mob-nav)のラベル折り返しを防止。
+   ・テーブルは横スクロールで読めるように（_mobWrapTables と併用）。
+   ・この直後の非メディア規則でPC/タブレット時はハンバーガー等を非表示に。
+   ※ このブロックを丸ごと削除すれば元の挙動に戻る（表示のみ・機能非干渉）。
+   ═══════════════════════════════════════════════════════════ */
+@media(max-width:600px){
+  /* 空サイドバー分の左余白を解消 */
+  body{ padding-left:0 !important; }
+
+  /* サイドバー(#hdr)を画面外に隠したドロワーへ */
+  #hdr{
+    top:0 !important; bottom:0 !important; height:auto !important;
+    width:min(84vw,290px) !important;
+    padding:16px 12px !important;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    z-index:700 !important;
+    box-shadow:4px 0 24px rgba(0,0,0,.28);
+  }
+  #hdr.drawer-open{ transform:translateX(0); }
+  #logo{ font-size:19px !important; padding:2px 8px 14px !important; }
+
+  /* ドロワー内は全ナビをフルラベルで縦並び表示 */
+  #hdr #main-tabs{ display:flex !important; }
+  #hdr .sub-tab .st-lab{ display:inline !important; }
+  #hdr .sub-tab{
+    justify-content:flex-start !important;
+    padding:11px 12px !important; font-size:15px !important;
+  }
+  #hdr .sub-tab .st-ic{ width:32px !important; height:32px !important; font-size:18px !important; }
+
+  /* 背景オーバーレイ */
+  #mob-drawer-backdrop{
+    display:none; position:fixed; inset:0; z-index:650;
+    background:rgba(30,25,20,.45);
+  }
+  #mob-drawer-backdrop.on{ display:block; }
+
+  /* 上部バー：全幅・要素を絞って横はみ出しを解消 */
+  #hdr-r{
+    left:0 !important; right:0; padding:0 10px !important;
+    gap:8px; justify-content:space-between !important;
+  }
+  #hdr-r > *{ display:none !important; }               /* いったん全部隠して… */
+  #hdr-r > #mob-menu-btn{ display:flex !important; }    /* …必要なものだけ復帰 */
+  #hdr-r > #force-resync-btn{ display:flex !important; margin-left:auto; }
+  #hdr-r > #fy-sel{ display:block !important; }
+  #fy-sel{ font-size:14px !important; padding:6px 8px !important; max-width:44vw; }
+
+  /* ハンバーガー */
+  #mob-menu-btn{
+    align-items:center; justify-content:center;
+    width:40px; height:40px; font-size:22px; line-height:1;
+    background:none; border:none; color:var(--tx); cursor:pointer;
+    border-radius:9px; flex-shrink:0;
+  }
+  #mob-menu-btn:active{ background:var(--s3); }
+
+  /* ボトムナビ：ラベル折り返し防止（「ダッシュボード」等の2行化を回避） */
+  .mob-nav-btn{
+    font-size:9.5px !important; letter-spacing:-.3px;
+    white-space:nowrap; overflow:hidden; padding:4px 2px !important; gap:1px !important;
+  }
+  .mob-nav-btn .mni{ font-size:19px !important; }
+
+  /* テーブル横スクロール用ラッパー */
+  .tbl-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; }
+}
+
+/* PC/タブレット時はスマホ専用UIを非表示（≤600px内で個別に復帰させている） */
+#mob-menu-btn{ display:none; }
+#mob-drawer-backdrop{ display:none; }
+
 /* === 🛠 薬局構成図 (PharmacyConfig) === */
 .pc-section-title{font-size:12px;font-weight:700;color:var(--tx);padding:6px 0 4px;border-bottom:1px solid var(--bd);margin-bottom:8px;letter-spacing:.04em}
 .pc-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--tx2);flex-wrap:wrap}
@@ -2538,6 +2616,8 @@ body.has-sidepanel #home-deal-mode {
     <button id="subtab-setup" class="sub-tab" onclick="showTab('setup',this)"><span class="st-ic">🔒</span><span class="st-lab">設定</span></button>
   </div>
   <div id="hdr-r">
+    <!-- 📱 スマホ用ハンバーガー（≤600pxでのみ表示。サイドバーをドロワーとして開閉） -->
+    <button id="mob-menu-btn" onclick="mobToggleDrawer()" aria-label="メニュー" title="メニュー">☰</button>
     <div id="save-group">
       <div id="save-bdg"><span class="save-dot"></span><span id="save-txt">自動保存済み</span></div>
       <div id="last-upd" title="最終更新（このデータを最後に保存した担当者と時刻）" style="font-size:11px;color:var(--tx3);white-space:nowrap;line-height:1.15"></div>
@@ -2562,6 +2642,9 @@ body.has-sidepanel #home-deal-mode {
 </div>
 
 <!-- メインナビ(数字〜KPT)はヘッダー(#main-tabs)に統合済み。旧サブタブバーは廃止。 -->
+
+<!-- 📱 スマホ用ドロワーの背景オーバーレイ（サイドバーを開いた時のみ表示） -->
+<div id="mob-drawer-backdrop" onclick="mobToggleDrawer(false)"></div>
 
 <!-- ════════ TOAST NOTIFICATIONS ════════ -->
 <div id="toast-wrap"></div>
@@ -12789,6 +12872,9 @@ function showTab(name,btn){
   if(name==='karte'){renderKarte();}
   if(name==='mikaitaku'){renderMikaitaku();}
   if(name==='customers'){renderCustomers();}
+  // 📱 スマホ: ナビ選択でドロワーを閉じ、描画後のテーブルを横スクロール対応にする
+  if (typeof mobToggleDrawer === 'function') mobToggleDrawer(false);
+  if (typeof _mobWrapTables === 'function') setTimeout(_mobWrapTables, 0);
 }
 
 // ════════════════════════════════════════════════════════
@@ -27137,6 +27223,34 @@ function addDealType() {
   }
 }
 // ════════ MOBILE NAV ════════
+// 📱 スマホ用ドロワー(サイドバー)の開閉。force=true:開く / false:閉じる / 省略:トグル
+function mobToggleDrawer(force) {
+  var hdr = document.getElementById('hdr');
+  var bd  = document.getElementById('mob-drawer-backdrop');
+  if (!hdr) return;
+  var open = (typeof force === 'boolean') ? force : !hdr.classList.contains('drawer-open');
+  hdr.classList.toggle('drawer-open', open);
+  if (bd) bd.classList.toggle('on', open);
+}
+
+// 📱 スマホでアクティブなセクション内のテーブルを横スクロール用ラッパーで包む。
+// 既に横スクロール可能な親を持つテーブルはスキップ（二重ラップ防止）。冪等。
+function _mobWrapTables() {
+  if (window.innerWidth > 700) return;
+  var sec = document.querySelector('.sec.on');
+  if (!sec) return;
+  sec.querySelectorAll('table').forEach(function(t){
+    var p = t.parentElement;
+    if (!p || p.classList.contains('tbl-scroll')) return;
+    var ox = getComputedStyle(p).overflowX;
+    if (ox === 'auto' || ox === 'scroll') return; // 既存のスクロール枠内なら包まない
+    var w = document.createElement('div');
+    w.className = 'tbl-scroll';
+    p.insertBefore(w, t);
+    w.appendChild(t);
+  });
+}
+
 function mobNav(tabName, btn) {
   // 対応するトップタブボタンのIDマップ
   var tabMap = {
