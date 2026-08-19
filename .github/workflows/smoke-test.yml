@@ -26,7 +26,11 @@ jobs:
         run: |
           npm init -y >/dev/null 2>&1 || true
           npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          # apt(--with-deps)が固まって10分タイムアウトで丸ごとcancelされる事故を防止:
+          # 依存導入は最大4分で打ち切り、固まったらブラウザ本体だけ入れて先へ進む
+          # (ubuntu-latestランナーは必要な共有ライブラリを概ね同梱済み)。
+          timeout 240 npx playwright install --with-deps chromium \
+            || npx playwright install chromium
 
       - name: スモークテスト実行（JSエラー0を確認）
         run: node scripts/smoke-test.mjs
