@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-19",
+  "generatedAt": "2026-08-20",
   "branches": [
     {
       "name": "神戸本社",
@@ -12,46 +12,9 @@
         "奈良",
         "和歌山"
       ],
-      "coverage": "medium",
-      "coverageNote": "関西は公表M&Aが拾えた（大阪・奈良）。個別の新規開局は厚生局の新規指定一覧が本命。",
-      "items": [
-        {
-          "pref": "奈良",
-          "date": "2026-07-31",
-          "type": "承継",
-          "needsVerify": true,
-          "title": "奈良県の単独店薬局「グランツリー」がなの花西日本グループへ（※要確認）",
-          "summary": "1店舗経営で改定対応・若手のキャリアパス確保が限界となり大手グループ入り。同じ悩みを抱える関西の単独店・小規模チェーンが動くタイミングで、システム更新の相談も出やすい。",
-          "source": {
-            "label": "スピカコンサルティング 2026年7月の調剤薬局業界M&Aまとめ",
-            "url": "https://spicon.co.jp/media/industries/ccnuxvtuic/"
-          }
-        },
-        {
-          "pref": "大阪",
-          "date": "2026-06-12",
-          "type": "M&A",
-          "needsVerify": true,
-          "title": "フロンティア（大阪府富田林市）がM&Cグループ「キタバ薬局」を取得、関西ドミナント強化（※店舗数・時期は要確認）",
-          "summary": "関西地盤の中堅同士の再編。買い手側は店舗統合に伴いシステム・レセコンの統一検討が発生しやすく、売り手側店舗でも名義変更・機器更新の相談が出る。",
-          "source": {
-            "label": "スピカコンサルティング公式note 2026年まとめ",
-            "url": "https://note.com/note_spica/n/n6249e9eddbcf"
-          }
-        },
-        {
-          "pref": "関西全域",
-          "date": "2026-08-01",
-          "type": "一次情報源",
-          "needsVerify": false,
-          "title": "近畿厚生局「保険医療機関・保険薬局の指定一覧（全体）及び新規指定一覧」（毎月更新）",
-          "summary": "兵庫・大阪・京都・滋賀・奈良・和歌山の新規指定薬局が月次で公開される。新規開局のピンポイント把握はネット記事より、この一覧＋卸MS情報が確実。",
-          "source": {
-            "label": "近畿厚生局",
-            "url": "https://kouseikyoku.mhlw.go.jp/kinki/tyousa/shinkishitei.html"
-          }
-        }
-      ]
+      "coverage": "thin",
+      "coverageNote": "今回はネット上で具体ニュースを拾えず。県薬剤師会・卸MSの一次情報が本命。",
+      "items": []
     },
     {
       "name": "福岡営業所",
@@ -65,46 +28,9 @@
         "宮崎",
         "鹿児島"
       ],
-      "coverage": "medium",
-      "coverageNote": "九州は個別M&Aの公表が少ない。地元大手（コスモス薬品）の動きと厚生局の新規指定一覧が実用的。",
-      "items": [
-        {
-          "pref": "福岡",
-          "date": "2026-07-14",
-          "type": "大手再編",
-          "needsVerify": true,
-          "title": "コスモス薬品（福岡市）2026年5月期は売上高1兆995億円で初の1兆円超、積極出店を継続（※数字は要確認）",
-          "summary": "九州発の地元大手が出店を緩めていない。新規出店エリアは近隣の中小薬局に競合圧力がかかり、経営判断（承継・投資）が動きやすい＝訪問の切り口になる。",
-          "source": {
-            "label": "流通ニュース",
-            "url": "https://www.ryutsuu.biz/accounts/s071342.html"
-          }
-        },
-        {
-          "pref": "九州全域",
-          "date": "2026-08-19",
-          "type": "大手再編",
-          "needsVerify": true,
-          "title": "コスモス薬品が調剤に本格参入との報道（※時期・現在の進捗は要確認）",
-          "summary": "食品主体で伸びてきた同社が調剤併設を進めるとされる。九州の門前・面分業の勢力図が変わる可能性があり、既存顧客への状況ヒアリングのネタになる。裏取りしてから話すこと。",
-          "source": {
-            "label": "ダイヤモンド・チェーンストアオンライン",
-            "url": "https://diamond-rm.net/management/89312/"
-          }
-        },
-        {
-          "pref": "九州全域",
-          "date": "2026-08-05",
-          "type": "一次情報源",
-          "needsVerify": false,
-          "title": "九州厚生局「保険医療機関・保険薬局の新規指定一覧」（2026年8月5日更新）",
-          "summary": "福岡・佐賀・長崎・熊本・大分・宮崎・鹿児島の新規指定が事務所別・月別にPDF/Excelで公開。新規開局の一次ソースとして最も確実。卸MS訪問の前に当月分を確認する運用が効く。",
-          "source": {
-            "label": "九州厚生局",
-            "url": "https://kouseikyoku.mhlw.go.jp/kyushu/tyosaka/20150407_00002.html"
-          }
-        }
-      ]
+      "coverage": "thin",
+      "coverageNote": "今回はネット上で具体ニュースを拾えず。県薬剤師会・卸MSの一次情報が本命。",
+      "items": []
     },
     {
       "name": "高知営業所",
@@ -116,33 +42,8 @@
         "香川"
       ],
       "coverage": "thin",
-      "coverageNote": "四国は公表ニュースがほぼ出ない。厚生局の新規指定一覧と地場卸（アスティス等）の動きを追うのが現実的。",
-      "items": [
-        {
-          "pref": "四国全域",
-          "date": "2026-08-01",
-          "type": "一次情報源",
-          "needsVerify": false,
-          "title": "四国厚生支局「保険医療機関・保険薬局の新規指定一覧」（毎月上旬更新）",
-          "summary": "高知・徳島・愛媛・香川の新規指定が月次で公開。四国はネット記事に開局情報が出ないので、この一覧を毎月チェックするのが新規開拓の起点。",
-          "source": {
-            "label": "四国厚生支局",
-            "url": "https://kouseikyoku.mhlw.go.jp/shikoku/gyomu/gyomu/hoken_kikan/shitei/shinki.html"
-          }
-        },
-        {
-          "pref": "愛媛・香川・高知・徳島",
-          "date": "2026-07-01",
-          "type": "ターゲット把握",
-          "needsVerify": true,
-          "title": "四国の医薬品卸アスティスが四国物流センターを起工（※時期は要確認）",
-          "summary": "同社は新規開院・開局支援を看板に掲げる四国4県の地場卸。物流投資＝営業体制強化のタイミングで、MS経由の開局情報が取りやすい相手。卸MS訪問の優先度を上げる材料。",
-          "source": {
-            "label": "株式会社アスティス",
-            "url": "https://astis.co.jp/"
-          }
-        }
-      ]
+      "coverageNote": "今回はネット上で具体ニュースを拾えず。県薬剤師会・卸MSの一次情報が本命。",
+      "items": []
     },
     {
       "name": "東京事業所",
@@ -156,46 +57,9 @@
         "栃木",
         "群馬"
       ],
-      "coverage": "medium",
-      "coverageNote": "関東は大手再編が公表ベースで追える。県薬剤師会が新規指定を独自公開している県もあり。",
-      "items": [
-        {
-          "pref": "埼玉",
-          "date": "2026-04-09",
-          "type": "大手再編",
-          "needsVerify": true,
-          "title": "スギHDが埼玉地盤のセキ薬品を連結子会社化（議決権49%→51%・2026年9月1日実行予定／※金額・時期は要確認）",
-          "summary": "調剤併設型ドラッグストアの再編が関東で進行中。9月の実行前後はシステム統合・物流最適化の話題が出やすく、周辺の中小薬局にも競合圧力＝相談の入り口になる。",
-          "source": {
-            "label": "日本M&Aセンター M&Aニュース",
-            "url": "https://www.nihon-ma.co.jp/news/20260409_7649-49/"
-          }
-        },
-        {
-          "pref": "関東全域",
-          "date": "2026-08-01",
-          "type": "一次情報源",
-          "needsVerify": false,
-          "title": "関東信越厚生局「保険医療機関・保険薬局の指定等一覧／新規指定一覧」（2026年8月1日現在・7月処理分）",
-          "summary": "東京・神奈川・埼玉・千葉・茨城・栃木・群馬（＋新潟・長野・山梨）の新規指定が月次公開。関東は開局数が多いので、月初にこの一覧を落として担当エリアで絞るのが効率的。",
-          "source": {
-            "label": "関東信越厚生局",
-            "url": "https://kouseikyoku.mhlw.go.jp/kantoshinetsu/chousa/shitei.html"
-          }
-        },
-        {
-          "pref": "神奈川",
-          "date": "2026-08-19",
-          "type": "一次情報源",
-          "needsVerify": false,
-          "title": "神奈川県薬剤師会「県内の保険医療機関・保険薬局の新規指定一覧」",
-          "summary": "県薬剤師会が県内分をまとめて掲載。厚生局の全体版より探しやすく、神奈川の新規開局を素早く拾える。",
-          "source": {
-            "label": "公益社団法人 神奈川県薬剤師会",
-            "url": "https://www.kpa.or.jp/medical_personnel/newly_added"
-          }
-        }
-      ]
+      "coverage": "thin",
+      "coverageNote": "今回はネット上で具体ニュースを拾えず。県薬剤師会・卸MSの一次情報が本命。",
+      "items": []
     },
     {
       "name": "新潟営業所",
@@ -209,33 +73,8 @@
         "山梨"
       ],
       "coverage": "thin",
-      "coverageNote": "甲信越・北陸は公表M&Aがほぼ拾えず。管轄が2つの厚生局に分かれるため、両方の一覧を見る必要あり。",
-      "items": [
-        {
-          "pref": "新潟・長野・山梨",
-          "date": "2026-08-01",
-          "type": "一次情報源",
-          "needsVerify": false,
-          "title": "関東信越厚生局「保険医療機関・保険薬局の新規指定一覧」（新潟・長野・山梨が管轄／2026年8月1日現在）",
-          "summary": "甲信越3県の新規指定薬局はここで確認できる。ネットに開局ニュースが出ない地域ほど、この月次一覧が新規開拓リストそのものになる。",
-          "source": {
-            "label": "関東信越厚生局",
-            "url": "https://kouseikyoku.mhlw.go.jp/kantoshinetsu/chousa/shitei.html"
-          }
-        },
-        {
-          "pref": "富山・石川",
-          "date": "2026-08-01",
-          "type": "一次情報源",
-          "needsVerify": false,
-          "title": "東海北陸厚生局「保険医療機関等 新規指定一覧表」（富山・石川ほか／令和8年7月処理分まで掲載）",
-          "summary": "北陸の新規指定医療機関が県別のPDF/Excelで直近1年分公開されている。新規開院＝門前薬局の種なので、クリニック側の動きから先回りできる。福井は近畿厚生局の管轄なので注意。",
-          "source": {
-            "label": "東海北陸厚生局",
-            "url": "https://kouseikyoku.mhlw.go.jp/tokaihokuriku/newpage_00345.html"
-          }
-        }
-      ]
+      "coverageNote": "今回はネット上で具体ニュースを拾えず。県薬剤師会・卸MSの一次情報が本命。",
+      "items": []
     },
     {
       "name": "全国",
@@ -243,82 +82,9 @@
       "prefectures": [
         "全国"
       ],
-      "coverage": "medium",
-      "coverageNote": "DX・AI・異業種参入まわりで新しい動きが複数。改定の基礎解説は除外し、目新しいものだけ収録。",
-      "items": [
-        {
-          "pref": "全国",
-          "date": "2026-08-09",
-          "type": "業界動向",
-          "needsVerify": true,
-          "title": "電子処方箋の導入が薬局の9割超に到達、厚労省の対応施設リストも更新中（※比率は要確認）",
-          "summary": "「対応しているか」ではなく「どう使いこなすか」の段階に入った。重複投薬チェックやマイナ保険証利用率が算定要件に絡むため、レセコン・システム側の運用提案が刺さるフェーズ。",
-          "source": {
-            "label": "厚生労働省 電子処方せん対応の医療機関・薬局について",
-            "url": "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/denshishohousen_taioushisetsu.html"
-          }
-        },
-        {
-          "pref": "全国",
-          "date": "2026-07-31",
-          "type": "業界動向",
-          "needsVerify": true,
-          "title": "DXによる患者囲い込みが新フェーズへ — 日本調剤「NiCOMS」、楽天ヘルスケア「ヨヤクスリ」、タイムリープ「RURA」×オール薬局の遠隔接客（※各社の詳細は要確認）",
-          "summary": "予約・キャッシュレス・ポイント連携・遠隔接客と、患者接点の奪い合いが具体的なサービス競争になってきた。中小薬局ほど「うちは何で戦うか」が課題＝提案の入り口。",
-          "source": {
-            "label": "スピカコンサルティング 2026年7月の調剤薬局業界M&Aまとめ",
-            "url": "https://spicon.co.jp/media/industries/ccnuxvtuic/"
-          }
-        },
-        {
-          "pref": "全国",
-          "date": "2026-07-01",
-          "type": "業界動向",
-          "needsVerify": true,
-          "title": "KDDI・三菱商事系の「Ponta薬局」開局 — オンライン服薬指導＋全国のローソンで処方薬受け取り（※対応店舗は要確認）",
-          "summary": "通信・商社・コンビニが組んだ異業種型の薬局が全国展開。立地に依存した集患モデルへの直接的な揺さぶりで、既存顧客との会話で必ず話題になるニュース。",
-          "source": {
-            "label": "KDDI News Room",
-            "url": "https://newsroom.kddi.com/news/detail/kddi_nr-1080_4607.html"
-          }
-        },
-        {
-          "pref": "全国",
-          "date": "2026-06-12",
-          "type": "大手再編",
-          "needsVerify": true,
-          "title": "サツドラHDが丸の内キャピタルとMBO・TOBで非公開化（※プレミアム・金額は要確認）",
-          "summary": "上場ドラッグストアがファンドと組んで非公開化するパターン。地域チェーンの資本政策の選択肢が広がっており、オーナー経営者との中長期の話題として使える。",
-          "source": {
-            "label": "スピカコンサルティング公式note 2026年まとめ",
-            "url": "https://note.com/note_spica/n/n6249e9eddbcf"
-          }
-        },
-        {
-          "pref": "全国",
-          "date": "2026-04-15",
-          "type": "業界動向",
-          "needsVerify": false,
-          "title": "PMDAが業務への生成AI利用を開始",
-          "summary": "規制当局側が生成AIを実務投入した。医療・薬事の現場で「AIは使ってよいもの」という空気が固まりつつあり、薬局へのAI提案のハードルが下がる材料。",
-          "source": {
-            "label": "独立行政法人 医薬品医療機器総合機構（PMDA）",
-            "url": "https://www.pmda.go.jp/about-pmda/news-release/0093.html"
-          }
-        },
-        {
-          "pref": "全国",
-          "date": "2026-01-21",
-          "type": "業界動向",
-          "needsVerify": true,
-          "title": "アインHDが生成AI薬歴システムを約1300店へ展開、薬歴入力時間を半減へ（※店舗数・削減時間は要確認）",
-          "summary": "最大手が薬歴入力そのものをAIに寄せる方針。中小薬局から「うちのシステムはどうなの？」と聞かれる機会が増える、いま最も競合文脈の強いニュース。やや前の記事なので最新状況は確認を。",
-          "source": {
-            "label": "日本経済新聞",
-            "url": "https://www.nikkei.com/article/DGXZQOFC2196U0R20C26A1000000/"
-          }
-        }
-      ]
+      "coverage": "thin",
+      "coverageNote": "今回はネット上で具体ニュースを拾えず。県薬剤師会・卸MSの一次情報が本命。",
+      "items": []
     }
   ]
 }
