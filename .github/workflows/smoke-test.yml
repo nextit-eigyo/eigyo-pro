@@ -23,14 +23,19 @@ jobs:
           node-version: '20'
 
       - name: Playwright(Chromium) を導入
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           npm init -y >/dev/null 2>&1 || true
           npm install --no-save playwright
-          # apt(--with-deps)が固まって10分タイムアウトで丸ごとcancelされる事故を防止:
-          # 依存導入は最大4分で打ち切り、固まったらブラウザ本体だけ入れて先へ進む
-          # (ubuntu-latestランナーは必要な共有ライブラリを概ね同梱済み)。
-          timeout 240 npx playwright install --with-deps chromium \
-            || npx playwright install chromium
+          # ① ブラウザ本体は確実に導入(apt不要・高速)。
+          npx playwright install chromium
+          # ② システム依存(apt)は「あれば入れる」best-effort。apt固着で
+          #    job全体が10分タイムアウトcancelされる事故を防ぐため、最大180秒で
+          #    強制終了(-k=SIGKILL)し、失敗しても続行(ubuntu-latestは必要な
+          #    共有ライブラリを概ね同梱しているため本体のみでも起動可能)。
+          timeout -k 20 180 npx playwright install-deps chromium \
+            || echo "⚠ install-deps skipped (apt slow/unavailable) — ランナー同梱ライブラリで続行"
 
       - name: スモークテスト実行（JSエラー0を確認）
         run: node scripts/smoke-test.mjs
