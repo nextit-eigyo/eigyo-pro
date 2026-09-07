@@ -7977,6 +7977,7 @@ function sanitizeD() {
       if (c.purchaseMethod === undefined)   c.purchaseMethod = '';   // 購入方法(D.purchaseMethodMaster)
       if (c.leaseEndYm === undefined)       c.leaseEndYm = '';       // リース満了年月 YYYY-MM
       if (c.referralRefId === undefined)    c.referralRefId = '';    // 紹介拠点マスタ(D.refMaster)の company
+      if (c.supmed === undefined)           c.supmed = false;        // 🧪 サプメド(自社消耗品サイト)利用有無・表示専用/数字非干渉
     });
   } catch(e){}
   // ⭐P2: 顧客の削除記録(tombstone)を初期化＋古い記録を剪定(60日)。多PCで「削除」を正しく伝播。
@@ -11118,17 +11119,17 @@ function _printTable(title, headHtml, tableHtml){
 // 👥 顧客管理 CSV出力(現在の絞り込み[担当/県/検索/V7]に連動)。表示専用・数字集計に非干渉。
 function _custFilteredList(){
   var custs = D.customers || [];
-  var rep = window._custRep||'', pref = window._custPref||'', q=(window._custSearch||'').trim().toLowerCase(), v7only=!!window._custV7Only;
-  return custs.filter(function(c){ return (!rep||c.rep===rep) && (!pref||c.pref===pref) && (typeof _custMatchSearch!=='function'||_custMatchSearch(c,q)) && (!v7only||(typeof _custVer==='function'&&_custVer(c)==='V7')); });
+  var rep = window._custRep||'', pref = window._custPref||'', q=(window._custSearch||'').trim().toLowerCase(), v7only=!!window._custV7Only, supmedOnly=!!window._custSupmedOnly;
+  return custs.filter(function(c){ return (!rep||c.rep===rep) && (!pref||c.pref===pref) && (typeof _custMatchSearch!=='function'||_custMatchSearch(c,q)) && (!v7only||(typeof _custVer==='function'&&_custVer(c)==='V7')) && (!supmedOnly||c.supmed); });
 }
-function _custIsFiltered(){ return !!(window._custRep||window._custPref||(window._custSearch||'').trim()||window._custV7Only); }
+function _custIsFiltered(){ return !!(window._custRep||window._custPref||(window._custSearch||'').trim()||window._custV7Only||window._custSupmedOnly); }
 function _custCsvRows(){
   var list = _custFilteredList();
   var OPTS = (typeof _custOptList==='function') ? _custOptList() : [];
-  var head = ['店舗名(薬局名)','法人名','担当者','都道府県','住所','郵便番号','電話','利用Ver','機器台数(PC)','レセコン導入年月','購入方法','リース満了','紹介元'].concat(OPTS);
+  var head = ['店舗名(薬局名)','法人名','担当者','都道府県','住所','郵便番号','電話','利用Ver','機器台数(PC)','サプメド利用','レセコン導入年月','購入方法','リース満了','紹介元'].concat(OPTS);
   var rows = [head];
   list.forEach(function(c){
-    var base = [c.store||'', c.corp||'', c.rep||'', c.pref||'', c.addr||'', c.zip||'', c.tel||'', c.ver||'', c.pcCount||'', c.rececomInstallYm||'', c.purchaseMethod||'', c.leaseEndYm||'', c.referralRefId||''];
+    var base = [c.store||'', c.corp||'', c.rep||'', c.pref||'', c.addr||'', c.zip||'', c.tel||'', c.ver||'', c.pcCount||'', (c.supmed?'○':''), c.rececomInstallYm||'', c.purchaseMethod||'', c.leaseEndYm||'', c.referralRefId||''];
     var opts = OPTS.map(function(o){ return (c.options && c.options[o]) ? '●' : ''; });
     rows.push(base.concat(opts));
   });
@@ -25449,6 +25450,8 @@ function _custVer(c){
 function _custPc(c){ var n = parseInt(String((c && c.pcCount) || '').replace(/[^0-9]/g,''), 10); return isNaN(n) ? 0 : n; }
 // 「調剤くんV7利用中(=V8更新提案先)」だけに絞るトグル。
 function _custToggleV7(){ window._custV7Only = !window._custV7Only; window._custOpenKey=''; renderCustomers(); }
+// 🧪 サプメド(自社消耗品サイト)利用中の顧客だけに絞るトグル。
+function _custToggleSupmed(){ window._custSupmedOnly = !window._custSupmedOnly; window._custOpenKey=''; renderCustomers(); }
 function _custSetView(v){ window._custView = v; window._custOpenKey=''; renderCustomers(); }
 function _custToggleRow(k){ window._custOpenKey = (window._custOpenKey===k ? '' : k); renderCustomers(); }
 // 🔑 更新時期ビュー等から顧客をクリック→「顧客で見る」に切替え、その顧客の行を開いて画面内へスクロール＋一瞬ハイライト。
@@ -25626,10 +25629,13 @@ function renderCustomers(){
   var pref = window._custPref || '';
   var q = (window._custSearch||'').trim().toLowerCase();
   var v7only = !!window._custV7Only;
+  var supmedOnly = !!window._custSupmedOnly;
   // 🔧 V7利用件数(担当フィルタ内・更新提案先の母数)
   var _repScoped = rep ? custs.filter(function(c){ return c.rep===rep; }) : custs;
   var v7count = _repScoped.filter(function(c){ return _custVer(c)==='V7'; }).length;
-  var list = custs.filter(function(c){ return (!rep || c.rep===rep) && (!pref || c.pref===pref) && _custMatchSearch(c, q) && (!v7only || _custVer(c)==='V7'); });
+  // 🧪 サプメド利用件数(担当フィルタ内)
+  var supmedCount = _repScoped.filter(function(c){ return c.supmed; }).length;
+  var list = custs.filter(function(c){ return (!rep || c.rep===rep) && (!pref || c.pref===pref) && _custMatchSearch(c, q) && (!v7only || _custVer(c)==='V7') && (!supmedOnly || c.supmed); });
   // 🗾 都道府県セレクトの選択肢を生成(全顧客の実在都道府県から)
   var prefEl = document.getElementById('customers-pref');
   if (prefEl){
@@ -25649,7 +25655,7 @@ function renderCustomers(){
   if (!window._custView) window._custView = 'cust';
   var view = window._custView, openKey = window._custOpenKey || '';
   var avg = list.length ? (list.reduce(function(a,c){ return a + optCount(c); }, 0)/list.length) : 0;
-  var h = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">';
+  var h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">';
   h += _mikaiCard('顧客数', fmtN(list.length), 'var(--s3)', 'var(--tx)');
   h += _mikaiCard('担当者数', String(reps.length), '#e6f1fb', '#185fa5');
   h += _mikaiCard('平均導入オプション', avg.toFixed(1)+' / '+OPTS.length, '#eaf3de', '#3b6d11');
@@ -25657,6 +25663,10 @@ function renderCustomers(){
   h += '<div onclick="_custToggleV7()" title="クリックでV7利用中(更新提案先)だけに絞り込み" style="background:'+(v7only?'#f6e0cf':'#fdf3e4')+';border:'+(v7only?'2px solid #d98c3a':'1px solid #f0dcc0')+';border-radius:9px;padding:11px 13px;cursor:pointer">'
     + '<div style="font-size:12px;color:#8a5a1a">🔶 V7利用(更新提案)'+(v7only?' <span style="font-size:10px;background:#d98c3a;color:#fff;border-radius:6px;padding:0 5px">絞込中</span>':'')+'</div>'
     + '<div style="font-size:22px;font-weight:800;color:#a5652a">'+fmtN(v7count)+'<span style="font-size:12px;color:#b98a5a"> 件</span></div></div>';
+  // 🧪 サプメド利用。クリックでサプメド利用顧客だけに絞り込み。
+  h += '<div onclick="_custToggleSupmed()" title="クリックでサプメド利用中の顧客だけに絞り込み" style="background:'+(supmedOnly?'#dfe2f6':'#eef0fb')+';border:'+(supmedOnly?'2px solid #5a5fc0':'1px solid #cdd2f0')+';border-radius:9px;padding:11px 13px;cursor:pointer">'
+    + '<div style="font-size:12px;color:#4a4fb0">🧪 サプメド利用'+(supmedOnly?' <span style="font-size:10px;background:#5a5fc0;color:#fff;border-radius:6px;padding:0 5px">絞込中</span>':'')+'</div>'
+    + '<div style="font-size:22px;font-weight:800;color:#4a4fb0">'+fmtN(supmedCount)+'<span style="font-size:12px;color:#8a8fce"> 件</span></div></div>';
   h += '</div>';
   // ビュー切替
   function vbtn(v,lab){ var on=view===v; return '<button onclick="_custSetView(\''+v+'\')" style="font-size:13px;font-weight:700;padding:6px 15px;border:none;border-radius:8px;cursor:pointer;'+(on?'background:var(--acc);color:#fff':'background:none;color:var(--tx2)')+'">'+lab+'</button>'; }
@@ -25679,6 +25689,7 @@ function renderCustomers(){
       var ver=_custVer(c), pc=_custPc(c);  // 🔧 利用バージョン・機器台数
       var verBadge = ver==='V7' ? '<span style="font-size:10px;background:#fdf3e4;color:#a5652a;border:1px solid #e6c79a;border-radius:7px;padding:1px 6px;margin-left:6px;white-space:nowrap">🔶V7 更新提案</span>'
                    : ver==='V8' ? '<span style="font-size:10px;background:#eaf3de;color:#3b6d11;border:1px solid #cfe0b4;border-radius:7px;padding:1px 6px;margin-left:6px">V8</span>' : '';
+      var supmedBadge = c.supmed ? '<span title="自社消耗品サイト サプメド 利用中" style="font-size:10px;background:#eef0fb;color:#4a4fb0;border:1px solid #cdd2f0;border-radius:7px;padding:1px 6px;margin-left:6px;white-space:nowrap">🧪サプメド</span>' : '';
       var pcBadge = pc>0 ? '<span title="機器台数(PC)">💻'+pc+'台</span>' : '';
       var pct=OPTS.length?Math.round(done/OPTS.length*100):0;
       var chips=doneOpts.slice(0,3).map(function(o){ return '<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:#eaf3de;color:#3b6d11;border:1px solid #cfe0b4;white-space:nowrap">'+_esc(o)+'</span>'; }).join('');
@@ -25690,7 +25701,7 @@ function renderCustomers(){
       return '<div data-ck="'+encodeURIComponent(key)+'" style="background:var(--s1);border:1px solid var(--bd);border-radius:11px;margin-bottom:8px;overflow:hidden">'
         + '<div onclick="_custToggleRow(\''+kk+'\')" style="display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer">'
           + '<span style="color:var(--tx3);font-size:12px;display:inline-block;'+(open?'transform:rotate(90deg)':'')+'">▶</span>'
-          + '<div style="min-width:150px"><div style="font-size:14px;font-weight:800;display:flex;align-items:center;flex-wrap:wrap">'+_esc(c.store||'')+verBadge+'</div><div style="font-size:11px;color:var(--tx3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap"><span>📍'+_esc(c.pref||'')+'</span><span>👤'+_esc(c.rep||'—')+'</span>'+pcBadge+(linked.length?'<span style="color:var(--acc);font-weight:700">🔗'+linked.length+'</span>':'')+'</div></div>'
+          + '<div style="min-width:150px"><div style="font-size:14px;font-weight:800;display:flex;align-items:center;flex-wrap:wrap">'+_esc(c.store||'')+verBadge+supmedBadge+'</div><div style="font-size:11px;color:var(--tx3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap"><span>📍'+_esc(c.pref||'')+'</span><span>👤'+_esc(c.rep||'—')+'</span>'+pcBadge+(linked.length?'<span style="color:var(--acc);font-weight:700">🔗'+linked.length+'</span>':'')+'</div></div>'
           + '<div style="display:flex;align-items:center;gap:8px;min-width:110px"><div style="flex:1;height:8px;background:#efe9dd;border-radius:99px;overflow:hidden;min-width:44px"><div style="height:100%;background:#97c459;border-radius:99px;width:'+pct+'%"></div></div><span style="font-size:12px;font-weight:800;color:var(--grn);white-space:nowrap">'+done+'/'+OPTS.length+'</span></div>'
           + '<div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">'+(doneOpts.length?chips:'<span style="font-size:11px;padding:2px 9px;border-radius:9px;background:var(--s3);color:var(--tx3);border:1px dashed var(--bd)">導入なし</span>')+'</div>'
         + '</div>'
@@ -25929,6 +25940,11 @@ function openCustomerEdit(key){
           + '<div style="font-size:10px;color:var(--tx3);margin-top:2px">V7=V8アップデート営業の対象</div></div>'
         + fld('機器台数(PC)', 'ce-pc', val('pcCount'), '例) 3', false)
       + '</div>'
+      // 🧪 サプメド(自社消耗品サイト)利用有無 — 数字集計に非干渉の管理フラグ
+      + '<div style="margin-bottom:10px"><label style="display:block;font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:3px">🧪 サプメド利用</label>'
+        + '<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:8px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--s1);cursor:pointer">'
+          + '<input id="ce-supmed" type="checkbox"'+((c&&c.supmed)?' checked':'')+' style="width:17px;height:17px;cursor:pointer">'
+          + '<span>この顧客は自社消耗品サイト「サプメド」を利用中</span></label></div>'
       // 🖥 レセコン更新提案(導入5年で買替提案)
       + '<div style="border-top:1px dashed var(--bds);margin:4px 0 10px;padding-top:10px"><div style="font-size:11px;font-weight:800;color:var(--acc2);margin-bottom:7px">🖥 レセコン更新提案（導入5年で買替提案の対象に）</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">'
@@ -25964,8 +25980,9 @@ function saveCustomerEdit(key){
   if (!store){ if(typeof _showToast==='function') _showToast('店舗名を入力してください','warn',3000); var el=document.getElementById('ce-store'); if(el) el.focus(); return; }
   var isNew = !key;
   var now = Date.now();
+  function gc(id){ var el=document.getElementById(id); return !!(el && el.checked); }
   var fields = { store:store, corp:gv('ce-corp'), rep:gv('ce-rep'), pref:gv('ce-pref'), addr:gv('ce-addr'), zip:gv('ce-zip'), tel:gv('ce-tel'), ver:gv('ce-ver'), pcCount:gv('ce-pc'),
-    rececomInstallYm:_ymGet('ce-rececomYm'), purchaseMethod:gv('ce-pm'), leaseEndYm:_ymGet('ce-leaseYm'), referralRefId:gv('ce-refid') };
+    rececomInstallYm:_ymGet('ce-rececomYm'), purchaseMethod:gv('ce-pm'), leaseEndYm:_ymGet('ce-leaseYm'), referralRefId:gv('ce-refid'), supmed:gc('ce-supmed') };
   if (isNew){
     // 店舗名の重複チェック(マージキー=store のため同名は同一扱いになる)
     var dup = (D.customers||[]).some(function(x){ return (x.store||'')===store; });
