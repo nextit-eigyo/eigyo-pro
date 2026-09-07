@@ -11119,10 +11119,10 @@ function _printTable(title, headHtml, tableHtml){
 // 👥 顧客管理 CSV出力(現在の絞り込み[担当/県/検索/V7]に連動)。表示専用・数字集計に非干渉。
 function _custFilteredList(){
   var custs = D.customers || [];
-  var rep = window._custRep||'', pref = window._custPref||'', q=(window._custSearch||'').trim().toLowerCase(), v7only=!!window._custV7Only, supmedOnly=!!window._custSupmedOnly;
-  return custs.filter(function(c){ return (!rep||c.rep===rep) && (!pref||c.pref===pref) && (typeof _custMatchSearch!=='function'||_custMatchSearch(c,q)) && (!v7only||(typeof _custVer==='function'&&_custVer(c)==='V7')) && (!supmedOnly||c.supmed); });
+  var rep = window._custRep||'', pref = window._custPref||'', q=(window._custSearch||'').trim().toLowerCase(), v7only=!!window._custV7Only, smf=window._custSupmedFilter||'';
+  return custs.filter(function(c){ return (!rep||c.rep===rep) && (!pref||c.pref===pref) && (typeof _custMatchSearch!=='function'||_custMatchSearch(c,q)) && (!v7only||(typeof _custVer==='function'&&_custVer(c)==='V7')) && (smf===''||(smf==='yes'?!!c.supmed:!c.supmed)); });
 }
-function _custIsFiltered(){ return !!(window._custRep||window._custPref||(window._custSearch||'').trim()||window._custV7Only||window._custSupmedOnly); }
+function _custIsFiltered(){ return !!(window._custRep||window._custPref||(window._custSearch||'').trim()||window._custV7Only||(window._custSupmedFilter||'')); }
 function _custCsvRows(){
   var list = _custFilteredList();
   var OPTS = (typeof _custOptList==='function') ? _custOptList() : [];
@@ -11140,8 +11140,10 @@ function exportCustomersCsv(){
   if (!custs.length){ alert('顧客がいません'); return; }
   var rows = _custCsvRows();
   if (rows.length<=1){ alert('該当する顧客がいません(絞り込みを解除してください)'); return; }
+  var smf = window._custSupmedFilter||'';
+  var smTag = smf==='no' ? '_サプメド未利用' : smf==='yes' ? '_サプメド利用' : '';
   var suffix = _custIsFiltered() ? '_絞込'+(rows.length-1)+'件' : '_全'+(rows.length-1)+'件';
-  _downloadCsv('顧客台帳_'+_csvDateStamp()+suffix+'.csv', rows);
+  _downloadCsv('顧客台帳'+smTag+'_'+_csvDateStamp()+suffix+'.csv', rows);
 }
 function printCustomers(){
   var custs = D.customers || [];
@@ -25450,8 +25452,13 @@ function _custVer(c){
 function _custPc(c){ var n = parseInt(String((c && c.pcCount) || '').replace(/[^0-9]/g,''), 10); return isNaN(n) ? 0 : n; }
 // 「調剤くんV7利用中(=V8更新提案先)」だけに絞るトグル。
 function _custToggleV7(){ window._custV7Only = !window._custV7Only; window._custOpenKey=''; renderCustomers(); }
-// 🧪 サプメド(自社消耗品サイト)利用中の顧客だけに絞るトグル。
-function _custToggleSupmed(){ window._custSupmedOnly = !window._custSupmedOnly; window._custOpenKey=''; renderCustomers(); }
+// 🧪 サプメド絞込みを3段階で切替: 全部 → 利用中のみ → 未利用のみ(提案先) → 全部。
+function _custToggleSupmed(){
+  var f = window._custSupmedFilter || '';
+  window._custSupmedFilter = (f==='') ? 'yes' : (f==='yes') ? 'no' : '';
+  window._custOpenKey='';
+  renderCustomers();
+}
 function _custSetView(v){ window._custView = v; window._custOpenKey=''; renderCustomers(); }
 function _custToggleRow(k){ window._custOpenKey = (window._custOpenKey===k ? '' : k); renderCustomers(); }
 // 🔑 更新時期ビュー等から顧客をクリック→「顧客で見る」に切替え、その顧客の行を開いて画面内へスクロール＋一瞬ハイライト。
@@ -25629,13 +25636,16 @@ function renderCustomers(){
   var pref = window._custPref || '';
   var q = (window._custSearch||'').trim().toLowerCase();
   var v7only = !!window._custV7Only;
-  var supmedOnly = !!window._custSupmedOnly;
+  // 🧪 サプメド絞込み: '' = 全部 / 'yes' = 利用中のみ / 'no' = 未利用のみ(=提案先)
+  var supmedFilter = window._custSupmedFilter || '';
   // 🔧 V7利用件数(担当フィルタ内・更新提案先の母数)
   var _repScoped = rep ? custs.filter(function(c){ return c.rep===rep; }) : custs;
   var v7count = _repScoped.filter(function(c){ return _custVer(c)==='V7'; }).length;
-  // 🧪 サプメド利用件数(担当フィルタ内)
+  // 🧪 サプメド利用/未利用の件数(担当フィルタ内)
   var supmedCount = _repScoped.filter(function(c){ return c.supmed; }).length;
-  var list = custs.filter(function(c){ return (!rep || c.rep===rep) && (!pref || c.pref===pref) && _custMatchSearch(c, q) && (!v7only || _custVer(c)==='V7') && (!supmedOnly || c.supmed); });
+  var supmedMiss  = _repScoped.filter(function(c){ return !c.supmed; }).length;
+  var list = custs.filter(function(c){ return (!rep || c.rep===rep) && (!pref || c.pref===pref) && _custMatchSearch(c, q) && (!v7only || _custVer(c)==='V7')
+    && (supmedFilter==='' || (supmedFilter==='yes' ? !!c.supmed : !c.supmed)); });
   // 🗾 都道府県セレクトの選択肢を生成(全顧客の実在都道府県から)
   var prefEl = document.getElementById('customers-pref');
   if (prefEl){
@@ -25663,10 +25673,20 @@ function renderCustomers(){
   h += '<div onclick="_custToggleV7()" title="クリックでV7利用中(更新提案先)だけに絞り込み" style="background:'+(v7only?'#f6e0cf':'#fdf3e4')+';border:'+(v7only?'2px solid #d98c3a':'1px solid #f0dcc0')+';border-radius:9px;padding:11px 13px;cursor:pointer">'
     + '<div style="font-size:12px;color:#8a5a1a">🔶 V7利用(更新提案)'+(v7only?' <span style="font-size:10px;background:#d98c3a;color:#fff;border-radius:6px;padding:0 5px">絞込中</span>':'')+'</div>'
     + '<div style="font-size:22px;font-weight:800;color:#a5652a">'+fmtN(v7count)+'<span style="font-size:12px;color:#b98a5a"> 件</span></div></div>';
-  // 🧪 サプメド利用。クリックでサプメド利用顧客だけに絞り込み。
-  h += '<div onclick="_custToggleSupmed()" title="クリックでサプメド利用中の顧客だけに絞り込み" style="background:'+(supmedOnly?'#dfe2f6':'#eef0fb')+';border:'+(supmedOnly?'2px solid #5a5fc0':'1px solid #cdd2f0')+';border-radius:9px;padding:11px 13px;cursor:pointer">'
-    + '<div style="font-size:12px;color:#4a4fb0">🧪 サプメド利用'+(supmedOnly?' <span style="font-size:10px;background:#5a5fc0;color:#fff;border-radius:6px;padding:0 5px">絞込中</span>':'')+'</div>'
-    + '<div style="font-size:22px;font-weight:800;color:#4a4fb0">'+fmtN(supmedCount)+'<span style="font-size:12px;color:#8a8fce"> 件</span></div></div>';
+  // 🧪 サプメド。クリックで 全部→利用中→未利用(提案先)→全部 を切替。
+  var _smActive = supmedFilter!=='';
+  var _smBig = supmedFilter==='no' ? supmedMiss : supmedCount;           // 表示中モードの件数を大きく
+  var _smLab = supmedFilter==='yes' ? '🧪 サプメド利用中だけ'
+             : supmedFilter==='no'  ? '🧪 サプメド未利用だけ(提案先)'
+             : '🧪 サプメド';
+  var _smBadge = _smActive ? ' <span style="font-size:10px;background:#5a5fc0;color:#fff;border-radius:6px;padding:0 5px">絞込中</span>' : '';
+  var _smSub = supmedFilter==='no' ? ('利用中 '+fmtN(supmedCount)+'件')
+             : supmedFilter==='yes' ? ('未利用 '+fmtN(supmedMiss)+'件')
+             : ('利用 '+fmtN(supmedCount)+' / 未利用 '+fmtN(supmedMiss));
+  h += '<div onclick="_custToggleSupmed()" title="クリックで 全部→利用中→未利用(提案先)→全部 を切替" style="background:'+(_smActive?'#dfe2f6':'#eef0fb')+';border:'+(_smActive?'2px solid #5a5fc0':'1px solid #cdd2f0')+';border-radius:9px;padding:11px 13px;cursor:pointer">'
+    + '<div style="font-size:12px;color:#4a4fb0">'+_smLab+_smBadge+'</div>'
+    + '<div style="font-size:22px;font-weight:800;color:#4a4fb0">'+fmtN(_smBig)+'<span style="font-size:12px;color:#8a8fce"> 件</span></div>'
+    + '<div style="font-size:10px;color:#8a8fce;margin-top:1px">'+_smSub+'</div></div>';
   h += '</div>';
   // ビュー切替
   function vbtn(v,lab){ var on=view===v; return '<button onclick="_custSetView(\''+v+'\')" style="font-size:13px;font-weight:700;padding:6px 15px;border:none;border-radius:8px;cursor:pointer;'+(on?'background:var(--acc);color:#fff':'background:none;color:var(--tx2)')+'">'+lab+'</button>'; }
